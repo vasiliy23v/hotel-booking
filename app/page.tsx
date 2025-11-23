@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Eye, EyeOff, Mail, Phone, X } from 'lucide-react';
+import { Building2, Eye, EyeOff, Mail, Phone } from 'lucide-react';
 import { api } from '@/lib/api';
-import type { User } from '@/types';
 
 export default function Home() {
   const router = useRouter();
@@ -16,93 +15,6 @@ export default function Home() {
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // Подтверждение email
-  const [showVerificationModal, setShowVerificationModal] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
-  const [verificationError, setVerificationError] = useState('');
-  const [verificationLoading, setVerificationLoading] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState('');
-  const [pendingUserData, setPendingUserData] = useState<any>(null);
-
-  const handleSendVerificationCode = async () => {
-    if (!email) {
-      setVerificationError('Email обязателен');
-      return;
-    }
-
-    setVerificationLoading(true);
-    setVerificationError('');
-
-    try {
-      const response = await fetch('/api/auth/verify-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setVerificationError(data.error || 'Ошибка отправки кода');
-        return;
-      }
-
-      // Показываем код только в демо-режиме
-      if (data.demo && data.code) {
-        setGeneratedCode(data.code);
-      }
-      setShowVerificationModal(true);
-    } catch (error: any) {
-      setVerificationError('Ошибка отправки кода подтверждения');
-    } finally {
-      setVerificationLoading(false);
-    }
-  };
-
-  const handleVerifyCode = async () => {
-    if (!verificationCode || verificationCode.length !== 6) {
-      setVerificationError('Введите 6-значный код');
-      return;
-    }
-
-    setVerificationLoading(true);
-    setVerificationError('');
-
-    try {
-      const response = await fetch('/api/auth/verify-email', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: verificationCode })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setVerificationError(data.error || 'Неверный код');
-        return;
-      }
-
-      // Код подтвержден, завершаем регистрацию
-      await completeRegistration();
-    } catch (error: any) {
-      setVerificationError('Ошибка проверки кода');
-    } finally {
-      setVerificationLoading(false);
-    }
-  };
-
-  const completeRegistration = async () => {
-    try {
-      const newUser = await api.createUser(pendingUserData);
-      localStorage.setItem('currentUser', JSON.stringify(newUser));
-      setShowVerificationModal(false);
-      router.push('/dashboard');
-    } catch (error: any) {
-      setAuthError(error.message || 'Ошибка регистрации');
-      setShowVerificationModal(false);
-    }
-  };
 
   const handleAuth = async () => {
     setLoading(true);
@@ -122,20 +34,19 @@ export default function Home() {
           return;
         }
 
-        // Сохраняем данные для регистрации
-        setPendingUserData({
+        // Создаем пользователя напрямую
+        const newUser = await api.createUser({
           email,
           name,
           phone: phone || undefined,
           password,
           role: 'guest'
         });
-
-        // Отправляем код подтверждения
-        await handleSendVerificationCode();
+        localStorage.setItem('currentUser', JSON.stringify(newUser));
+        router.push('/dashboard');
       }
-    } catch (error: any) {
-      setAuthError(error.message || 'Ошибка аутентификации');
+    } catch (error: unknown) {
+      setAuthError(error instanceof Error ? error.message : 'Ошибка аутентификации');
     } finally {
       setLoading(false);
     }
@@ -274,100 +185,6 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/10"></div>
       </div>
 
-      {/* Модальное окно подтверждения email */}
-      {showVerificationModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">Подтверждение email</h2>
-              <button
-                onClick={() => {
-                  setShowVerificationModal(false);
-                  setVerificationCode('');
-                  setVerificationError('');
-                  setGeneratedCode('');
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-gray-600 mb-4">
-              Код подтверждения отправлен на <strong>{email}</strong>
-            </p>
-
-            {/* Показываем код только в демо-режиме (когда SMTP не настроен) */}
-            {generatedCode && (
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs text-blue-800 font-semibold mb-1">⚠️ ДЕМО РЕЖИМ</p>
-                <p className="text-sm text-blue-700">
-                  Код подтверждения: <strong className="text-lg">{generatedCode}</strong>
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  SMTP не настроен. Для реальной отправки email настройте переменные окружения.
-                  <br />
-                  См. файл <code className="bg-blue-100 px-1 rounded">.env.example</code>
-                </p>
-              </div>
-            )}
-            
-            {!generatedCode && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-700">
-                  ✓ Код подтверждения отправлен на ваш email адрес
-                </p>
-                <p className="text-xs text-green-600 mt-1">
-                  Проверьте почту (включая папку "Спам") и введите полученный код
-                </p>
-              </div>
-            )}
-
-            <div className="mb-4">
-              <label className="block text-sm font-semibold mb-2 text-gray-700">
-                Введите код подтверждения
-              </label>
-              <input
-                type="text"
-                value={verificationCode}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                  setVerificationCode(value);
-                  setVerificationError('');
-                }}
-                placeholder="000000"
-                maxLength={6}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none text-center text-2xl tracking-widest font-mono"
-                autoFocus
-              />
-              {verificationError && (
-                <p className="text-red-500 text-xs mt-1">{verificationError}</p>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowVerificationModal(false);
-                  setVerificationCode('');
-                  setVerificationError('');
-                  setGeneratedCode('');
-                }}
-                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 rounded-lg font-semibold"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleVerifyCode}
-                disabled={verificationLoading || verificationCode.length !== 6}
-                className="flex-1 bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-lg font-semibold disabled:opacity-50"
-              >
-                {verificationLoading ? 'Проверка...' : 'Подтвердить'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -895,13 +895,5 @@
         }
       ]
     }
-  ],
-  "emailVerifications": [
-    {
-      "email": "cejal98298@chaineor.com",
-      "code": "513993",
-      "expiresAt": 1763592301615,
-      "createdAt": 1763591701616
-    }
   ]
 }
