@@ -260,14 +260,6 @@ export default function Home() {
           >
             {isLogin ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
           </button>
-
-          <div className="mt-4 p-3 bg-gray-100 rounded-lg text-xs text-gray-700 text-center">
-            💡 Тестовый доступ менеджера:<br />
-            Email: admin@hotel.com<br />
-            Пароль: admin123<br />
-            ivan@ivan.com<br />
-            Пароль: ivan@ivan.com<br />
-          </div>
         </div>
         </div>
       </div>
