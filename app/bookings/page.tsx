@@ -28,7 +28,7 @@ export default function BookingsPage() {
   
   // Модальное окно для оплаты
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedBookingForPayment, setSelectedBookingForPayment] = useState<BookingInfo | null>(null);
+  const [selectedBookingForPayment, setSelectedBookingForPayment] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string }) | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer'>('cash');
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
 
@@ -107,6 +107,8 @@ export default function BookingsPage() {
   };
 
   const handleOpenPaymentModal = (booking: BookingInfo) => {
+    // Находим обогащенное бронирование из массива bookings, которое содержит roomNumber
+    const enrichedBooking = bookings.find(b => b.id === booking.id) || booking;
     const room = rooms.find(r => r.id === booking.roomId);
     if (room && room.price) {
       const checkIn = new Date(booking.checkIn);
@@ -116,7 +118,7 @@ export default function BookingsPage() {
     } else {
       setPaymentAmount(booking.amount || 0);
     }
-    setSelectedBookingForPayment(booking);
+    setSelectedBookingForPayment(enrichedBooking);
     setShowPaymentModal(true);
   };
 

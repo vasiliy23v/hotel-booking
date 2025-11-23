@@ -44,8 +44,7 @@ export const initData = () => {
           floors: 3
         }
       ],
-      bookings: [],
-      stairs: []
+      bookings: []
     };
     fs.writeFileSync(DATA_FILE, JSON.stringify(defaultData, null, 2));
   }

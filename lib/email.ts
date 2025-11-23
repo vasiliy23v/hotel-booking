@@ -34,7 +34,7 @@ const createTransporter = () => {
     return null;
   }
 
-  return nodemailer.createTransporter(smtpConfig);
+  return nodemailer.createTransport(smtpConfig);
 };
 
 /**

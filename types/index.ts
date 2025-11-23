@@ -55,7 +55,7 @@ export interface Stairs {
   position: { x: number; y: number };
   width: number;
   height: number;
-  direction: 'up' | 'down';
+  direction: 'up' | 'down' | 'both';
   targetFloor?: 'EG' | '1OG' | '2OG';
 }
 

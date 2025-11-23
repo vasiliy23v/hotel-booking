@@ -438,15 +438,15 @@ export default function FloorPlan({
         if (original) {
           // Существующая комната - сохраняем все изменения
           const result = onRoomUpdate(room);
-          if (result instanceof Promise) {
-            updatePromises.push(result);
+          if (result != null && typeof result === 'object' && 'then' in result) {
+            updatePromises.push(result as Promise<unknown>);
           }
         } else {
           // Новая комната - создаем через onRoomCreate
           if (onRoomCreate) {
             const result = onRoomCreate(room);
-            if (result instanceof Promise) {
-              updatePromises.push(result);
+            if (result != null && typeof result === 'object' && 'then' in result) {
+              updatePromises.push(result as Promise<unknown>);
             }
           }
         }
@@ -459,8 +459,8 @@ export default function FloorPlan({
       for (const room of deletedRooms) {
         // Помечаем комнату как удаленную
         const result = onRoomUpdate({ ...room, position: { x: -1000, y: -1000 } });
-        if (result instanceof Promise) {
-          updatePromises.push(result);
+        if (result != null && typeof result === 'object' && 'then' in result) {
+          updatePromises.push(result as Promise<unknown>);
         }
       }
 
