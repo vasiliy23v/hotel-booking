@@ -1,0 +1,907 @@
+{
+  "users": [
+    {
+      "id": "admin-1",
+      "email": "admin@hotel.com",
+      "name": "Admin",
+      "password": "admin123",
+      "role": "manager"
+    },
+    {
+      "id": "user-1763555682277",
+      "email": "ivan@ivan.com",
+      "name": "ivan@ivan.com",
+      "phone": "+4900000000",
+      "password": "ivan@ivan.com",
+      "role": "guest"
+    },
+    {
+      "id": "user-1763556132159",
+      "email": "ivan@inivan@inan.coman.com",
+      "name": "ivan@inan.com",
+      "phone": "+490000000",
+      "password": "ivan@inan.com",
+      "role": "guest"
+    },
+    {
+      "id": "user-1763591436443",
+      "email": "cejal98298@chaineor.com",
+      "name": "TESTMAIL",
+      "phone": "+4900000000",
+      "password": "cejal98298@chaineor.com",
+      "role": "guest"
+    }
+  ],
+  "rooms": [
+    {
+      "id": "hotel-1-h1-eg-1",
+      "number": "101",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "FZ",
+      "capacity": "до 4 чел.",
+      "maxCapacity": 4,
+      "beds": [
+        "1-DB",
+        "1-HB"
+      ],
+      "floor": "EG",
+      "price": 88,
+      "position": {
+        "x": -1000,
+        "y": -1000
+      },
+      "width": 120,
+      "height": 100,
+      "zIndex": 1,
+      "isCommon": false
+    },
+    {
+      "id": "hotel-1-h1-eg-2",
+      "number": "102",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "FZ",
+      "capacity": "до 4 чел.",
+      "maxCapacity": 4,
+      "beds": [
+        "1-DB",
+        "1-HB"
+      ],
+      "floor": "EG",
+      "price": 88,
+      "position": {
+        "x": -1000,
+        "y": -1000
+      },
+      "width": 120,
+      "height": 100,
+      "zIndex": 1,
+      "isCommon": false
+    },
+    {
+      "id": "hotel-1-h1-eg-3",
+      "number": "103",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "DZ",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [
+        "2-EB"
+      ],
+      "floor": "EG",
+      "price": 70,
+      "position": {
+        "x": -1000,
+        "y": -1000
+      },
+      "width": 120,
+      "height": 100,
+      "zIndex": 1,
+      "isCommon": false
+    },
+    {
+      "id": "hotel-1-h1-eg-4",
+      "number": "5",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "EZ",
+      "capacity": "1 чел.",
+      "maxCapacity": 1,
+      "beds": [
+        "1-DB",
+        "1-HB"
+      ],
+      "floor": "EG",
+      "price": 88,
+      "position": {
+        "x": 480,
+        "y": 20
+      },
+      "width": 80,
+      "height": 135,
+      "zIndex": 1,
+      "isCommon": false
+    },
+    {
+      "id": "hotel-1-h1-1og-1",
+      "number": "201",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "FZ",
+      "capacity": "до 4 чел.",
+      "maxCapacity": 4,
+      "beds": [
+        "2-EB",
+        "HB"
+      ],
+      "floor": "1OG",
+      "price": 88,
+      "position": {
+        "x": 120,
+        "y": 20
+      },
+      "width": 120,
+      "height": 100,
+      "zIndex": 1,
+      "isCommon": false
+    },
+    {
+      "id": "hotel-1-h1-1og-2",
+      "number": "202",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "DZ",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [
+        "DB"
+      ],
+      "floor": "1OG",
+      "price": 70,
+      "position": {
+        "x": 260,
+        "y": 20
+      },
+      "width": 120,
+      "height": 100,
+      "zIndex": 1,
+      "isCommon": false
+    },
+    {
+      "id": "hotel-1-h1-2og-1",
+      "number": "301",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "DZ",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [
+        "2-EB"
+      ],
+      "floor": "2OG",
+      "price": 70,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "width": 120,
+      "height": 100,
+      "zIndex": 1,
+      "isCommon": false
+    },
+    {
+      "id": "hotel-2-h2-eg-1",
+      "number": "101",
+      "hotelId": "hotel-2",
+      "name": "",
+      "type": "FZ",
+      "capacity": "до 4 чел.",
+      "maxCapacity": 4,
+      "beds": [
+        "1-DB",
+        "1-HB"
+      ],
+      "floor": "EG",
+      "price": 95,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "width": 120,
+      "height": 100,
+      "zIndex": 1,
+      "isCommon": false,
+      "booking": {
+        "id": "booking-1763596905980",
+        "roomId": "hotel-2-h2-eg-1",
+        "bookedBy": "ivan@ivan.com",
+        "bookedDate": "2025-11-20T00:01:45.964Z",
+        "email": "ivan@ivan.com",
+        "phone": "+4900000000",
+        "checkIn": "2025-11-20",
+        "checkOut": "2025-11-21",
+        "guests": [
+          {
+            "name": "ivan@ivan.com",
+            "email": "ivan@ivan.com",
+            "phone": "+4900000000"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hotel-2-h2-eg-2",
+      "number": "102",
+      "hotelId": "hotel-2",
+      "name": "",
+      "type": "DZ",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [
+        "2-EB"
+      ],
+      "floor": "EG",
+      "price": 75,
+      "position": {
+        "x": 130,
+        "y": 0
+      },
+      "width": 120,
+      "height": 100,
+      "zIndex": 1,
+      "isCommon": false
+    },
+    {
+      "id": "hotel-2-h2-1og-1",
+      "number": "201",
+      "hotelId": "hotel-2",
+      "name": "",
+      "type": "FZ",
+      "capacity": "до 6 чел.",
+      "maxCapacity": 6,
+      "beds": [
+        "2-DB",
+        "1-HB"
+      ],
+      "floor": "1OG",
+      "price": 130,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "width": 120,
+      "height": 100,
+      "zIndex": 1,
+      "isCommon": false
+    },
+    {
+      "id": "room-1763558382400",
+      "number": "001",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "DZ",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 70,
+      "position": {
+        "x": 120,
+        "y": 20
+      },
+      "width": 80,
+      "height": 60,
+      "isCommon": false,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763558402943-80tsm9s6j",
+      "number": "002",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "DZ",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 70,
+      "position": {
+        "x": 220,
+        "y": 20
+      },
+      "width": 80,
+      "height": 60,
+      "isCommon": false,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763558428863-mpjwo3gtv",
+      "number": "003",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "DZ",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 70,
+      "position": {
+        "x": 120,
+        "y": 100
+      },
+      "width": 80,
+      "height": 60,
+      "isCommon": false,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763558479801",
+      "number": "WC",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "COMMON",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 0,
+      "position": {
+        "x": 220,
+        "y": 100
+      },
+      "width": 36,
+      "height": 60,
+      "isCommon": true,
+      "zIndex": 1,
+      "description": "WC"
+    },
+    {
+      "id": "room-1763558542471",
+      "number": "Schlaf Sofa + Ku",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "COMMON",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 0,
+      "position": {
+        "x": 320,
+        "y": 20
+      },
+      "width": 80,
+      "height": 136,
+      "isCommon": true,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763558592983",
+      "number": "Rezeption",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "COMMON",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 0,
+      "position": {
+        "x": 120,
+        "y": 180
+      },
+      "width": 146,
+      "height": 60,
+      "isCommon": true,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763558622878",
+      "number": "Restaurant",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "COMMON",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 0,
+      "position": {
+        "x": 280,
+        "y": 180
+      },
+      "width": 120,
+      "height": 100,
+      "isCommon": true,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763559284063-0ufj81hnq",
+      "number": "4",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "EZ",
+      "capacity": "1 чел.",
+      "maxCapacity": 1,
+      "beds": [
+        "1-DB",
+        "1-HB"
+      ],
+      "floor": "EG",
+      "price": 88,
+      "position": {
+        "x": 580,
+        "y": 20
+      },
+      "width": 80,
+      "height": 135,
+      "isCommon": false,
+      "zIndex": 1,
+      "booking": {
+        "id": "booking-1763567719293",
+        "roomId": "room-1763559284063-0ufj81hnq",
+        "bookedBy": "Admin",
+        "bookedDate": "2025-11-19T15:55:18.899Z",
+        "email": "admin@hotel.com",
+        "phone": "+490000000",
+        "checkIn": "2025-11-19",
+        "checkOut": "2025-11-20",
+        "guests": [
+          {
+            "name": "-",
+            "email": "mmm@mmm.com",
+            "phone": "-"
+          }
+        ]
+      }
+    },
+    {
+      "id": "room-1763559399084-s8lezboan",
+      "number": "10",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "EZ",
+      "capacity": "1 чел.",
+      "maxCapacity": 1,
+      "beds": [
+        "1-DB",
+        "1-HB"
+      ],
+      "floor": "EG",
+      "price": 88,
+      "position": {
+        "x": 740,
+        "y": 20
+      },
+      "width": 80,
+      "height": 135,
+      "isCommon": false,
+      "zIndex": 1,
+      "booking": {
+        "id": "booking-1763596594272",
+        "roomId": "room-1763559399084-s8lezboan",
+        "bookedBy": "ivan@ivan.com",
+        "bookedDate": "2025-11-19T23:56:34.255Z",
+        "email": "ivan@ivan.com",
+        "phone": "+4900000000",
+        "checkIn": "2025-11-20",
+        "checkOut": "2025-11-21",
+        "guests": [
+          {
+            "name": "ivan@ivan.com",
+            "email": "ivan@ivan.com",
+            "phone": "+4900000000"
+          }
+        ],
+        "isConfirmed": true,
+        "confirmedBy": "ivan@ivan.com",
+        "confirmedDate": "2025-11-19T23:56:38.295Z",
+        "isPaid": true,
+        "paymentMethod": "cash",
+        "paymentDate": "2025-11-20T00:00:17.039Z",
+        "paidBy": "Admin",
+        "amount": 88
+      }
+    },
+    {
+      "id": "room-1763559419872-6sp71lezd",
+      "number": "9",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "EZ",
+      "capacity": "1 чел.",
+      "maxCapacity": 1,
+      "beds": [
+        "1-DB",
+        "1-HB"
+      ],
+      "floor": "EG",
+      "price": 88,
+      "position": {
+        "x": 840,
+        "y": 20
+      },
+      "width": 80,
+      "height": 135,
+      "isCommon": false,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763559458589-v7tgqvlgo",
+      "number": "2",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "EZ",
+      "capacity": "1 чел.",
+      "maxCapacity": 1,
+      "beds": [
+        "1-DB",
+        "1-HB"
+      ],
+      "floor": "EG",
+      "price": 88,
+      "position": {
+        "x": 480,
+        "y": 340
+      },
+      "width": 80,
+      "height": 135,
+      "isCommon": false,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763559491399-nzjgk4xqg",
+      "number": "6",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "EZ",
+      "capacity": "1 чел.",
+      "maxCapacity": 1,
+      "beds": [
+        "1-DB",
+        "1-HB"
+      ],
+      "floor": "EG",
+      "price": 88,
+      "position": {
+        "x": 680,
+        "y": 340
+      },
+      "width": 80,
+      "height": 135,
+      "isCommon": false,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763559482492-1mscb6wcd",
+      "number": "3",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "EZ",
+      "capacity": "1 чел.",
+      "maxCapacity": 1,
+      "beds": [
+        "1-DB",
+        "1-HB"
+      ],
+      "floor": "EG",
+      "price": 88,
+      "position": {
+        "x": 580,
+        "y": 340
+      },
+      "width": 80,
+      "height": 135,
+      "isCommon": false,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763559514561-s2ib63e1e",
+      "number": "7",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "EZ",
+      "capacity": "1 чел.",
+      "maxCapacity": 1,
+      "beds": [
+        "1-DB",
+        "1-HB"
+      ],
+      "floor": "EG",
+      "price": 88,
+      "position": {
+        "x": 780,
+        "y": 340
+      },
+      "width": 80,
+      "height": 135,
+      "isCommon": false,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763559522297-a9m8wqekj",
+      "number": "8",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "EZ",
+      "capacity": "1 чел.",
+      "maxCapacity": 1,
+      "beds": [
+        "1-DB",
+        "1-HB"
+      ],
+      "floor": "EG",
+      "price": 88,
+      "position": {
+        "x": 880,
+        "y": 340
+      },
+      "width": 80,
+      "height": 135,
+      "isCommon": false,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763559546299",
+      "number": "Eingang",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "COMMON",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 0,
+      "position": {
+        "x": 0,
+        "y": 180
+      },
+      "width": 68,
+      "height": 172,
+      "isCommon": true,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763559705208",
+      "number": "WC",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "COMMON",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 0,
+      "position": {
+        "x": 120,
+        "y": 320
+      },
+      "width": 41,
+      "height": 42,
+      "isCommon": true,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763559740428-87l5erf0t",
+      "number": "DU",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "COMMON",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 0,
+      "position": {
+        "x": 260,
+        "y": 100
+      },
+      "width": 36,
+      "height": 60,
+      "isCommon": true,
+      "zIndex": 1,
+      "description": "WC"
+    },
+    {
+      "id": "room-1763559882814-531etl1w3",
+      "number": "WC-copy",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "COMMON",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 0,
+      "position": {
+        "x": -1000,
+        "y": -1000
+      },
+      "width": 38,
+      "height": 73,
+      "isCommon": true,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763559952187-4lnd6lcra",
+      "number": "WC",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "COMMON",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 0,
+      "position": {
+        "x": 120,
+        "y": 360
+      },
+      "width": 41,
+      "height": 42,
+      "isCommon": true,
+      "zIndex": 1
+    },
+    {
+      "id": "room-1763561544965-w24ho048c",
+      "number": "Ku",
+      "hotelId": "hotel-1",
+      "name": "",
+      "type": "COMMON",
+      "capacity": "2 чел.",
+      "maxCapacity": 2,
+      "beds": [],
+      "floor": "EG",
+      "price": 0,
+      "position": {
+        "x": 120,
+        "y": 400
+      },
+      "width": 41,
+      "height": 90,
+      "isCommon": true,
+      "zIndex": 1
+    }
+  ],
+  "stairs": [
+    {
+      "id": "stairs-1763557402869",
+      "hotelId": "hotel-1",
+      "floor": "EG",
+      "position": {
+        "x": 60,
+        "y": 20
+      },
+      "width": 40,
+      "height": 80,
+      "direction": "up",
+      "targetFloor": "1OG"
+    },
+    {
+      "id": "stairs-1763559272919-8loeertd0",
+      "hotelId": "hotel-1",
+      "floor": "EG",
+      "position": {
+        "x": 420,
+        "y": 80
+      },
+      "width": 40,
+      "height": 80,
+      "direction": "up",
+      "targetFloor": "1OG"
+    },
+    {
+      "id": "stairs-1763559389481-7env78fmq",
+      "hotelId": "hotel-1",
+      "floor": "EG",
+      "position": {
+        "x": 680,
+        "y": 80
+      },
+      "width": 40,
+      "height": 80,
+      "direction": "up",
+      "targetFloor": "1OG"
+    },
+    {
+      "id": "stairs-1763561015926",
+      "hotelId": "hotel-1",
+      "floor": "1OG",
+      "position": {
+        "x": 60,
+        "y": 20
+      },
+      "width": 40,
+      "height": 80,
+      "direction": "up",
+      "targetFloor": "2OG"
+    }
+  ],
+  "hotels": [
+    {
+      "id": "hotel-1",
+      "name": "Grand Hotel Düsseldorf",
+      "address": "Musterstraße 1, 40213 Düsseldorf",
+      "description": "Современный отель в центре города",
+      "floors": 3,
+      "image": "/hotels/1763593225657_images.jpeg"
+    },
+    {
+      "id": "hotel-2",
+      "name": "Riverside Hotel",
+      "address": "Rheinufer 10, 40213 Düsseldorf",
+      "description": "Отель с видом на Рейн"
+    }
+  ],
+  "bookings": [
+    {
+      "id": "booking-1763567719293",
+      "roomId": "room-1763559284063-0ufj81hnq",
+      "bookedBy": "Admin",
+      "bookedDate": "2025-11-19T15:55:18.899Z",
+      "email": "admin@hotel.com",
+      "phone": "+490000000",
+      "checkIn": "2025-11-19",
+      "checkOut": "2025-11-20",
+      "guests": [
+        {
+          "name": "-",
+          "email": "mmm@mmm.com",
+          "phone": "-"
+        }
+      ]
+    },
+    {
+      "id": "booking-1763596594272",
+      "roomId": "room-1763559399084-s8lezboan",
+      "bookedBy": "ivan@ivan.com",
+      "bookedDate": "2025-11-19T23:56:34.255Z",
+      "email": "ivan@ivan.com",
+      "phone": "+4900000000",
+      "checkIn": "2025-11-20",
+      "checkOut": "2025-11-21",
+      "guests": [
+        {
+          "name": "ivan@ivan.com",
+          "email": "ivan@ivan.com",
+          "phone": "+4900000000"
+        }
+      ],
+      "isConfirmed": true,
+      "confirmedBy": "ivan@ivan.com",
+      "confirmedDate": "2025-11-19T23:56:38.295Z",
+      "isPaid": true,
+      "paymentMethod": "cash",
+      "paymentDate": "2025-11-20T00:00:17.039Z",
+      "paidBy": "Admin",
+      "amount": 88
+    },
+    {
+      "id": "booking-1763596905980",
+      "roomId": "hotel-2-h2-eg-1",
+      "bookedBy": "ivan@ivan.com",
+      "bookedDate": "2025-11-20T00:01:45.964Z",
+      "email": "ivan@ivan.com",
+      "phone": "+4900000000",
+      "checkIn": "2025-11-20",
+      "checkOut": "2025-11-21",
+      "guests": [
+        {
+          "name": "ivan@ivan.com",
+          "email": "ivan@ivan.com",
+          "phone": "+4900000000"
+        }
+      ]
+    }
+  ],
+  "emailVerifications": [
+    {
+      "email": "cejal98298@chaineor.com",
+      "code": "513993",
+      "expiresAt": 1763592301615,
+      "createdAt": 1763591701616
+    }
+  ]
+}
