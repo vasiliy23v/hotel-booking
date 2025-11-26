@@ -36,7 +36,7 @@ export class ApiClient {
     return this.request<any[]>('/invites');
   }
 
-  async createInvite(name: string, expiresInDays?: number, createdBy?: string) {
+  async createInvite(name?: string, expiresInDays?: number, createdBy?: string) {
     return this.request<any>('/invites', {
       method: 'POST',
       body: JSON.stringify({ name, expiresInDays, createdBy }),

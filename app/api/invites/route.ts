@@ -42,12 +42,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    if (!name || !name.trim()) {
-      return NextResponse.json(
-        { error: 'Необходимо указать имя пользователя' },
-        { status: 400 }
-      );
-    }
+    // name опционален - если не указан, создается открытое приглашение
+    const inviteName = name?.trim() || '';
     
     const data = readData();
     
@@ -62,13 +58,15 @@ export async function POST(request: NextRequest) {
     
     // Проверяем, существует ли пользователь с таким именем
     // Если существует - блокируем его старый пароль, чтобы он был вынужден установить новый
-    const existingUser = data.users.find((u: User) => u.name?.trim() === name.trim());
-    
-    if (existingUser) {
-      // Генерируем случайный пароль, который никто не знает
-      // Это заблокирует вход со старым паролем
-      const randomPassword = crypto.randomBytes(32).toString('hex');
-      existingUser.password = randomPassword;
+    if (inviteName) {
+      const existingUser = data.users.find((u: User) => u.name?.trim() === inviteName);
+      
+      if (existingUser) {
+        // Генерируем случайный пароль, который никто не знает
+        // Это заблокирует вход со старым паролем
+        const randomPassword = crypto.randomBytes(32).toString('hex');
+        existingUser.password = randomPassword;
+      }
     }
     
     // Генерируем токен
@@ -86,7 +84,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
       expiresAt: expiresAt.toISOString(),
       used: false,
-      name: name.trim()
+      name: inviteName
     };
     
     if (!data.invites) {
