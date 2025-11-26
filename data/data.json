@@ -934,6 +934,15 @@
       "expiresAt": "2025-12-03T13:35:34.489Z",
       "used": false,
       "name": "Петров"
+    },
+    {
+      "id": "invite-1764165803283",
+      "token": "196bbcbf620712d232e6435944da8851bb4912dd0dac6f1eb93d1b63a65425e4",
+      "createdBy": "admin-1",
+      "createdAt": "2025-11-26T14:03:23.283Z",
+      "expiresAt": "2025-12-03T14:03:23.283Z",
+      "used": false,
+      "name": "Сидоров"
     }
   ]
 }

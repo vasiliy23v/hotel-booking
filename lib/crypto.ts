@@ -24,10 +24,32 @@ export function hashInviteToken(token: string): string {
  * Проверяет, соответствует ли токен хэшу
  */
 export function verifyInviteToken(token: string, hash: string): boolean {
-  const tokenHash = hashInviteToken(token);
-  return crypto.timingSafeEqual(
-    Buffer.from(tokenHash),
-    Buffer.from(hash)
-  );
+  if (!token || !hash) {
+    return false;
+  }
+  
+  try {
+    const tokenHash = hashInviteToken(token);
+    
+    // Проверяем, что хэши имеют одинаковую длину
+    if (tokenHash.length !== hash.length) {
+      return false;
+    }
+    
+    // Используем timingSafeEqual для защиты от timing attacks
+    // Оба хэша - это hex строки, преобразуем их в буферы для сравнения
+    const tokenHashBuffer = Buffer.from(tokenHash, 'hex');
+    const hashBuffer = Buffer.from(hash, 'hex');
+    
+    // Проверяем, что буферы имеют одинаковую длину (должно быть 32 байта для SHA256)
+    if (tokenHashBuffer.length !== hashBuffer.length) {
+      return false;
+    }
+    
+    return crypto.timingSafeEqual(tokenHashBuffer, hashBuffer);
+  } catch (error) {
+    // Если произошла ошибка (например, неверный формат hex), возвращаем false
+    return false;
+  }
 }
 

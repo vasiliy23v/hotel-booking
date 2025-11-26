@@ -20,13 +20,23 @@ export async function GET(request: NextRequest) {
     const invites = data.invites || [];
     
     // Ищем приглашение по токену
-    const invite = invites.find((inv: Invite) => {
+    let invite: Invite | undefined;
+    for (const inv of invites) {
       try {
-        return verifyInviteToken(token, inv.token);
-      } catch {
-        return false;
+        // Проверяем, что токен в базе данных существует и имеет правильный формат
+        if (!inv.token || typeof inv.token !== 'string') {
+          continue;
+        }
+        
+        if (verifyInviteToken(token, inv.token)) {
+          invite = inv;
+          break;
+        }
+      } catch (error) {
+        // Продолжаем поиск, если произошла ошибка при проверке
+        continue;
       }
-    });
+    }
     
     if (!invite) {
       return NextResponse.json(
