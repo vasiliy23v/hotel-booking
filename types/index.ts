@@ -98,5 +98,17 @@ export interface CashMonitoring {
   }>;
 }
 
+export interface Invite {
+  id: string;
+  token: string; // Хэшированный токен
+  createdBy: string; // ID пользователя, создавшего приглашение
+  createdAt: string; // Дата создания
+  expiresAt: string; // Дата истечения
+  used: boolean; // Использован ли токен
+  name: string; // Имя пользователя, для которого создано приглашение
+  usedBy?: string; // ID пользователя, использовавшего токен
+  usedAt?: string; // Дата использования
+}
+
 
 

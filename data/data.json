@@ -12,7 +12,7 @@
       "email": "ivan@ivan.com",
       "name": "ivan@ivan.com",
       "phone": "+4900000000",
-      "password": "ivan@ivan.com",
+      "password": "ivan@gmail.com",
       "role": "guest"
     },
     {
@@ -29,6 +29,13 @@
       "name": "TESTMAIL",
       "phone": "+4900000000",
       "password": "cejal98298@chaineor.com",
+      "role": "guest"
+    },
+    {
+      "id": "user-1764113711676",
+      "email": "nikolai.petrov@gmail.com",
+      "name": "Николай Петров",
+      "password": "admin123",
       "role": "guest"
     }
   ],
@@ -894,6 +901,30 @@
           "phone": "+4900000000"
         }
       ]
+    }
+  ],
+  "invites": [
+    {
+      "id": "invite-1764113668879",
+      "token": "daf2a6c0505fb1f383c633677023f7062d2695a0a8c5045fb5d76e5df90e294f",
+      "createdBy": "admin-1",
+      "createdAt": "2025-11-25T23:34:28.879Z",
+      "expiresAt": "2025-12-02T23:34:28.879Z",
+      "used": true,
+      "name": "Николай Петров",
+      "usedBy": "user-1764113711676",
+      "usedAt": "2025-11-25T23:35:11.676Z"
+    },
+    {
+      "id": "invite-1764118098260",
+      "token": "8dbf88565a57708be5ee3d2db10421077e49761e2335c00165f863cb608c7bae",
+      "createdBy": "admin-1",
+      "createdAt": "2025-11-26T00:48:18.260Z",
+      "expiresAt": "2025-11-27T00:48:18.260Z",
+      "used": true,
+      "name": "ivan@ivan.com",
+      "usedBy": "user-1763555682277",
+      "usedAt": "2025-11-26T00:49:01.216Z"
     }
   ]
 }

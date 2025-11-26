@@ -44,7 +44,8 @@ export const initData = () => {
           floors: 3
         }
       ],
-      bookings: []
+      bookings: [],
+      invites: []
     };
     fs.writeFileSync(DATA_FILE, JSON.stringify(defaultData, null, 2));
   }
@@ -54,11 +55,16 @@ export const initData = () => {
 export const readData = () => {
   try {
     initData();
-    const data = fs.readFileSync(DATA_FILE, 'utf-8');
-    return JSON.parse(data);
+    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+    // Обратная совместимость: добавляем invites, если его нет
+    if (!data.invites) {
+      data.invites = [];
+      writeData(data);
+    }
+    return data;
   } catch (error) {
     console.error('Error reading data:', error);
-    return { users: [], rooms: [], stairs: [], hotels: [], bookings: [] };
+    return { users: [], rooms: [], stairs: [], hotels: [], bookings: [], invites: [] };
   }
 };
 

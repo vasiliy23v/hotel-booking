@@ -31,6 +31,33 @@ export class ApiClient {
     });
   }
 
+  // Invites
+  async getInvites() {
+    return this.request<any[]>('/invites');
+  }
+
+  async createInvite(name: string, expiresInDays?: number, createdBy?: string) {
+    return this.request<any>('/invites', {
+      method: 'POST',
+      body: JSON.stringify({ name, expiresInDays, createdBy }),
+    });
+  }
+
+  async verifyInviteToken(token: string) {
+    return this.request<any>(`/invites/verify?token=${encodeURIComponent(token)}`);
+  }
+
+  async deleteInvite(id: string) {
+    return this.request(`/invites?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+  }
+
+  async recreateInvite(name: string, expiresInDays?: number, createdBy?: string) {
+    return this.request<any>('/invites/recreate', {
+      method: 'POST',
+      body: JSON.stringify({ name, expiresInDays, createdBy }),
+    });
+  }
+
   async updateUser(id: string, user: any) {
     return this.request<any>(`/users/${id}`, {
       method: 'PUT',
@@ -178,6 +205,14 @@ export class ApiClient {
 
   async deleteStairs(id: string) {
     return this.request(`/stairs/${id}`, { method: 'DELETE' });
+  }
+
+  // Password Reset
+  async resetPassword(inviteToken: string, password: string, confirmPassword: string, name?: string) {
+    return this.request<any>('/users/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ inviteToken, password, confirmPassword, name }),
+    });
   }
 }
 

@@ -40,6 +40,13 @@ export default function BookingsPage() {
     }
 
     const user = JSON.parse(userStr);
+    
+    // Менеджеры перенаправляются на CMS
+    if (user.role === 'manager') {
+      router.push('/cms/dashboard');
+      return;
+    }
+
     setCurrentUser(user);
     loadBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -229,6 +236,13 @@ export default function BookingsPage() {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
           <div className="flex justify-between items-center gap-2 sm:gap-4">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <Link
+                href="/dashboard"
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Назад к дашборду"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
               <Link href="/" prefetch={false} className="flex items-center gap-2 sm:gap-3 min-w-0 hover:opacity-80 transition-opacity">
                 <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 shrink-0" />
                 <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate cursor-pointer">Hotel Booking</h1>

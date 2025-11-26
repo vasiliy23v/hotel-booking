@@ -33,14 +33,16 @@ export default function BookingPage() {
     }
 
     const user = JSON.parse(userStr);
+    
+    // Менеджеры перенаправляются на CMS
+    if (user.role === 'manager') {
+      router.push('/cms/dashboard');
+      return;
+    }
+
     setCurrentUser(user);
     setEmail(user.email);
     setPhone(user.phone || '');
-
-    // Загружаем список пользователей для менеджера
-    if (user.role === 'manager') {
-      loadUsers();
-    }
 
     loadRoom();
   }, [router, roomId]);
