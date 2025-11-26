@@ -94,11 +94,15 @@ export async function POST(request: NextRequest) {
     data.invites.push(newInvite);
     writeData(data);
     
+    // Получаем текущий домен из запроса
+    const origin = new URL(request.url).origin;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || origin;
+    
     // Возвращаем токен только один раз при создании
     return NextResponse.json({
       id: newInvite.id,
       token, // Возвращаем незахэшированный токен для отправки пользователю
-      inviteUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/invite/${token}`,
+      inviteUrl: `${baseUrl}/invite/${token}`,
       expiresAt: newInvite.expiresAt,
       name: newInvite.name
     });
