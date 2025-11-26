@@ -79,7 +79,13 @@ export default function CMSDashboard() {
           {/* Navigation Menu */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             <button
-              onClick={() => setViewMode('hotels')}
+              onClick={() => {
+                setViewMode('hotels');
+                // Закрываем меню на мобильных устройствах
+                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                  setSidebarOpen(false);
+                }
+              }}
               className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
                 viewMode === 'hotels'
                   ? 'bg-gray-900 text-white'
@@ -90,7 +96,13 @@ export default function CMSDashboard() {
               <span>Отели</span>
             </button>
             <button
-              onClick={() => setViewMode('statistics')}
+              onClick={() => {
+                setViewMode('statistics');
+                // Закрываем меню на мобильных устройствах
+                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                  setSidebarOpen(false);
+                }
+              }}
               className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
                 viewMode === 'statistics'
                   ? 'bg-gray-900 text-white'
@@ -101,7 +113,13 @@ export default function CMSDashboard() {
               <span>Статистика</span>
             </button>
             <button
-              onClick={() => setViewMode('cash')}
+              onClick={() => {
+                setViewMode('cash');
+                // Закрываем меню на мобильных устройствах
+                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                  setSidebarOpen(false);
+                }
+              }}
               className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
                 viewMode === 'cash'
                   ? 'bg-gray-900 text-white'
@@ -112,7 +130,13 @@ export default function CMSDashboard() {
               <span>Наличные</span>
             </button>
             <button
-              onClick={() => setViewMode('users')}
+              onClick={() => {
+                setViewMode('users');
+                // Закрываем меню на мобильных устройствах
+                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                  setSidebarOpen(false);
+                }
+              }}
               className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
                 viewMode === 'users'
                   ? 'bg-gray-900 text-white'
@@ -123,7 +147,13 @@ export default function CMSDashboard() {
               <span>Пользователи</span>
             </button>
             <button
-              onClick={() => setViewMode('invites')}
+              onClick={() => {
+                setViewMode('invites');
+                // Закрываем меню на мобильных устройствах
+                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                  setSidebarOpen(false);
+                }
+              }}
               className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
                 viewMode === 'invites'
                   ? 'bg-gray-900 text-white'
@@ -134,7 +164,13 @@ export default function CMSDashboard() {
               <span>Приглашения</span>
             </button>
             <button
-              onClick={() => setViewMode('bookings')}
+              onClick={() => {
+                setViewMode('bookings');
+                // Закрываем меню на мобильных устройствах
+                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                  setSidebarOpen(false);
+                }
+              }}
               className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
                 viewMode === 'bookings'
                   ? 'bg-gray-900 text-white'
@@ -162,7 +198,7 @@ export default function CMSDashboard() {
       {/* Overlay for mobile */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-transparent z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}

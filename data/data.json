@@ -927,22 +927,22 @@
       "usedAt": "2025-11-26T00:49:01.216Z"
     },
     {
-      "id": "invite-1764164134489",
-      "token": "95eab3720338a50e022146de45ccd8aafc1f1b57ae70c04d67bc1d4aa077170d",
+      "id": "invite-1764168975459",
+      "token": "5c74b653950e2d2abeb8501375f036699d912a2b823a61f1a9592367d8f3a766",
       "createdBy": "admin-1",
-      "createdAt": "2025-11-26T13:35:34.489Z",
-      "expiresAt": "2025-12-03T13:35:34.489Z",
-      "used": false,
-      "name": "Петров"
-    },
-    {
-      "id": "invite-1764165803283",
-      "token": "196bbcbf620712d232e6435944da8851bb4912dd0dac6f1eb93d1b63a65425e4",
-      "createdBy": "admin-1",
-      "createdAt": "2025-11-26T14:03:23.283Z",
-      "expiresAt": "2025-12-03T14:03:23.283Z",
+      "createdAt": "2025-11-26T14:56:15.459Z",
+      "expiresAt": "2025-12-03T14:56:15.459Z",
       "used": false,
       "name": "Сидоров"
+    },
+    {
+      "id": "invite-1764169501942",
+      "token": "21450fcec8387f3e8805668ce03084562633524dddb7e7ad5f9b1602ea0cb430",
+      "createdBy": "admin-1",
+      "createdAt": "2025-11-26T15:05:01.942Z",
+      "expiresAt": "2025-12-03T15:05:01.941Z",
+      "used": false,
+      "name": "Петров"
     }
   ]
 }

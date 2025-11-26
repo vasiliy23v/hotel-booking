@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Mail, Plus, X, Copy, RefreshCw, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Mail, Plus, X, Copy, RefreshCw, CheckCircle, AlertCircle, Clock, Eye, EyeOff } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User, Invite } from '@/types';
 
@@ -13,6 +13,8 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
   const [expiresInDays, setExpiresInDays] = useState(7);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [newInviteToken, setNewInviteToken] = useState<string | null>(null);
+  const [visibleInviteUrl, setVisibleInviteUrl] = useState<string | null>(null);
+  const [inviteUrls, setInviteUrls] = useState<Record<string, string>>({});
 
   const loadInvites = async () => {
     try {
@@ -58,6 +60,10 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
       
       setNewInviteToken(invite.inviteUrl);
       setNewInviteName('');
+      // Автоматически копируем ссылку при создании
+      await navigator.clipboard.writeText(invite.inviteUrl);
+      setCopiedToken(invite.inviteUrl);
+      setTimeout(() => setCopiedToken(null), 2000);
       await loadInvites();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Ошибка при создании приглашения';
@@ -77,7 +83,22 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
         currentUser.id!
       );
       
+      // Сохраняем URL для этого приглашения
+      await loadInvites();
+      const updatedInvites = await api.getInvites();
+      const inviteId = updatedInvites.find((inv: Invite) => inv.name === name)?.id;
+      if (inviteId) {
+        setInviteUrls(prev => ({ ...prev, [inviteId]: invite.inviteUrl }));
+        // Автоматически показываем ссылку после регенерации
+        setVisibleInviteUrl(inviteId);
+      }
+      
       setNewInviteToken(invite.inviteUrl);
+      // Автоматически копируем ссылку при регенерации
+      await navigator.clipboard.writeText(invite.inviteUrl);
+      setCopiedToken(invite.inviteUrl);
+      setTimeout(() => setCopiedToken(null), 2000);
+      
       await loadInvites();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Ошибка при пересоздании приглашения';
@@ -137,11 +158,11 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
                 </tr>
               </thead>
               <tbody>
-                {invites.map((invite) => {
+                {invites.flatMap((invite) => {
                   const status = getInviteStatus(invite);
                   const StatusIcon = status.icon;
                   
-                  return (
+                  const rows: React.ReactElement[] = [
                     <tr
                       key={invite.id}
                       className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
@@ -186,6 +207,47 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-2">
+                          {/* Кнопка показать/скрыть ссылку */}
+                          <button
+                            onClick={() => {
+                              if (visibleInviteUrl === invite.id) {
+                                setVisibleInviteUrl(null);
+                              } else {
+                                // Если URL не сохранен, пытаемся получить его
+                                const savedUrl = inviteUrls[invite.id];
+                                if (savedUrl) {
+                                  setVisibleInviteUrl(invite.id);
+                                } else {
+                                  // Показываем сообщение, что ссылка доступна только при создании/регенерации
+                                  alert('Ссылка доступна только при создании или регенерации приглашения. Используйте кнопку регенерации для получения новой ссылки.');
+                                }
+                              }
+                            }}
+                            className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
+                            title={visibleInviteUrl === invite.id ? "Скрыть ссылку" : "Показать ссылку"}
+                          >
+                            {visibleInviteUrl === invite.id ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                          
+                          {/* Кнопка копирования ссылки */}
+                          {inviteUrls[invite.id] && (
+                            <button
+                              onClick={() => handleCopyLink(inviteUrls[invite.id])}
+                              className="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded"
+                              title="Копировать ссылку"
+                            >
+                              {copiedToken === inviteUrls[invite.id] ? (
+                                <CheckCircle className="w-4 h-4" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
+                          
                           {!invite.used && invite.name && (
                             <button
                               onClick={() => handleRecreateInvite(invite.name!)}
@@ -198,7 +260,44 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
                         </div>
                       </td>
                     </tr>
-                  );
+                  ];
+                  
+                  // Добавляем строку с инпутом для ссылки, если она видима
+                  if (visibleInviteUrl === invite.id && inviteUrls[invite.id]) {
+                    rows.push(
+                      <tr key={`${invite.id}-url`}>
+                        <td colSpan={6} className="px-3 py-3 bg-gray-50">
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              value={inviteUrls[invite.id]}
+                              readOnly
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                              onClick={(e) => (e.target as HTMLInputElement).select()}
+                            />
+                            <button
+                              onClick={() => handleCopyLink(inviteUrls[invite.id])}
+                              className="px-3 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg flex items-center gap-2 text-sm"
+                            >
+                              {copiedToken === inviteUrls[invite.id] ? (
+                                <>
+                                  <CheckCircle className="w-4 h-4" />
+                                  Скопировано
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-4 h-4" />
+                                  Копировать
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  
+                  return rows;
                 })}
               </tbody>
             </table>
@@ -207,7 +306,7 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
       </div>
 
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 sm:p-6">
               <div className="flex justify-between items-center mb-4">

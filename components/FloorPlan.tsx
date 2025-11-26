@@ -894,7 +894,7 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-lg max-w-2xl w-full my-8 max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="p-6">
           <h2 className="text-2xl font-bold mb-4">
@@ -1085,7 +1085,7 @@ function StairsEditModal({ stairs, hotelId, floor, onSave, onClose }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-lg max-w-md w-full my-8 max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="p-6">
           <h2 className="text-2xl font-bold mb-4">Редактировать ступени</h2>
