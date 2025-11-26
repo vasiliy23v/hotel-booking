@@ -75,8 +75,20 @@ export async function POST(request: NextRequest) {
     writeData(data);
     
     // Получаем текущий домен из запроса
-    const origin = new URL(request.url).origin;
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || origin;
+    // Используем заголовки для определения реального домена
+    const host = request.headers.get('host') || request.headers.get('x-forwarded-host');
+    const protocol = request.headers.get('x-forwarded-proto') || 
+                     (request.url.startsWith('https') ? 'https' : 'http');
+    
+    let baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    if (!baseUrl && host) {
+      baseUrl = `${protocol}://${host}`;
+    }
+    if (!baseUrl) {
+      // Fallback на origin из URL
+      const origin = new URL(request.url).origin;
+      baseUrl = origin;
+    }
     
     return NextResponse.json({
       id: newInvite.id,

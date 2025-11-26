@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
           continue;
         }
         
-        if (verifyInviteToken(token, inv.token)) {
+        // Проверяем токен
+        const isValid = verifyInviteToken(token, inv.token);
+        if (isValid) {
           invite = inv;
           break;
         }
@@ -39,6 +41,11 @@ export async function GET(request: NextRequest) {
     }
     
     if (!invite) {
+      // Логируем для отладки (только в development)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Токен не найден. Всего приглашений:', invites.length);
+        console.log('Искомый токен:', token?.substring(0, 20) + '...');
+      }
       return NextResponse.json(
         { error: 'Приглашение не найдено', valid: false },
         { status: 404 }

@@ -27,14 +27,26 @@ export default function InviteRegistrationPage() {
   // Проверка токена при загрузке страницы
   useEffect(() => {
     const validateToken = async () => {
-      if (!token) {
+      // Получаем токен из параметров (динамический маршрут [token])
+      const actualToken = (params?.token as string) || token;
+      
+      if (!actualToken) {
         setError('Токен приглашения не найден');
         setValidating(false);
         return;
       }
 
       try {
-        const response = await fetch(`/api/invites/verify?token=${encodeURIComponent(token)}`);
+        const response = await fetch(`/api/invites/verify?token=${encodeURIComponent(actualToken)}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Ошибка сервера' }));
+          setError(errorData.error || 'Ошибка при проверке приглашения');
+          setInviteValid(false);
+          setValidating(false);
+          return;
+        }
+        
         const data = await response.json();
 
         if (data.valid) {
@@ -48,7 +60,8 @@ export default function InviteRegistrationPage() {
           setError(data.error || 'Приглашение недействительно');
           setInviteValid(false);
         }
-      } catch {
+      } catch (error) {
+        console.error('Ошибка при проверке приглашения:', error);
         setError('Ошибка при проверке приглашения');
         setInviteValid(false);
       } finally {
@@ -56,8 +69,10 @@ export default function InviteRegistrationPage() {
       }
     };
 
-    validateToken();
-  }, [token]);
+    if (params) {
+      validateToken();
+    }
+  }, [token, params]);
 
   // Проверка существующего пользователя
   useEffect(() => {
