@@ -4,18 +4,32 @@
 
 import fs from 'fs';
 import path from 'path';
-import type { User, Room, Hotel, Stairs, BookingInfo } from '@/types';
 
-const DATA_FILE = path.join(process.cwd(), 'data', 'data.json');
+// На Vercel используем /tmp для записи, иначе data директорию
+const DATA_DIR = process.env.VERCEL 
+  ? '/tmp/data' 
+  : path.join(process.cwd(), 'data');
+const DATA_FILE = path.join(DATA_DIR, 'data.json');
 
 // Инициализация данных
 export const initData = () => {
-  const dataDir = path.join(process.cwd(), 'data');
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 
   if (!fs.existsSync(DATA_FILE)) {
+    // На Vercel пытаемся скопировать исходный файл из репозитория
+    const sourceFile = path.join(process.cwd(), 'data', 'data.json');
+    if (fs.existsSync(sourceFile)) {
+      try {
+        fs.copyFileSync(sourceFile, DATA_FILE);
+        return; // Файл скопирован, выходим
+      } catch (error) {
+        console.warn('Не удалось скопировать исходный файл данных:', error);
+      }
+    }
+    
+    // Если исходный файл не найден, создаем дефолтные данные
     const defaultData = {
       users: [
         {
@@ -69,12 +83,34 @@ export const readData = () => {
 };
 
 // Запись данных
-export const writeData = (data: any) => {
+export const writeData = (data: unknown) => {
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    // Проверяем, доступна ли файловая система для записи
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    
+    const jsonData = JSON.stringify(data, null, 2);
+    fs.writeFileSync(DATA_FILE, jsonData, 'utf-8');
+    
+    // Проверяем, что данные действительно записались
+    const verifyData = fs.readFileSync(DATA_FILE, 'utf-8');
+    if (verifyData !== jsonData) {
+      console.error('Данные не совпадают после записи');
+      return false;
+    }
+    
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as { message?: string; code?: string };
     console.error('Error writing data:', error);
+    console.error('Error details:', {
+      message: err.message,
+      code: err.code,
+      path: DATA_FILE,
+      cwd: process.cwd(),
+      isVercel: !!process.env.VERCEL
+    });
     return false;
   }
 };

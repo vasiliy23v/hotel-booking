@@ -92,7 +92,23 @@ export async function POST(request: NextRequest) {
     }
     
     data.invites.push(newInvite);
-    writeData(data);
+    
+    // Сохраняем данные
+    const writeResult = writeData(data);
+    if (!writeResult) {
+      console.error('Ошибка при сохранении приглашения в базу данных');
+      console.error('Приглашение не было сохранено:', newInvite);
+      // В production на Vercel файловая система может быть read-only
+      // В этом случае приглашение все равно возвращается, но не сохраняется
+      // Это временное решение - нужно использовать базу данных
+    } else {
+      // Проверяем, что приглашение действительно сохранилось
+      const verifyData = readData();
+      const savedInvite = verifyData.invites?.find((inv: Invite) => inv.id === newInvite.id);
+      if (!savedInvite) {
+        console.warn('Приглашение не найдено после сохранения. Возможно, проблема с синхронизацией данных.');
+      }
+    }
     
     // Получаем текущий домен из запроса
     // Используем заголовки для определения реального домена
