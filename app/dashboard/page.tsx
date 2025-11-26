@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Building2, Bed, Users, BarChart3, LogOut, Plus, Edit, Trash2, LayoutGrid, Filter, Calendar, Euro, X, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, DollarSign, Mail, Copy, RefreshCw, CheckCircle, AlertCircle, Clock, KeyRound, ArrowRight, Phone, Menu, BookOpen, List } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -65,35 +66,34 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
-  // Сохраняем состояние в localStorage при изменении
+  // Сохраняем состояние в localStorage при изменении (только после загрузки данных)
   useEffect(() => {
-    if (selectedHotel) {
-      localStorage.setItem('dashboard_selectedHotel', selectedHotel);
-    } else {
-      localStorage.removeItem('dashboard_selectedHotel');
+    if (dataLoaded) {
+      if (selectedHotel) {
+        localStorage.setItem('dashboard_selectedHotel', selectedHotel);
+      } else {
+        localStorage.removeItem('dashboard_selectedHotel');
+      }
     }
-  }, [selectedHotel]);
+  }, [selectedHotel, dataLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('dashboard_viewMode', viewMode);
-  }, [viewMode]);
-
-  useEffect(() => {
-    localStorage.setItem('dashboard_selectedFloor', selectedFloor);
-  }, [selectedFloor]);
-
-  useEffect(() => {
-    localStorage.setItem('dashboard_sidebarOpen', String(sidebarOpen));
-  }, [sidebarOpen]);
-
-  // Сохраняем состояние в localStorage при изменении
-  useEffect(() => {
-    if (selectedHotel) {
-      localStorage.setItem('dashboard_selectedHotel', selectedHotel);
-    } else {
-      localStorage.removeItem('dashboard_selectedHotel');
+    if (dataLoaded) {
+      localStorage.setItem('dashboard_viewMode', viewMode);
     }
-  }, [selectedHotel]);
+  }, [viewMode, dataLoaded]);
+
+  useEffect(() => {
+    if (dataLoaded) {
+      localStorage.setItem('dashboard_selectedFloor', selectedFloor);
+    }
+  }, [selectedFloor, dataLoaded]);
+
+  useEffect(() => {
+    if (dataLoaded) {
+      localStorage.setItem('dashboard_sidebarOpen', String(sidebarOpen));
+    }
+  }, [sidebarOpen, dataLoaded]);
 
   useEffect(() => {
     localStorage.setItem('dashboard_viewMode', viewMode);
@@ -136,31 +136,36 @@ export default function Dashboard() {
 
       // Восстанавливаем состояние из localStorage только после загрузки данных
       if (!dataLoaded) {
-        // Восстанавливаем режим просмотра
+        // Восстанавливаем все состояния синхронно в одном батче
         const savedViewMode = localStorage.getItem('dashboard_viewMode');
+        const savedFloor = localStorage.getItem('dashboard_selectedFloor');
+        const savedSidebar = localStorage.getItem('dashboard_sidebarOpen');
+        const savedHotel = localStorage.getItem('dashboard_selectedHotel');
+
+        // Применяем все изменения состояния одновременно
         if (savedViewMode === 'plan' || savedViewMode === 'list') {
           setViewMode(savedViewMode);
         }
-
-        // Восстанавливаем этаж
-        const savedFloor = localStorage.getItem('dashboard_selectedFloor');
         if (savedFloor === 'EG' || savedFloor === '1OG' || savedFloor === '2OG') {
           setSelectedFloor(savedFloor);
         }
-
-        // Восстанавливаем состояние боковой панели
-        const savedSidebar = localStorage.getItem('dashboard_sidebarOpen');
         if (savedSidebar !== null) {
           setSidebarOpen(savedSidebar === 'true');
         }
-
-        // Восстанавливаем выбранный отель, если он существует
-        const savedHotel = localStorage.getItem('dashboard_selectedHotel');
-        if (savedHotel && hotelsData.find(h => h.id === savedHotel)) {
-          setSelectedHotel(savedHotel);
+        if (savedHotel) {
+          const hotelExists = hotelsData.find(h => h.id === savedHotel);
+          if (hotelExists) {
+            setSelectedHotel(savedHotel);
+          } else {
+            // Если отель не найден, очищаем из localStorage
+            localStorage.removeItem('dashboard_selectedHotel');
+          }
         }
 
-        setDataLoaded(true);
+        // Устанавливаем флаг загрузки данных синхронно, чтобы все обновления состояния применились
+        flushSync(() => {
+          setDataLoaded(true);
+        });
       } else {
         // Проверяем, что выбранный отель все еще существует (при обновлении данных)
         if (selectedHotel && !hotelsData.find(h => h.id === selectedHotel)) {
@@ -171,6 +176,7 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Error loading data:', error);
+      setDataLoaded(true); // Устанавливаем флаг даже при ошибке, чтобы не блокировать UI
     } finally {
       setLoading(false);
     }
