@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData, writeData } from '@/lib/data';
-import type { Stairs } from '@/types';
+import { getStairsById, updateStairs, deleteStairs } from '@/lib/db';
 
 // GET /api/stairs/[id]
 export async function GET(
@@ -9,8 +8,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const data = readData();
-    const stairs = data.stairs?.find((s: Stairs) => s.id === id);
+    const stairs = await getStairsById(id);
     
     if (!stairs) {
       return NextResponse.json({ error: 'Stairs not found' }, { status: 404 });
@@ -30,18 +28,13 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const data = readData();
-    const index = data.stairs?.findIndex((s: Stairs) => s.id === id) ?? -1;
+    const updatedStairs = await updateStairs(id, body);
     
-    if (index === -1) {
+    return NextResponse.json(updatedStairs);
+  } catch (error: any) {
+    if (error.message === 'Лестница не найдена') {
       return NextResponse.json({ error: 'Stairs not found' }, { status: 404 });
     }
-    
-    data.stairs[index] = { ...data.stairs[index], ...body };
-    writeData(data);
-    
-    return NextResponse.json(data.stairs[index]);
-  } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -53,9 +46,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const data = readData();
-    data.stairs = data.stairs?.filter((s: Stairs) => s.id !== id) || [];
-    writeData(data);
+    await deleteStairs(id);
     
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -2,25 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, BarChart3, DollarSign, Mail, Users, LogOut, ArrowLeft, Menu, X, BookOpen } from 'lucide-react';
+import { Building2, BarChart3, Users, LogOut, ArrowLeft, BookOpen, Bell, DollarSign } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User } from '@/types';
 import Link from 'next/link';
 import HotelsView from '../components/HotelsView';
 import StatisticsView from '../components/StatisticsView';
-import CashMonitoringView from '../components/CashMonitoringView';
-import InvitesView from '../components/InvitesView';
-import UsersView from '../components/UsersView';
+import UsersManagementView from '../components/UsersManagementView';
 import BookingsView from '../components/BookingsView';
 
 export default function CMSDashboard() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [viewMode, setViewMode] = useState<'hotels' | 'statistics' | 'cash' | 'invites' | 'users' | 'bookings'>('hotels');
+  const [viewMode, setViewMode] = useState<'hotels' | 'statistics' | 'users' | 'bookings'>('hotels');
   const [selectedHotel, setSelectedHotel] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [hotels, setHotels] = useState<any[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [bookingStats, setBookingStats] = useState({ unconfirmed: 0, unpaid: 0 });
 
   useEffect(() => {
     const userStr = localStorage.getItem('currentUser');
@@ -30,6 +28,13 @@ export default function CMSDashboard() {
     }
 
     const user = JSON.parse(userStr);
+    
+    // Проверяем, заполнен ли телефон (обязателен)
+    if (!user.phone) {
+      router.push('/complete-profile');
+      return;
+    }
+    
     if (user.role !== 'manager') {
       router.push('/dashboard');
       return;
@@ -37,6 +42,14 @@ export default function CMSDashboard() {
 
     setCurrentUser(user);
     loadHotels();
+    loadBookingStats();
+    
+    // Обновляем статистику каждые 30 секунд
+    const interval = setInterval(() => {
+      loadBookingStats();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [router]);
 
   const loadHotels = async () => {
@@ -51,6 +64,15 @@ export default function CMSDashboard() {
     }
   };
 
+  const loadBookingStats = async () => {
+    try {
+      const stats = await api.getBookingStats();
+      setBookingStats(stats);
+    } catch (error) {
+      console.error('Error loading booking stats:', error);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
     router.push('/');
@@ -61,31 +83,19 @@ export default function CMSDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 bg-white border-r border-gray-200 fixed lg:sticky lg:top-0 h-screen z-50 overflow-hidden`}>
+    <div className="min-h-screen bg-gray-50 flex pb-16 lg:pb-0">
+      {/* Sidebar - только для десктопа */}
+      <aside className="hidden lg:block w-64 bg-white border-r border-gray-200 sticky top-0 h-screen z-50">
         <div className="h-full flex flex-col">
           {/* Sidebar Header */}
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="p-4 border-b border-gray-200">
             <h2 className="text-lg font-bold text-gray-900">CMS</h2>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-1 text-gray-500 hover:text-gray-700"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
 
           {/* Navigation Menu */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             <button
-              onClick={() => {
-                setViewMode('hotels');
-                // Закрываем меню на мобильных устройствах
-                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                  setSidebarOpen(false);
-                }
-              }}
+              onClick={() => setViewMode('hotels')}
               className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
                 viewMode === 'hotels'
                   ? 'bg-gray-900 text-white'
@@ -96,13 +106,7 @@ export default function CMSDashboard() {
               <span>Отели</span>
             </button>
             <button
-              onClick={() => {
-                setViewMode('statistics');
-                // Закрываем меню на мобильных устройствах
-                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                  setSidebarOpen(false);
-                }
-              }}
+              onClick={() => setViewMode('statistics')}
               className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
                 viewMode === 'statistics'
                   ? 'bg-gray-900 text-white'
@@ -113,30 +117,7 @@ export default function CMSDashboard() {
               <span>Статистика</span>
             </button>
             <button
-              onClick={() => {
-                setViewMode('cash');
-                // Закрываем меню на мобильных устройствах
-                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                  setSidebarOpen(false);
-                }
-              }}
-              className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
-                viewMode === 'cash'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-              }`}
-            >
-              <DollarSign className="w-5 h-5" />
-              <span>Наличные</span>
-            </button>
-            <button
-              onClick={() => {
-                setViewMode('users');
-                // Закрываем меню на мобильных устройствах
-                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                  setSidebarOpen(false);
-                }
-              }}
+              onClick={() => setViewMode('users')}
               className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
                 viewMode === 'users'
                   ? 'bg-gray-900 text-white'
@@ -147,30 +128,7 @@ export default function CMSDashboard() {
               <span>Пользователи</span>
             </button>
             <button
-              onClick={() => {
-                setViewMode('invites');
-                // Закрываем меню на мобильных устройствах
-                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                  setSidebarOpen(false);
-                }
-              }}
-              className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
-                viewMode === 'invites'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-              }`}
-            >
-              <Mail className="w-5 h-5" />
-              <span>Приглашения</span>
-            </button>
-            <button
-              onClick={() => {
-                setViewMode('bookings');
-                // Закрываем меню на мобильных устройствах
-                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                  setSidebarOpen(false);
-                }
-              }}
+              onClick={() => setViewMode('bookings')}
               className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
                 viewMode === 'bookings'
                   ? 'bg-gray-900 text-white'
@@ -195,14 +153,6 @@ export default function CMSDashboard() {
         </div>
       </aside>
 
-      {/* Overlay for mobile */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-transparent z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
@@ -210,15 +160,39 @@ export default function CMSDashboard() {
           <div className="px-3 sm:px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between gap-3 sm:gap-4">
               <div className="flex items-center gap-3 sm:gap-4">
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="lg:hidden p-2 text-gray-600 hover:text-gray-900"
-                >
-                  <Menu className="w-5 h-5" />
-                </button>
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900">CMS - Управление</h1>
               </div>
-              <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Колокольчик с неподтвержденными бронированиями */}
+                <button
+                  onClick={() => setViewMode('bookings')}
+                  className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Неподтвержденные бронирования"
+                >
+                  <Bell className="w-5 h-5" />
+                  {bookingStats.unconfirmed > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-black text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {bookingStats.unconfirmed > 99 ? '99+' : bookingStats.unconfirmed}
+                    </span>
+                  )}
+                </button>
+
+                {/* Доллар с неоплаченными бронированиями (только для менеджера) */}
+                {currentUser.role === 'manager' && (
+                  <button
+                    onClick={() => setViewMode('bookings')}
+                    className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Неоплаченные бронирования"
+                  >
+                    <DollarSign className="w-5 h-5" />
+                    {bookingStats.unpaid > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-black text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {bookingStats.unpaid > 99 ? '99+' : bookingStats.unpaid}
+                      </span>
+                    )}
+                  </button>
+                )}
+
                 <span className="text-sm text-gray-600 hidden sm:inline">{currentUser.name}</span>
                 <button
                   onClick={handleLogout}
@@ -242,20 +216,12 @@ export default function CMSDashboard() {
           <StatisticsView selectedHotel={selectedHotel} hotels={hotels} />
         )}
 
-        {viewMode === 'cash' && (
-          <CashMonitoringView selectedHotel={selectedHotel} />
-        )}
-
         {viewMode === 'users' && (
-          <UsersView 
+          <UsersManagementView 
             currentUser={currentUser} 
             selectedUserId={selectedUserId}
             onSelectUser={setSelectedUserId}
           />
-        )}
-
-        {viewMode === 'invites' && (
-          <InvitesView currentUser={currentUser} />
         )}
 
         {viewMode === 'bookings' && (
@@ -263,6 +229,63 @@ export default function CMSDashboard() {
         )}
         </main>
       </div>
+
+      {/* Bottom Navigation Menu для мобильных устройств */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[100] shadow-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="flex items-center justify-around h-16">
+          <button
+            onClick={() => setViewMode('hotels')}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+              viewMode === 'hotels'
+                ? 'text-gray-900 bg-gray-50'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Building2 className={`w-5 h-5 ${viewMode === 'hotels' ? 'text-gray-900' : 'text-gray-500'}`} />
+            <span className="text-xs font-semibold">Отели</span>
+          </button>
+          <button
+            onClick={() => setViewMode('statistics')}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+              viewMode === 'statistics'
+                ? 'text-gray-900 bg-gray-50'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <BarChart3 className={`w-5 h-5 ${viewMode === 'statistics' ? 'text-gray-900' : 'text-gray-500'}`} />
+            <span className="text-xs font-semibold">Статистика</span>
+          </button>
+          <button
+            onClick={() => setViewMode('users')}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+              viewMode === 'users'
+                ? 'text-gray-900 bg-gray-50'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Users className={`w-5 h-5 ${viewMode === 'users' ? 'text-gray-900' : 'text-gray-500'}`} />
+            <span className="text-xs font-semibold">Пользователи</span>
+          </button>
+          <button
+            onClick={() => setViewMode('bookings')}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${
+              viewMode === 'bookings'
+                ? 'text-gray-900 bg-gray-50'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="relative">
+              <BookOpen className={`w-5 h-5 ${viewMode === 'bookings' ? 'text-gray-900' : 'text-gray-500'}`} />
+              {bookingStats.unconfirmed > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                  {bookingStats.unconfirmed > 9 ? '9+' : bookingStats.unconfirmed}
+                </span>
+              )}
+            </div>
+            <span className="text-xs font-semibold">Бронирования</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData } from '@/lib/data';
+import { query } from '@/lib/neon';
+import { getUsers } from '@/lib/db';
 import { verifyInviteToken } from '@/lib/crypto';
-import type { Invite } from '@/types';
 
 // GET /api/invites/verify?token=xxx - Проверить токен приглашения
 export async function GET(request: NextRequest) {
@@ -16,11 +16,11 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    const data = readData();
-    const invites = data.invites || [];
+    // Получаем все приглашения из БД
+    const invites = await query<any>(`SELECT * FROM invites`);
     
     // Ищем приглашение по токену
-    let invite: Invite | undefined;
+    let invite: any = undefined;
     for (const inv of invites) {
       try {
         // Проверяем, что токен в базе данных существует и имеет правильный формат
@@ -52,9 +52,13 @@ export async function GET(request: NextRequest) {
       );
     }
     
+    // Преобразуем данные приглашения из БД формата
+    const expiresAt = new Date(invite.expires_at);
+    const inviteName = invite.name;
+    const inviteUsed = invite.used;
+    
     // Проверяем срок действия
     const now = new Date();
-    const expiresAt = new Date(invite.expiresAt);
     
     if (now > expiresAt) {
       return NextResponse.json(
@@ -64,7 +68,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Проверяем, использовано ли приглашение
-    if (invite.used) {
+    if (inviteUsed) {
       return NextResponse.json(
         { error: 'Приглашение уже использовано', valid: false },
         { status: 400 }
@@ -73,8 +77,9 @@ export async function GET(request: NextRequest) {
     
     // Проверяем, существует ли пользователь с таким именем (для определения режима: регистрация или сброс пароля)
     let userExists = false;
-    if (invite.name) {
-      const user = data.users.find((u: any) => u.name?.trim() === invite.name.trim());
+    if (inviteName) {
+      const allUsers = await getUsers();
+      const user = allUsers.find((u) => u.name?.trim() === inviteName.trim());
       userExists = !!user;
     }
     
@@ -83,8 +88,8 @@ export async function GET(request: NextRequest) {
       valid: true,
       invite: {
         id: invite.id,
-        name: invite.name,
-        expiresAt: invite.expiresAt
+        name: inviteName,
+        expiresAt: expiresAt.toISOString()
       },
       userExists // Информация о том, существует ли пользователь (для определения режима)
     });

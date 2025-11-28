@@ -19,6 +19,13 @@ export default function CMSLayout({
     }
 
     const user: User = JSON.parse(userStr);
+    
+    // Проверяем, заполнен ли телефон (обязателен)
+    if (!user.phone) {
+      router.push('/complete-profile');
+      return;
+    }
+    
     if (user.role !== 'manager') {
       router.push('/dashboard');
     }
@@ -26,4 +33,8 @@ export default function CMSLayout({
 
   return <>{children}</>;
 }
+
+
+
+
 

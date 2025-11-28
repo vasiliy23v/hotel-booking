@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Mail, Phone, Calendar, KeyRound, Plus, RefreshCw, Copy, CheckCircle, X, AlertCircle, Clock } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, KeyRound, Plus, RefreshCw, Copy, CheckCircle, X, AlertCircle, Clock, Edit, Trash2, Save } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User, BookingInfo, Invite, Room, Hotel } from '@/types';
 
@@ -21,6 +21,14 @@ export default function UserDetailView({
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [newInviteToken, setNewInviteToken] = useState<string | null>(null);
   const [expiresInDays] = useState(7);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: 'guest' as 'manager' | 'guest'
+  });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const loadUserData = async () => {
     try {
@@ -41,6 +49,13 @@ export default function UserDetailView({
       }
 
       setUser(foundUser);
+      // Инициализируем форму редактирования
+      setEditFormData({
+        name: foundUser.name || '',
+        email: foundUser.email || '',
+        phone: foundUser.phone || '',
+        role: foundUser.role || 'guest'
+      });
 
       const userBookings = bookingsData
         .filter((b: BookingInfo) => b.bookedBy === foundUser.name)
@@ -138,6 +153,71 @@ export default function UserDetailView({
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
+  const handleEditUser = () => {
+    if (!user) return;
+    setIsEditing(true);
+    setEditFormData({
+      name: user.name || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      role: user.role || 'guest'
+    });
+  };
+
+  const handleSaveUser = async () => {
+    if (!user) return;
+
+    if (!editFormData.name.trim() || !editFormData.email.trim()) {
+      alert('Имя и email обязательны для заполнения');
+      return;
+    }
+
+    try {
+      const updatedUser = await api.updateUser(user.id!, {
+        name: editFormData.name.trim(),
+        email: editFormData.email.trim(),
+        phone: editFormData.phone.trim() || undefined,
+        role: editFormData.role
+      });
+
+      setUser(updatedUser);
+      setIsEditing(false);
+      alert('Пользователь успешно обновлен');
+      await loadUserData();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Ошибка при обновлении пользователя';
+      alert(message);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    if (!user) return;
+    setIsEditing(false);
+    setEditFormData({
+      name: user.name || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      role: user.role || 'guest'
+    });
+  };
+
+  const handleDeleteUser = async () => {
+    if (!user) return;
+
+    if (!confirm(`Вы уверены, что хотите удалить пользователя ${user.name}? Это действие нельзя отменить.`)) {
+      return;
+    }
+
+    try {
+      await api.deleteUser(user.id!);
+      alert('Пользователь успешно удален');
+      onBack();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Ошибка при удалении пользователя';
+      alert(message);
+    }
+  };
+
   const getInviteStatus = (invite: Invite) => {
     if (invite.used) {
       return { label: 'Использовано', color: 'bg-gray-500', icon: CheckCircle };
@@ -182,55 +262,141 @@ export default function UserDetailView({
         </button>
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{user.name}</h2>
-            <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-              <div className="flex items-center gap-1">
-                <Mail className="w-4 h-4" />
-                <span>{user.email}</span>
-              </div>
-              {user.phone && (
-                <div className="flex items-center gap-1">
-                  <Phone className="w-4 h-4" />
-                  <span>{user.phone}</span>
+          <div className="flex-1">
+            {isEditing ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    Имя <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
+                    required
+                  />
                 </div>
-              )}
-              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                user.role === 'manager' 
-                  ? 'bg-blue-100 text-blue-800' 
-                  : 'bg-gray-100 text-gray-800'
-              }`}>
-                {user.role === 'manager' ? 'Менеджер' : 'Гость'}
-              </span>
-            </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={editFormData.email}
+                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    Телефон
+                  </label>
+                  <input
+                    type="tel"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    Роль
+                  </label>
+                  <select
+                    value={editFormData.role}
+                    onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as 'manager' | 'guest' })}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
+                  >
+                    <option value="guest">Гость</option>
+                    <option value="manager">Менеджер</option>
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveUser}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    Сохранить
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg text-sm font-semibold"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{user.name}</h2>
+                <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-1">
+                    <Mail className="w-4 h-4" />
+                    <span>{user.email}</span>
+                  </div>
+                  {user.phone && (
+                    <div className="flex items-center gap-1">
+                      <Phone className="w-4 h-4" />
+                      <span>{user.phone}</span>
+                    </div>
+                  )}
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                    user.role === 'manager' 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {user.role === 'manager' ? 'Менеджер' : 'Гость'}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {activeInvite ? (
+          {!isEditing && (
+            <div className="flex flex-wrap gap-2">
               <button
-                onClick={handleRecreateInvite}
+                onClick={handleEditUser}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
               >
-                <RefreshCw className="w-4 h-4" />
-                Пересоздать приглашение
+                <Edit className="w-4 h-4" />
+                Редактировать
               </button>
-            ) : (
               <button
-                onClick={handleCreateInvite}
-                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
               >
-                <Plus className="w-4 h-4" />
-                Создать приглашение
+                <Trash2 className="w-4 h-4" />
+                Удалить
               </button>
-            )}
-            <button
-              onClick={handleResetPassword}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
-            >
-              <KeyRound className="w-4 h-4" />
-              Сброс пароля
-            </button>
-          </div>
+              {activeInvite ? (
+                <button
+                  onClick={handleRecreateInvite}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Пересоздать приглашение
+                </button>
+              ) : (
+                <button
+                  onClick={handleCreateInvite}
+                  className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Создать приглашение
+                </button>
+              )}
+              <button
+                onClick={handleResetPassword}
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+              >
+                <KeyRound className="w-4 h-4" />
+                Сброс пароля
+              </button>
+            </div>
+          )}
         </div>
 
         {newInviteToken && (
@@ -422,6 +588,46 @@ export default function UserDetailView({
           </div>
         )}
       </div>
+
+      {/* Модальное окно подтверждения удаления */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-lg max-w-md w-full shadow-lg">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Удалить пользователя?</h3>
+                  <p className="text-sm text-gray-600">Это действие нельзя отменить</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-700 mb-6">
+                Вы уверены, что хотите удалить пользователя <strong>{user?.name}</strong>? 
+                Все связанные данные будут удалены.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-semibold"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    handleDeleteUser();
+                  }}
+                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold"
+                >
+                  Удалить
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

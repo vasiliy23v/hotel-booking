@@ -20,7 +20,18 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
     try {
       setLoading(true);
       const data = await api.getInvites();
-      setInvites(data);
+      // Сортируем приглашения: использованные внизу, остальные по дате создания (старые выше)
+      const sortedData = [...data].sort((a, b) => {
+        // Сначала разделяем на использованные и неиспользованные
+        if (a.used && !b.used) return 1; // a (использованное) идет после b
+        if (!a.used && b.used) return -1; // a (неиспользованное) идет перед b
+        
+        // Если оба использованы или оба не использованы, сортируем по дате создания
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateA - dateB; // Старые выше (меньше дата = выше в списке)
+      });
+      setInvites(sortedData);
     } catch (error) {
       console.error('Error loading invites:', error);
       alert('Ошибка при загрузке приглашений');

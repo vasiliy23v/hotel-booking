@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData, writeData } from '@/lib/data';
-import type { BookingInfo, Room } from '@/types';
+import { updateBooking, getBookingById, getRoomById } from '@/lib/db';
 
 // PUT /api/bookings/[id]/payment
 export async function PUT(
@@ -16,19 +15,15 @@ export async function PUT(
       return NextResponse.json({ error: 'Payment method is required' }, { status: 400 });
     }
     
-    const data = readData();
-    const index = data.bookings?.findIndex((b: BookingInfo) => b.id === id) ?? -1;
-    
-    if (index === -1) {
+    const booking = await getBookingById(id);
+    if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
     
-    const booking = data.bookings[index];
-    
     // Вычисляем сумму, если не указана
     let paymentAmount = amount;
-    if (!paymentAmount && data.rooms) {
-      const room = data.rooms.find((r: Room) => r.id === booking.roomId);
+    if (!paymentAmount) {
+      const room = await getRoomById(booking.roomId);
       if (room && room.price) {
         const checkIn = new Date(booking.checkIn);
         const checkOut = new Date(booking.checkOut);
@@ -37,29 +32,19 @@ export async function PUT(
       }
     }
     
-    const updatedBooking: BookingInfo = {
-      ...booking,
+    const updatedBooking = await updateBooking(id, {
       isPaid: true,
       paymentMethod: paymentMethod as 'cash' | 'transfer',
       paymentDate: new Date().toISOString(),
       paidBy: paidBy || 'system',
       amount: paymentAmount || booking.amount || 0
-    };
-    
-    data.bookings[index] = updatedBooking;
-    
-    // Обновляем бронирование в комнате
-    if (data.rooms) {
-      const roomIndex = data.rooms.findIndex((r: Room) => r.booking?.id === id);
-      if (roomIndex !== -1) {
-        data.rooms[roomIndex].booking = updatedBooking;
-      }
-    }
-    
-    writeData(data);
+    });
     
     return NextResponse.json(updatedBooking);
   } catch (error: any) {
+    if (error.message === 'Бронирование не найдено') {
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

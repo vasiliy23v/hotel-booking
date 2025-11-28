@@ -70,11 +70,12 @@ export interface Hotel {
 
 export interface User {
   id?: string;
-  email: string;
+  email?: string; // Опциональный email
   name: string;
   password?: string;
-  phone?: string;
+  phone?: string; // Опциональный телефон
   role: 'manager' | 'guest';
+  createdAt?: string; // Дата регистрации
 }
 
 export interface Statistics {

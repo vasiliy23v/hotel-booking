@@ -1,0 +1,201 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// USERS (Пользователи)
+// ============================================
+model User {
+  id        String   @id
+  email     String?  @unique
+  name      String
+  password  String?
+  phone     String?  @unique
+  role      UserRole
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  createdInvites Invite[] @relation("CreatedInvites")
+  usedInvites    Invite[] @relation("UsedInvites")
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@map("users")
+}
+
+enum UserRole {
+  manager
+  guest
+}
+
+// ============================================
+// HOTELS (Отели)
+// ============================================
+model Hotel {
+  id          String    @id
+  name        String
+  address     String
+  description String?
+  floors      Int?
+  image       String?   @db.VarChar(500)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  rooms   Room[]
+  stairs  Stairs[]
+
+  @@map("hotels")
+}
+
+// ============================================
+// ROOMS (Комнаты)
+// ============================================
+model Room {
+  id          String      @id
+  number      String      @db.VarChar(50)
+  hotelId     String      @map("hotel_id")
+  name        String?
+  type        RoomType
+  capacity    String      @db.VarChar(50)
+  maxCapacity Int         @map("max_capacity")
+  beds        Json        @default("[]")
+  floor       FloorType
+  price       Decimal     @default(0) @db.Decimal(10, 2)
+  position    Json        @default("{\"x\": 0, \"y\": 0}")
+  width       Int?
+  height      Int?
+  isCommon    Boolean     @default(false) @map("is_common")
+  zIndex      Int         @default(1) @map("z_index")
+  description String?
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  hotel     Hotel      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  bookings  Booking[]
+
+  @@index([hotelId])
+  @@index([floor])
+  @@index([type])
+  @@map("rooms")
+}
+
+enum RoomType {
+  FZ
+  DZ
+  EZ
+  COMMON
+}
+
+enum FloorType {
+  EG
+  oneOG  @map("1OG")
+  twoOG  @map("2OG")
+}
+
+// ============================================
+// BOOKINGS (Бронирования)
+// ============================================
+model Booking {
+  id            String          @id
+  roomId        String          @map("room_id")
+  bookedBy      String          @map("booked_by")
+  bookedDate    DateTime        @map("booked_date") @db.Timestamptz(6)
+  email         String
+  phone         String          @db.VarChar(50)
+  checkIn       DateTime        @map("check_in") @db.Date
+  checkOut      DateTime        @map("check_out") @db.Date
+  guests        Json            @default("[]")
+  notes         String?
+  isConfirmed   Boolean         @default(false) @map("is_confirmed")
+  confirmedBy   String?         @map("confirmed_by")
+  confirmedDate DateTime?       @map("confirmed_date") @db.Timestamptz(6)
+  isPaid        Boolean         @default(false) @map("is_paid")
+  paymentMethod PaymentMethod?   @map("payment_method")
+  paymentDate   DateTime?       @map("payment_date") @db.Timestamptz(6)
+  paidBy        String?         @map("paid_by")
+  amount        Decimal?       @db.Decimal(10, 2)
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([checkIn])
+  @@index([checkOut])
+  @@index([email])
+  @@index([isPaid])
+  @@index([paymentMethod])
+  @@map("bookings")
+}
+
+enum PaymentMethod {
+  cash
+  transfer
+}
+
+// ============================================
+// STAIRS (Лестницы)
+// ============================================
+model Stairs {
+  id         String     @id
+  hotelId    String     @map("hotel_id")
+  floor      FloorType
+  position   Json       @default("{\"x\": 0, \"y\": 0}")
+  width      Int
+  height     Int
+  direction  StairsDirection
+  targetFloor FloorType? @map("target_floor")
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId])
+  @@index([floor])
+  @@map("stairs")
+}
+
+enum StairsDirection {
+  up
+  down
+  both
+}
+
+// ============================================
+// INVITES (Приглашения)
+// ============================================
+model Invite {
+  id        String    @id
+  token     String    @unique
+  createdBy String    @map("created_by")
+  createdAt DateTime  @map("created_at") @db.Timestamptz(6)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  used      Boolean   @default(false)
+  name      String
+  usedBy    String?   @map("used_by")
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+
+  // Relations
+  creator User? @relation("CreatedInvites", fields: [createdBy], references: [id], onDelete: Cascade)
+  user    User? @relation("UsedInvites", fields: [usedBy], references: [id], onDelete: SetNull)
+
+  @@index([token])
+  @@index([createdBy])
+  @@index([used])
+  @@index([expiresAt])
+  @@map("invites")
+}

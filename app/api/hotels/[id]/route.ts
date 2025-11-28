@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData, writeData } from '@/lib/data';
-import type { Hotel } from '@/types';
+import { getHotelById, updateHotel, deleteHotel } from '@/lib/db';
 
 // GET /api/hotels/[id]
 export async function GET(
@@ -9,8 +8,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const data = readData();
-    const hotel = data.hotels?.find((h: Hotel) => h.id === id);
+    const hotel = await getHotelById(id);
     
     if (!hotel) {
       return NextResponse.json({ error: 'Hotel not found' }, { status: 404 });
@@ -30,18 +28,13 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const data = readData();
-    const index = data.hotels?.findIndex((h: Hotel) => h.id === id) ?? -1;
+    const updatedHotel = await updateHotel(id, body);
     
-    if (index === -1) {
+    return NextResponse.json(updatedHotel);
+  } catch (error: any) {
+    if (error.message === 'Отель не найден') {
       return NextResponse.json({ error: 'Hotel not found' }, { status: 404 });
     }
-    
-    data.hotels[index] = { ...data.hotels[index], ...body };
-    writeData(data);
-    
-    return NextResponse.json(data.hotels[index]);
-  } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -53,9 +46,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const data = readData();
-    data.hotels = data.hotels?.filter((h: Hotel) => h.id !== id) || [];
-    writeData(data);
+    await deleteHotel(id);
     
     return NextResponse.json({ success: true });
   } catch (error: any) {

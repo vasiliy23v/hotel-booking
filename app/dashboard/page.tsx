@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Building2, Bed, Users, BarChart3, LogOut, Plus, Edit, Trash2, LayoutGrid, Filter, Calendar, Euro, X, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, DollarSign, Mail, Copy, RefreshCw, CheckCircle, AlertCircle, Clock, KeyRound, ArrowRight, Phone, Menu, BookOpen, List, Eye, EyeOff } from 'lucide-react';
+import { Building2, Bed, Users, BarChart3, LogOut, Plus, Edit, Trash2, LayoutGrid, Filter, Calendar, Euro, X, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, DollarSign, Mail, Copy, RefreshCw, CheckCircle, AlertCircle, Clock, KeyRound, ArrowRight, Phone, BookOpen, List, Eye, EyeOff, Bell } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User, Room, Hotel, Stairs, Statistics, CashMonitoring, Invite, BookingInfo } from '@/types';
 import FloorPlan from '@/components/FloorPlan';
@@ -33,7 +33,6 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState<'floor' | 'number' | 'type' | 'price' | 'capacity' | 'status'>('floor');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showFilters, setShowFilters] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   
   // Состояние для бронирований
   const [bookings, setBookings] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string })[]>([]);
@@ -45,6 +44,10 @@ export default function Dashboard() {
   const [showBookingsFilters, setShowBookingsFilters] = useState(false);
   const [bookingsSortBy, setBookingsSortBy] = useState<'checkIn' | 'checkOut' | 'bookedDate' | 'bookedBy' | 'roomNumber'>('checkIn');
   const [bookingsSortDirection, setBookingsSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [bookingStats, setBookingStats] = useState({ unconfirmed: 0, unpaid: 0 });
+  
+  // Состояние для активной вкладки в мобильном меню (только для обычных пользователей)
+  const [activeTab, setActiveTab] = useState<'hotels' | 'bookings'>('bookings');
 
   useEffect(() => {
     const userStr = localStorage.getItem('currentUser');
@@ -54,6 +57,13 @@ export default function Dashboard() {
     }
 
     const user = JSON.parse(userStr);
+    
+    // Проверяем, заполнен ли телефон (обязателен)
+    if (!user.phone) {
+      router.push('/complete-profile');
+      return;
+    }
+    
     // Менеджеры автоматически перенаправляются на CMS
     if (user.role === 'manager') {
       router.push('/cms/dashboard');
@@ -63,6 +73,14 @@ export default function Dashboard() {
     setCurrentUser(user);
     loadData();
     loadBookings(); // Загружаем бронирования при загрузке страницы
+    loadBookingStats();
+    
+    // Обновляем статистику каждые 30 секунд
+    const interval = setInterval(() => {
+      loadBookingStats();
+    }, 30000);
+    
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
@@ -90,22 +108,12 @@ export default function Dashboard() {
   }, [selectedFloor, dataLoaded]);
 
   useEffect(() => {
-    if (dataLoaded) {
-      localStorage.setItem('dashboard_sidebarOpen', String(sidebarOpen));
-    }
-  }, [sidebarOpen, dataLoaded]);
-
-  useEffect(() => {
     localStorage.setItem('dashboard_viewMode', viewMode);
   }, [viewMode]);
 
   useEffect(() => {
     localStorage.setItem('dashboard_selectedFloor', selectedFloor);
   }, [selectedFloor]);
-
-  useEffect(() => {
-    localStorage.setItem('dashboard_sidebarOpen', String(sidebarOpen));
-  }, [sidebarOpen]);
 
   // Обновление максимальной цены при загрузке комнат
   useEffect(() => {
@@ -139,7 +147,6 @@ export default function Dashboard() {
         // Восстанавливаем все состояния синхронно в одном батче
         const savedViewMode = localStorage.getItem('dashboard_viewMode');
         const savedFloor = localStorage.getItem('dashboard_selectedFloor');
-        const savedSidebar = localStorage.getItem('dashboard_sidebarOpen');
         const savedHotel = localStorage.getItem('dashboard_selectedHotel');
 
         // Применяем все изменения состояния одновременно
@@ -148,9 +155,6 @@ export default function Dashboard() {
         }
         if (savedFloor === 'EG' || savedFloor === '1OG' || savedFloor === '2OG') {
           setSelectedFloor(savedFloor);
-        }
-        if (savedSidebar !== null) {
-          setSidebarOpen(savedSidebar === 'true');
         }
         if (savedHotel) {
           const hotelExists = hotelsData.find(h => h.id === savedHotel);
@@ -208,6 +212,15 @@ export default function Dashboard() {
       setBookings([]);
     } finally {
       setBookingsLoading(false);
+    }
+  };
+
+  const loadBookingStats = async () => {
+    try {
+      const stats = await api.getBookingStats();
+      setBookingStats(stats);
+    } catch (error) {
+      console.error('Error loading booking stats:', error);
     }
   };
 
@@ -434,101 +447,90 @@ export default function Dashboard() {
   const floorRooms = hotelRooms.filter(r => r.floor === selectedFloor);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar - только для обычных пользователей */}
+    <div className="min-h-screen bg-gray-50 flex pb-16 lg:pb-0">
+      {/* Sidebar - только для десктопа */}
       {currentUser.role === 'guest' && (
-        <>
-          <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 bg-white border-r border-gray-200 fixed lg:sticky lg:top-0 h-screen z-50 overflow-hidden`}>
-            <div className="h-full flex flex-col">
-              {/* Sidebar Header */}
-              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-gray-900">Навигация</h2>
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="lg:hidden p-1 text-gray-500 hover:text-gray-700"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+        <aside className="hidden lg:block w-64 bg-white border-r border-gray-200 sticky top-0 h-screen z-50">
+          <div className="h-full flex flex-col">
+            {/* Sidebar Header */}
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900">Навигация</h2>
+            </div>
 
-              {/* Navigation Menu */}
-              <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                {/* Отели */}
-                <div className="mb-4">
-                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-2">Отели</div>
-                  <div className="space-y-1">
-                    {hotels.map(hotel => (
-                      <button
-                        key={hotel.id}
-                        onClick={() => {
-                          setSelectedHotel(hotel.id);
-                          // Закрываем меню на мобильных устройствах
-                          if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                            setSidebarOpen(false);
-                          }
-                        }}
-                        className={`w-full px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 text-left ${
-                          selectedHotel === hotel.id
-                            ? 'bg-gray-900 text-white'
-                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-                        }`}
-                      >
-                        <Building2 className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate">{hotel.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Мои бронирования - просто загружает данные */}
+            {/* Navigation Menu */}
+            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+              {/* Отели */}
+              <div className="mb-4">
+                <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-2">Отели</div>
                 <button
                   onClick={() => {
                     setSelectedHotel('');
-                    if (bookings.length === 0) {
-                      loadBookings();
-                    }
-                    // Закрываем меню на мобильных устройствах
-                    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                      setSidebarOpen(false);
-                    }
+                    setActiveTab('hotels');
                   }}
-                  className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 text-left ${
-                    !selectedHotel && bookings.length > 0 && currentUser.role === 'guest'
+                  className={`w-full px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 text-left mb-1 ${
+                    !selectedHotel && activeTab === 'hotels' && currentUser.role === 'guest'
                       ? 'bg-gray-900 text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
                   }`}
                 >
-                  <BookOpen className="w-5 h-5" />
-                  <span>Мои бронирования</span>
-                  {myBookingsCount > 0 && (
-                    <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {myBookingsCount > 99 ? '99+' : myBookingsCount}
-                    </span>
-                  )}
+                  <Building2 className="w-4 h-4 shrink-0" />
+                  <span>Все отели</span>
                 </button>
-              </nav>
-
-              {/* Sidebar Footer */}
-              <div className="p-4 border-t border-gray-200">
-                <button
-                  onClick={handleLogout}
-                  className="w-full px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 text-gray-700 hover:bg-gray-50"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span>Выйти</span>
-                </button>
+                <div className="space-y-1">
+                  {hotels.map(hotel => (
+                    <button
+                      key={hotel.id}
+                      onClick={() => setSelectedHotel(hotel.id)}
+                      className={`w-full px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 text-left ${
+                        selectedHotel === hotel.id
+                          ? 'bg-gray-900 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                      }`}
+                    >
+                      <Building2 className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{hotel.name}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </aside>
 
-          {/* Overlay for mobile */}
-          {sidebarOpen && (
-            <div
-              className="fixed inset-0 bg-transparent z-40 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
-        </>
+              {/* Мои бронирования */}
+              <button
+                onClick={() => {
+                  setSelectedHotel('');
+                  setActiveTab('bookings');
+                  if (bookings.length === 0) {
+                    loadBookings();
+                  }
+                }}
+                className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 text-left ${
+                  !selectedHotel && activeTab === 'bookings' && currentUser.role === 'guest'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                }`}
+              >
+                <BookOpen className="w-5 h-5" />
+                <span>Мои бронирования</span>
+                {myBookingsCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {myBookingsCount > 99 ? '99+' : myBookingsCount}
+                  </span>
+                )}
+              </button>
+            </nav>
+
+            {/* Sidebar Footer */}
+            <div className="p-4 border-t border-gray-200">
+              <button
+                onClick={handleLogout}
+                className="w-full px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 text-gray-700 hover:bg-gray-50"
+              >
+                <LogOut className="w-5 h-5" />
+                <span>Выйти</span>
+              </button>
+            </div>
+          </div>
+        </aside>
       )}
 
       {/* Main Content */}
@@ -538,14 +540,6 @@ export default function Dashboard() {
           <div className="px-3 sm:px-4 py-2 sm:py-3">
             <div className="flex justify-between items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                {currentUser.role === 'guest' && (
-                  <button
-                    onClick={() => setSidebarOpen(true)}
-                    className="lg:hidden p-2 text-gray-600 hover:text-gray-900"
-                  >
-                    <Menu className="w-5 h-5" />
-                  </button>
-                )}
                 <Link href="/" prefetch={false} className="flex items-center gap-2 sm:gap-3 min-w-0 hover:opacity-80 transition-opacity">
                   <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 shrink-0" />
                   <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate cursor-pointer">Hotel Booking</h1>
@@ -566,6 +560,46 @@ export default function Dashboard() {
                       Свободно: <span className="font-bold text-emerald-600">{availableRooms}</span>
                     </div>
                   </div>
+                )}
+
+                {/* Колокольчик с неподтвержденными бронированиями */}
+                <button
+                  onClick={() => {
+                    setSelectedHotel('');
+                    if (currentUser.role === 'guest') {
+                      setActiveTab('bookings');
+                    }
+                  }}
+                  className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Неподтвержденные бронирования"
+                >
+                  <Bell className="w-5 h-5" />
+                  {bookingStats.unconfirmed > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-black text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {bookingStats.unconfirmed > 99 ? '99+' : bookingStats.unconfirmed}
+                    </span>
+                  )}
+                </button>
+
+                {/* Доллар с неоплаченными бронированиями (только для менеджера) */}
+                {currentUser.role === 'manager' && (
+                  <button
+                    onClick={() => {
+                      setSelectedHotel('');
+                      if (currentUser.role === 'guest') {
+                        setActiveTab('bookings');
+                      }
+                    }}
+                    className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Неоплаченные бронирования"
+                  >
+                    <DollarSign className="w-5 h-5" />
+                    {bookingStats.unpaid > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-black text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {bookingStats.unpaid > 99 ? '99+' : bookingStats.unpaid}
+                      </span>
+                    )}
+                  </button>
                 )}
 
                 {/* Кнопка CMS для менеджеров */}
@@ -711,18 +745,16 @@ export default function Dashboard() {
 
         {/* Content */}
         <main className="flex-1 px-3 sm:px-4 py-4 sm:py-6 lg:py-8 overflow-y-auto">
-        {/* Бронирования - показываем в общем списке, когда отель не выбран */}
+        {/* Бронирования и отели - показываем в зависимости от активной вкладки, когда отель не выбран */}
         {!selectedHotel && (() => {
-          // Проверяем, есть ли бронирования у пользователя
-          const userBookings = currentUser.role === 'manager' 
-            ? bookings 
-            : bookings.filter(b => b.bookedBy === currentUser.name);
-          const hasBookings = userBookings.length > 0;
-
+          // Для обычных пользователей используем активную вкладку, для менеджеров показываем все
+          const showBookings = currentUser.role === 'guest' ? (activeTab === 'bookings') : true;
+          const showHotels = currentUser.role === 'guest' ? (activeTab === 'hotels') : true;
+          
           return (
             <div className="space-y-6">
-              {/* Мои бронирования - показываем только если есть бронирования */}
-              {hasBookings && (
+              {/* Мои бронирования - показываем в зависимости от вкладки */}
+              {showBookings && (
                 <BookingsView 
                   currentUser={currentUser}
                   bookings={bookings}
@@ -754,8 +786,8 @@ export default function Dashboard() {
                 />
               )}
 
-              {/* Карточки отелей для выбора - показываем только если нет бронирований */}
-              {!hasBookings && hotels.length > 0 && (
+              {/* Карточки отелей для выбора - показываем в зависимости от вкладки */}
+              {showHotels && hotels.length > 0 && (
               <div className="space-y-6">
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Выберите отель</h1>
@@ -1699,6 +1731,61 @@ export default function Dashboard() {
           />
         )}
       </div>
+
+      {/* Bottom Navigation Menu для мобильных устройств (только для гостей) */}
+      {currentUser.role === 'guest' && (
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[100] shadow-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="flex items-center justify-around h-16">
+            {/* Отели - список всех отелей */}
+            <button
+              onClick={() => {
+                setSelectedHotel(''); // Сбрасываем выбор отеля
+                setActiveTab('hotels'); // Переключаемся на вкладку отелей
+              }}
+              className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+                !selectedHotel && activeTab === 'hotels'
+                  ? 'text-gray-900 bg-gray-50'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Building2 className={`w-5 h-5 ${!selectedHotel && activeTab === 'hotels' ? 'text-gray-900' : 'text-gray-500'}`} />
+              <span className="text-xs font-semibold">Отели</span>
+            </button>
+
+            {/* Бронирования - показываем на главной странице */}
+            <button
+              onClick={() => {
+                setSelectedHotel(''); // Сбрасываем выбор отеля
+                setActiveTab('bookings'); // Переключаемся на вкладку бронирований
+              }}
+              className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${
+                !selectedHotel && activeTab === 'bookings'
+                  ? 'text-gray-900 bg-gray-50'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="relative">
+                <BookOpen className={`w-5 h-5 ${!selectedHotel && activeTab === 'bookings' ? 'text-gray-900' : 'text-gray-500'}`} />
+                {bookingStats.unconfirmed > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {bookingStats.unconfirmed > 9 ? '9+' : bookingStats.unconfirmed}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs font-semibold">Бронирования</span>
+            </button>
+
+            {/* Выйти */}
+            <button
+              onClick={handleLogout}
+              className="flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors text-gray-600 hover:text-gray-900"
+            >
+              <LogOut className="w-5 h-5 text-gray-500" />
+              <span className="text-xs font-semibold">Выйти</span>
+            </button>
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
@@ -2274,7 +2361,18 @@ function InvitesView({ currentUser }: { currentUser: User }) {
     try {
       setLoading(true);
       const data = await api.getInvites();
-      setInvites(data);
+      // Сортируем приглашения: использованные внизу, остальные по дате создания (старые выше)
+      const sortedData = [...data].sort((a, b) => {
+        // Сначала разделяем на использованные и неиспользованные
+        if (a.used && !b.used) return 1; // a (использованное) идет после b
+        if (!a.used && b.used) return -1; // a (неиспользованное) идет перед b
+        
+        // Если оба использованы или оба не использованы, сортируем по дате создания
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateA - dateB; // Старые выше (меньше дата = выше в списке)
+      });
+      setInvites(sortedData);
     } catch (error) {
       console.error('Error loading invites:', error);
       alert('Ошибка при загрузке приглашений');

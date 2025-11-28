@@ -1,28 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData, writeData } from '@/lib/data';
+import { getInvites, createInvite, deleteInvite, getUserById, updateUser } from '@/lib/db';
 import { generateInviteToken, hashInviteToken } from '@/lib/crypto';
 import crypto from 'crypto';
-import type { Invite, User } from '@/types';
 
 // GET /api/invites - Получить все приглашения (для админов)
 export async function GET() {
   try {
-    const data = readData();
-    const invites = data.invites || [];
-    
-    // Не возвращаем хэшированные токены, только метаданные
-    const safeInvites = invites.map((invite: Invite) => ({
-      id: invite.id,
-      createdBy: invite.createdBy,
-      createdAt: invite.createdAt,
-      expiresAt: invite.expiresAt,
-      used: invite.used,
-      name: invite.name,
-      usedBy: invite.usedBy,
-      usedAt: invite.usedAt
-    }));
-    
-    return NextResponse.json(safeInvites);
+    // getInvites() уже возвращает приглашения без токенов
+    const invites = await getInvites();
+    return NextResponse.json(invites);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -45,10 +31,8 @@ export async function POST(request: NextRequest) {
     // name опционален - если не указан, создается открытое приглашение
     const inviteName = name?.trim() || '';
     
-    const data = readData();
-    
     // Проверяем, что создатель существует
-    const creator = data.users.find((u: User) => u.id === createdBy);
+    const creator = await getUserById(createdBy);
     if (!creator) {
       return NextResponse.json(
         { error: 'Пользователь-создатель не найден' },
@@ -59,13 +43,16 @@ export async function POST(request: NextRequest) {
     // Проверяем, существует ли пользователь с таким именем
     // Если существует - блокируем его старый пароль, чтобы он был вынужден установить новый
     if (inviteName) {
-      const existingUser = data.users.find((u: User) => u.name?.trim() === inviteName);
+      // Ищем пользователя по имени (нужно проверить всех пользователей)
+      const { getUsers } = await import('@/lib/db');
+      const allUsers = await getUsers();
+      const existingUser = allUsers.find((u) => u.name?.trim() === inviteName);
       
       if (existingUser) {
         // Генерируем случайный пароль, который никто не знает
         // Это заблокирует вход со старым паролем
         const randomPassword = crypto.randomBytes(32).toString('hex');
-        existingUser.password = randomPassword;
+        await updateUser(existingUser.id!, { password: randomPassword });
       }
     }
     
@@ -77,38 +64,15 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
     
-    const newInvite: Invite = {
-      id: `invite-${Date.now()}`,
+    // Создаем приглашение в БД
+    const newInvite = await createInvite({
       token: hashedToken,
       createdBy,
       createdAt: new Date().toISOString(),
       expiresAt: expiresAt.toISOString(),
       used: false,
       name: inviteName
-    };
-    
-    if (!data.invites) {
-      data.invites = [];
-    }
-    
-    data.invites.push(newInvite);
-    
-    // Сохраняем данные
-    const writeResult = writeData(data);
-    if (!writeResult) {
-      console.error('Ошибка при сохранении приглашения в базу данных');
-      console.error('Приглашение не было сохранено:', newInvite);
-      // В production на Vercel файловая система может быть read-only
-      // В этом случае приглашение все равно возвращается, но не сохраняется
-      // Это временное решение - нужно использовать базу данных
-    } else {
-      // Проверяем, что приглашение действительно сохранилось
-      const verifyData = readData();
-      const savedInvite = verifyData.invites?.find((inv: Invite) => inv.id === newInvite.id);
-      if (!savedInvite) {
-        console.warn('Приглашение не найдено после сохранения. Возможно, проблема с синхронизацией данных.');
-      }
-    }
+    });
     
     // Получаем текущий домен из запроса
     // Используем заголовки для определения реального домена
@@ -153,21 +117,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    const data = readData();
-    const invites = data.invites || [];
-    
-    const inviteIndex = invites.findIndex((inv: Invite) => inv.id === id);
-    if (inviteIndex === -1) {
-      return NextResponse.json(
-        { error: 'Приглашение не найдено' },
-        { status: 404 }
-      );
-    }
-    
-    // Удаляем приглашение
-    invites.splice(inviteIndex, 1);
-    data.invites = invites;
-    writeData(data);
+    await deleteInvite(id);
     
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

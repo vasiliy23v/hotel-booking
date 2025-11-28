@@ -69,10 +69,16 @@ export class ApiClient {
     return this.request(`/users/${id}`, { method: 'DELETE' });
   }
 
-  async login(email: string, password: string) {
+  async login(identifier: string, password: string) {
+    // Определяем, является ли идентификатор email или телефоном
+    const isEmail = identifier.includes('@');
+    const body = isEmail 
+      ? { email: identifier, password }
+      : { phone: identifier, password };
+    
     return this.request<any>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(body),
     });
   }
 
@@ -129,6 +135,10 @@ export class ApiClient {
 
   async deleteBooking(id: string) {
     return this.request(`/bookings/${id}`, { method: 'DELETE' });
+  }
+
+  async getBookingStats() {
+    return this.request<{ unconfirmed: number; unpaid: number }>('/bookings/stats');
   }
 
   async confirmBooking(id: string, confirmedBy: string) {

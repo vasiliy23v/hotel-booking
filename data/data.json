@@ -811,19 +811,6 @@
       "height": 80,
       "direction": "up",
       "targetFloor": "1OG"
-    },
-    {
-      "id": "stairs-1763561015926",
-      "hotelId": "hotel-1",
-      "floor": "1OG",
-      "position": {
-        "x": 60,
-        "y": 20
-      },
-      "width": 40,
-      "height": 80,
-      "direction": "up",
-      "targetFloor": "2OG"
     }
   ],
   "hotels": [

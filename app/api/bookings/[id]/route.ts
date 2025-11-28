@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData, writeData } from '@/lib/data';
-import type { BookingInfo, Room } from '@/types';
+import { getBookingById, updateBooking, deleteBooking } from '@/lib/db';
 
 // GET /api/bookings/[id]
 export async function GET(
@@ -9,8 +8,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const data = readData();
-    const booking = data.bookings?.find((b: BookingInfo) => b.id === id);
+    const booking = await getBookingById(id);
     
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
@@ -30,28 +28,13 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const data = readData();
-    const index = data.bookings?.findIndex((b: BookingInfo) => b.id === id) ?? -1;
-    
-    if (index === -1) {
-      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
-    }
-    
-    const updatedBooking = { ...data.bookings[index], ...body };
-    data.bookings[index] = updatedBooking;
-    
-    // Обновляем бронирование в комнате
-    if (data.rooms) {
-      const roomIndex = data.rooms.findIndex((r: Room) => r.booking?.id === id);
-      if (roomIndex !== -1) {
-        data.rooms[roomIndex].booking = updatedBooking;
-      }
-    }
-    
-    writeData(data);
+    const updatedBooking = await updateBooking(id, body);
     
     return NextResponse.json(updatedBooking);
   } catch (error: any) {
+    if (error.message === 'Бронирование не найдено') {
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -63,21 +46,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const data = readData();
-    const booking = data.bookings?.find((b: BookingInfo) => b.id === id);
-    
-    if (booking) {
-      // Удаляем бронирование из комнаты
-      if (data.rooms) {
-        const roomIndex = data.rooms.findIndex((r: Room) => r.id === booking.roomId);
-        if (roomIndex !== -1) {
-          delete data.rooms[roomIndex].booking;
-        }
-      }
-    }
-    
-    data.bookings = data.bookings?.filter((b: BookingInfo) => b.id !== id) || [];
-    writeData(data);
+    await deleteBooking(id);
     
     return NextResponse.json({ success: true });
   } catch (error: any) {

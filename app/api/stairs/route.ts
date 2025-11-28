@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData, writeData } from '@/lib/data';
-import type { Stairs } from '@/types';
+import { getStairs, createStairs } from '@/lib/db';
 
 // GET /api/stairs
 export async function GET(request: NextRequest) {
@@ -8,12 +7,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const hotelId = searchParams.get('hotelId');
     
-    const data = readData();
-    let stairs = data.stairs || [];
-    
-    if (hotelId) {
-      stairs = stairs.filter((s: Stairs) => s.hotelId === hotelId);
-    }
+    const stairs = await getStairs(hotelId || undefined);
     
     return NextResponse.json(stairs);
   } catch (error: any) {
@@ -25,16 +19,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const data = readData();
-    
-    const newStairs: Stairs = {
-      id: `stairs-${Date.now()}`,
-      ...body
-    };
-    
-    if (!data.stairs) data.stairs = [];
-    data.stairs.push(newStairs);
-    writeData(data);
+    const newStairs = await createStairs(body);
     
     return NextResponse.json(newStairs);
   } catch (error: any) {

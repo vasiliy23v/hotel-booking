@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData } from '@/lib/data';
+import { getBookings, getRooms } from '@/lib/db';
 import type { BookingInfo, Room } from '@/types';
 
 // GET /api/cash-monitoring
@@ -8,14 +8,23 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const hotelId = searchParams.get('hotelId');
     
-    const data = readData();
-    let bookings = data.bookings || [];
+    let bookings = await getBookings(undefined, hotelId || undefined);
     
-    // Фильтруем по отелю, если указан
-    if (hotelId) {
-      const rooms = data.rooms?.filter((r: Room) => r.hotelId === hotelId) || [];
-      const roomIds = rooms.map((r: Room) => r.id);
-      bookings = bookings.filter((b: BookingInfo) => roomIds.includes(b.roomId));
+    // Логирование для отладки
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Cash Monitoring Debug:', {
+        hotelId,
+        totalBookings: bookings.length,
+        bookingsWithPayment: bookings.filter(b => b.isPaid).length,
+        cashBookings: bookings.filter(b => b.isPaid && b.paymentMethod === 'cash').length,
+        sampleBookings: bookings.slice(0, 3).map(b => ({
+          id: b.id,
+          isPaid: b.isPaid,
+          paymentMethod: b.paymentMethod,
+          amount: b.amount,
+          paymentDate: b.paymentDate,
+        })),
+      });
     }
     
     // Фильтруем только оплаченные наличными
@@ -42,6 +51,10 @@ export async function GET(request: NextRequest) {
       roomNumber: string;
     }> = [];
     
+    // Получаем все комнаты для поиска номеров
+    const rooms = await getRooms(hotelId || undefined);
+    const roomsMap = new Map(rooms.map((r: Room) => [r.id, r]));
+    
     cashBookings.forEach((booking: BookingInfo) => {
       const amount = booking.amount || 0;
       totalCash += amount;
@@ -61,7 +74,7 @@ export async function GET(request: NextRequest) {
         
         // Добавляем в список последних платежей (за последние 30 дней)
         if (paymentDate >= monthAgo) {
-          const room = data.rooms?.find((r: Room) => r.id === booking.roomId);
+          const room = roomsMap.get(booking.roomId);
           recentCashPayments.push({
             bookingId: booking.id || '',
             amount: amount,

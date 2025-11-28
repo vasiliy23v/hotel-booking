@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut, ArrowLeft, CheckCircle, CreditCard, Euro, DollarSign } from 'lucide-react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut, ArrowLeft, CheckCircle, CreditCard, Euro, DollarSign, Edit } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User, Room, Hotel, BookingInfo } from '@/types';
 import Link from 'next/link';
@@ -18,6 +18,7 @@ export default function BookingsPage() {
   // Фильтры
   const [filterBookedBy, setFilterBookedBy] = useState<string>('');
   const [filterRoomNumber, setFilterRoomNumber] = useState<string>('');
+  const [filterHotelId, setFilterHotelId] = useState<string>('');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
   const [filterDateTo, setFilterDateTo] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
@@ -32,23 +33,17 @@ export default function BookingsPage() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer'>('cash');
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
 
+  // Модальное окно для редактирования
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedBookingForEdit, setSelectedBookingForEdit] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string }) | null>(null);
+  const [editCheckIn, setEditCheckIn] = useState<string>('');
+  const [editCheckOut, setEditCheckOut] = useState<string>('');
+  const [editGuests, setEditGuests] = useState<any[]>([]);
+  const [editNotes, setEditNotes] = useState<string>('');
+
   useEffect(() => {
-    const userStr = localStorage.getItem('currentUser');
-    if (!userStr) {
-      router.push('/');
-      return;
-    }
-
-    const user = JSON.parse(userStr);
-    
-    // Менеджеры перенаправляются на CMS
-    if (user.role === 'manager') {
-      router.push('/cms/dashboard');
-      return;
-    }
-
-    setCurrentUser(user);
-    loadBookings();
+    // Перенаправляем на главную страницу, где бронирования отображаются по умолчанию
+    router.push('/dashboard');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
@@ -148,6 +143,34 @@ export default function BookingsPage() {
     }
   };
 
+  const handleEdit = (booking: BookingInfo & { roomNumber?: string; hotelName?: string }) => {
+    setSelectedBookingForEdit(booking);
+    setEditCheckIn(booking.checkIn.split('T')[0]);
+    setEditCheckOut(booking.checkOut.split('T')[0]);
+    setEditGuests(booking.guests || []);
+    setEditNotes(booking.notes || '');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedBookingForEdit?.id) return;
+    
+    try {
+      await api.updateBooking(selectedBookingForEdit.id, {
+        checkIn: editCheckIn,
+        checkOut: editCheckOut,
+        guests: editGuests,
+        notes: editNotes,
+      });
+      setShowEditModal(false);
+      setSelectedBookingForEdit(null);
+      await loadBookings();
+    } catch (error) {
+      console.error('Error updating booking:', error);
+      alert('Ошибка при обновлении бронирования');
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
     router.push('/');
@@ -176,6 +199,12 @@ export default function BookingsPage() {
     filteredBookings = filteredBookings.filter(b => 
       b.roomNumber?.toLowerCase().includes(filterRoomNumber.toLowerCase())
     );
+  }
+  if (filterHotelId) {
+    filteredBookings = filteredBookings.filter(b => {
+      const room = rooms.find(r => r.id === b.roomId);
+      return room?.hotelId === filterHotelId;
+    });
   }
   if (filterDateFrom) {
     filteredBookings = filteredBookings.filter(b => 
@@ -211,6 +240,19 @@ export default function BookingsPage() {
     return sortDirection === 'asc' ? comparison : -comparison;
   });
 
+  // Группируем бронирования по отелям для обычных пользователей
+  const bookingsByHotel = currentUser.role !== 'manager' 
+    ? filteredBookings.reduce((acc, booking) => {
+        const room = rooms.find(r => r.id === booking.roomId);
+        const hotelId = room?.hotelId || 'unknown';
+        if (!acc[hotelId]) {
+          acc[hotelId] = [];
+        }
+        acc[hotelId].push(booking);
+        return acc;
+      }, {} as Record<string, typeof filteredBookings>)
+    : null;
+
   const handleSort = (column: typeof sortBy) => {
     if (sortBy === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -223,11 +265,12 @@ export default function BookingsPage() {
   const resetFilters = () => {
     setFilterBookedBy('');
     setFilterRoomNumber('');
+    setFilterHotelId('');
     setFilterDateFrom('');
     setFilterDateTo('');
   };
 
-  const hasActiveFilters = filterBookedBy || filterRoomNumber || filterDateFrom || filterDateTo;
+  const hasActiveFilters = filterBookedBy || filterRoomNumber || filterHotelId || filterDateFrom || filterDateTo;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -319,6 +362,21 @@ export default function BookingsPage() {
                   </div>
                 )}
                 <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Отель</label>
+                  <select
+                    value={filterHotelId}
+                    onChange={(e) => setFilterHotelId(e.target.value)}
+                    className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                  >
+                    <option value="">Все отели</option>
+                    {hotels.map((hotel) => (
+                      <option key={hotel.id} value={hotel.id}>
+                        {hotel.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">Номер комнаты</label>
                   <input
                     type="text"
@@ -359,7 +417,180 @@ export default function BookingsPage() {
               <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 text-lg">Бронирования не найдены</p>
             </div>
+          ) : currentUser.role !== 'manager' && bookingsByHotel ? (
+            // Для обычных пользователей - группировка по отелям
+            <div className="space-y-6">
+              {Object.entries(bookingsByHotel).map(([hotelId, hotelBookings]) => {
+                const hotel = hotels.find(h => h.id === hotelId);
+                if (!hotel) return null;
+                
+                return (
+                  <div key={hotelId} className="border border-gray-200 rounded-lg overflow-hidden">
+                    {/* Заголовок отеля */}
+                    <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900">{hotel.name}</h3>
+                          <p className="text-sm text-gray-600">{hotel.address}</p>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {hotelBookings.length} {hotelBookings.length === 1 ? 'бронирование' : hotelBookings.length < 5 ? 'бронирования' : 'бронирований'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Список бронирований в отеле */}
+                    <div className="divide-y divide-gray-100">
+                      {hotelBookings.map((booking) => {
+                        const nights = Math.ceil(
+                          (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 
+                          (1000 * 60 * 60 * 24)
+                        );
+                        const room = rooms.find(r => r.id === booking.roomId);
+                        const totalPrice = booking.amount || (nights * (room?.price || 0));
+                        
+                        return (
+                          <div
+                            key={booking.id}
+                            className="p-4 hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                              {/* Основная информация */}
+                              <div className="flex-1 space-y-3">
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="font-bold text-gray-900">Комната #{booking.roomNumber || 'N/A'}</span>
+                                      {room && (
+                                        <span className="text-xs text-gray-500 px-2 py-0.5 bg-gray-100 rounded">
+                                          {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : 'Общее'}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-sm text-gray-600 space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold">Заезд:</span>
+                                        <span>{new Date(booking.checkIn).toLocaleDateString('ru-RU')}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold">Выезд:</span>
+                                        <span>{new Date(booking.checkOut).toLocaleDateString('ru-RU')}</span>
+                                        <span className="text-xs text-gray-500">({nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'})</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* Гости */}
+                                {booking.guests && booking.guests.length > 0 && (
+                                  <div>
+                                    <div className="text-xs font-semibold text-gray-700 mb-1">
+                                      Гости ({booking.guests.length}):
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {booking.guests.map((g, i) => (
+                                        <div key={i} className="flex items-center gap-1.5">
+                                          {g.image ? (
+                                            <img
+                                              src={g.image}
+                                              alt={g.name}
+                                              className="w-6 h-6 rounded-full object-cover border border-gray-300"
+                                            />
+                                          ) : (
+                                            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300">
+                                              <span className="text-xs text-gray-500">{g.name.charAt(0).toUpperCase()}</span>
+                                            </div>
+                                          )}
+                                          <span className="text-xs text-gray-700">{g.name}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Примечания */}
+                                {booking.notes && (
+                                  <div>
+                                    <div className="text-xs font-semibold text-gray-700 mb-1">Примечания:</div>
+                                    <div className="text-xs text-gray-600">{booking.notes}</div>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Статусы и действия */}
+                              <div className="flex flex-col gap-3 sm:w-48">
+                                {/* Статусы */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    {booking.isConfirmed ? (
+                                      <div className="flex items-center gap-1 text-xs text-green-600">
+                                        <CheckCircle className="w-4 h-4" />
+                                        <span className="font-semibold">Подтверждено</span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-1 text-xs text-yellow-600">
+                                        <span>Ожидает подтверждения</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-2">
+                                    {booking.isPaid ? (
+                                      <div className="flex items-center gap-1 text-xs text-green-600">
+                                        <Euro className="w-4 h-4" />
+                                        <span>
+                                          Оплачено ({booking.paymentMethod === 'cash' ? 'наличными' : booking.paymentMethod === 'transfer' ? 'переводом' : ''})
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-1 text-xs text-red-600">
+                                        <span>Не оплачено</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  {totalPrice > 0 && (
+                                    <div className="text-sm font-bold text-gray-900">
+                                      {totalPrice.toFixed(2)}€
+                                      {room && room.price > 0 && (
+                                        <span className="text-xs text-gray-500 font-normal ml-1">
+                                          ({room.price}€/ночь)
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* Действия */}
+                                <div className="flex flex-col gap-2">
+                                  <button
+                                    onClick={() => handleEdit(booking)}
+                                    className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-semibold flex items-center justify-center gap-1"
+                                    title="Редактировать бронирование"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                    Редактировать
+                                  </button>
+                                  <button
+                                    onClick={() => handleCancel(booking)}
+                                    className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold"
+                                    title="Отменить бронирование"
+                                  >
+                                    Отменить
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
+            // Для менеджеров - таблица
             <div className="overflow-x-auto">
               <table className="w-full border-collapse min-w-[1200px]">
                 <thead>
@@ -414,8 +645,9 @@ export default function BookingsPage() {
                       </>
                     ) : (
                       <>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Отель</th>
                         <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
                           onClick={() => handleSort('roomNumber')}
                         >
                           <div className="flex items-center gap-1">
@@ -427,7 +659,7 @@ export default function BookingsPage() {
                           </div>
                         </th>
                         <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
                           onClick={() => handleSort('checkIn')}
                         >
                           <div className="flex items-center gap-1">
@@ -439,7 +671,7 @@ export default function BookingsPage() {
                           </div>
                         </th>
                         <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
                           onClick={() => handleSort('checkOut')}
                         >
                           <div className="flex items-center gap-1">
@@ -450,9 +682,9 @@ export default function BookingsPage() {
                             {sortBy !== 'checkOut' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
                         </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Гости</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Статус</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Действия</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Гости</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Статус</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Действия</th>
                       </>
                     )}
                   </tr>
@@ -670,6 +902,12 @@ export default function BookingsPage() {
                               : 'hover:bg-gray-50'
                           }`}
                         >
+                          {/* Отель */}
+                          <td className="px-3 py-2.5">
+                            <div className="text-sm font-semibold text-gray-900">{booking.hotelName || 'N/A'}</div>
+                          </td>
+                          
+                          {/* Комната */}
                           <td className="px-3 py-2.5">
                             <div className="font-semibold text-gray-900">#{booking.roomNumber || 'N/A'}</div>
                             {room && (
@@ -745,13 +983,23 @@ export default function BookingsPage() {
                           <td className="px-3 py-2.5">
                             <div className="flex flex-col gap-1">
                               {canCancel && (
-                                <button
-                                  onClick={() => handleCancel(booking)}
-                                  className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold whitespace-nowrap"
-                                  title="Отменить бронирование"
-                                >
-                                  Отменить
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => handleEdit(booking)}
+                                    className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
+                                    title="Редактировать бронирование"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                    Редактировать
+                                  </button>
+                                  <button
+                                    onClick={() => handleCancel(booking)}
+                                    className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                    title="Отменить бронирование"
+                                  >
+                                    Отменить
+                                  </button>
+                                </>
                               )}
                             </div>
                           </td>
@@ -830,6 +1078,90 @@ export default function BookingsPage() {
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-semibold"
               >
                 Подтвердить оплату
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно для редактирования бронирования */}
+      {showEditModal && selectedBookingForEdit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Редактировать бронирование</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  Отель
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">
+                  {selectedBookingForEdit.hotelName || 'N/A'}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  Комната
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">
+                  #{selectedBookingForEdit.roomNumber || 'N/A'}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  Заезд <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={editCheckIn}
+                  onChange={(e) => setEditCheckIn(e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  Выезд <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={editCheckOut}
+                  onChange={(e) => setEditCheckOut(e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  Примечания
+                </label>
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  placeholder="Дополнительная информация..."
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setSelectedBookingForEdit(null);
+                }}
+                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg font-semibold"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold"
+              >
+                Сохранить
               </button>
             </div>
           </div>

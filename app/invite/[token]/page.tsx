@@ -102,23 +102,37 @@ export default function InviteRegistrationPage() {
     setError('');
 
     try {
-      if (!email || !password || !name) {
+      if (!name || !password) {
         setError('Заполните все обязательные поля');
+        setLoading(false);
+        return;
+      }
+
+      // Проверяем, что указан телефон (обязателен)
+      if (!phone.trim()) {
+        setError('Телефон обязателен');
         setLoading(false);
         return;
       }
 
       // Регистрация с токеном приглашения
       const newUser = await api.createUser({
-        email,
+        email: email.trim() || undefined,
         name,
-        phone: phone || undefined,
+        phone: phone.trim() || undefined,
         password,
         role: 'guest',
         inviteToken: token
       });
 
       localStorage.setItem('currentUser', JSON.stringify(newUser));
+      
+      // Проверяем, заполнен ли телефон (обязателен)
+      if (!newUser.phone) {
+        router.push('/complete-profile');
+        return;
+      }
+      
       // Менеджеры перенаправляются на CMS, гости - на обычный dashboard
       if (newUser.role === 'manager') {
         router.push('/cms/dashboard');
@@ -165,8 +179,14 @@ export default function InviteRegistrationPage() {
 
       if (result.success) {
         // Автоматический вход после сброса пароля
-        const loginResponse = await api.login(result.user.email, password);
+        const loginResponse = await api.login(result.user.email || result.user.phone || '', password);
         localStorage.setItem('currentUser', JSON.stringify(loginResponse));
+        
+        // Проверяем, заполнен ли телефон (обязателен)
+        if (!loginResponse.phone) {
+          router.push('/complete-profile');
+          return;
+        }
         
         // Менеджеры перенаправляются на CMS, гости - на обычный dashboard
         if (loginResponse.role === 'manager') {
@@ -273,8 +293,29 @@ export default function InviteRegistrationPage() {
 
                 <div>
                   <label className="block text-sm font-semibold mb-2 text-gray-700">
+                    <Phone className="w-4 h-4 inline mr-1" />
+                    Телефон <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      setError('');
+                    }}
+                    placeholder="+491234567890"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Обязательное поле для входа в систему
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">
                     <Mail className="w-4 h-4 inline mr-1" />
-                    Email <span className="text-red-500">*</span>
+                    Email
                   </label>
                   <input
                     type="email"
@@ -286,20 +327,9 @@ export default function InviteRegistrationPage() {
                     placeholder="email@example.com"
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none bg-white text-gray-900"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700">
-                    <Phone className="w-4 h-4 inline mr-1" />
-                    Телефон
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+491234567890"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
-                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Опционально. Можно использовать для входа в систему
+                  </p>
                 </div>
               </>
             )}

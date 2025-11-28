@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData, writeData } from '@/lib/data';
+import { getUserById, getUsers, updateUser, getInvites, deleteInvite, createInvite } from '@/lib/db';
 import { generateInviteToken, hashInviteToken } from '@/lib/crypto';
 import crypto from 'crypto';
-import type { Invite, User } from '@/types';
 
 // POST /api/invites/recreate - Пересоздать приглашение для имени
 export async function POST(request: NextRequest) {
@@ -17,10 +16,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const data = readData();
-    
     // Проверяем, что создатель существует
-    const creator = data.users.find((u: User) => u.id === createdBy);
+    const creator = await getUserById(createdBy);
     if (!creator) {
       return NextResponse.json(
         { error: 'Пользователь-создатель не найден' },
@@ -28,29 +25,28 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const invites = data.invites || [];
+    // Получаем все приглашения
+    const allInvites = await getInvites();
     
     // Удаляем все старые приглашения для этого имени (неиспользованные)
-    const oldInvites = invites.filter((inv: Invite) => 
+    const oldInvites = allInvites.filter((inv) => 
       inv.name === name.trim() && !inv.used
     );
     
-    oldInvites.forEach((inv: Invite) => {
-      const index = invites.findIndex((i: Invite) => i.id === inv.id);
-      if (index !== -1) {
-        invites.splice(index, 1);
-      }
-    });
+    for (const oldInvite of oldInvites) {
+      await deleteInvite(oldInvite.id);
+    }
     
     // Проверяем, существует ли пользователь с таким именем
-    const existingUser = data.users.find((u: User) => u.name?.trim() === name.trim());
+    const allUsers = await getUsers();
+    const existingUser = allUsers.find((u) => u.name?.trim() === name.trim());
     
     // Если пользователь существует - блокируем его старый пароль, чтобы он был вынужден установить новый
-    if (existingUser) {
+    if (existingUser && existingUser.id) {
       // Генерируем случайный пароль, который никто не знает
       // Это заблокирует вход со старым паролем
       const randomPassword = crypto.randomBytes(32).toString('hex');
-      existingUser.password = randomPassword;
+      await updateUser(existingUser.id, { password: randomPassword });
     }
     
     // Создаем новое приглашение
@@ -60,19 +56,14 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
     
-    const newInvite: Invite = {
-      id: `invite-${Date.now()}`,
+    const newInvite = await createInvite({
       token: hashedToken,
       createdBy,
       createdAt: new Date().toISOString(),
       expiresAt: expiresAt.toISOString(),
       used: false,
       name: name.trim()
-    };
-    
-    invites.push(newInvite);
-    data.invites = invites;
-    writeData(data);
+    });
     
     // Получаем текущий домен из запроса
     // Используем заголовки для определения реального домена
