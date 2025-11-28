@@ -106,15 +106,19 @@ export default function HotelsView({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {hotels.map(hotel => (
             <div key={hotel.id} className="bg-white border-2 border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors">
-              {hotel.image && (
-                <div className="w-full h-48 overflow-hidden cursor-pointer" onClick={() => setViewingHotelId(hotel.id)}>
+              <div className="w-full h-48 overflow-hidden cursor-pointer" onClick={() => setViewingHotelId(hotel.id)}>
+                {hotel.image ? (
                   <img
                     src={hotel.image}
                     alt={hotel.name}
                     className="w-full h-full object-cover"
                   />
-                </div>
-              )}
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                    <Building2 className="w-16 h-16 text-gray-400" />
+                  </div>
+                )}
+              </div>
               <div className="p-4 sm:p-6">
                 <h3 
                   className="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2 cursor-pointer hover:text-gray-700"

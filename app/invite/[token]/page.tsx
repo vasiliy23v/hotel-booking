@@ -88,8 +88,8 @@ export default function InviteRegistrationPage() {
     setError('');
 
     try {
-      if (!name || !password) {
-        setError('Заполните все обязательные поля');
+      if (!password) {
+        setError('Пароль обязателен');
         setLoading(false);
         return;
       }
@@ -102,9 +102,10 @@ export default function InviteRegistrationPage() {
       }
 
       // Регистрация с токеном приглашения
+      // Имя опционально - используем из приглашения, если не указано, или пустую строку
       const newUser = await api.createUser({
         email: email.trim() || undefined,
-        name,
+        name: name.trim() || inviteName || undefined,
         phone: phone.trim() || undefined,
         password,
         role: 'guest',
@@ -249,39 +250,27 @@ export default function InviteRegistrationPage() {
           </div>
 
           <div className="space-y-4">
-            {/* Имя - показываем только если привязано к приглашению */}
-            {inviteName && (
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
-                  Имя
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  disabled
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed text-gray-900"
-                />
-                <p className="text-xs text-gray-500 mt-1">Имя привязано к приглашению</p>
-              </div>
-            )}
-
             {/* Форма регистрации */}
             {!userExists && (
               <>
-                {!inviteName && (
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-700">
-                      Имя <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Иван Иванов"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
-                    />
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">
+                    Имя
+                    {inviteName && (
+                      <span className="text-xs text-gray-500 ml-2">(из приглашения, можно изменить)</span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Иван Иванов"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Опционально. {inviteName ? 'Можно изменить предложенное имя' : 'Можно указать позже'}
+                  </p>
+                </div>
 
                 <div>
                   <label className="block text-sm font-semibold mb-2 text-gray-700">
@@ -324,6 +313,28 @@ export default function InviteRegistrationPage() {
                   </p>
                 </div>
               </>
+            )}
+
+            {/* Имя для сброса пароля */}
+            {userExists && (
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  Имя
+                  {inviteName && (
+                    <span className="text-xs text-gray-500 ml-2">(из приглашения, можно изменить)</span>
+                  )}
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Иван Иванов"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Опционально. {inviteName ? 'Можно изменить предложенное имя' : 'Можно указать имя'}
+                </p>
+              </div>
             )}
 
             {/* Пароль */}

@@ -163,18 +163,15 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Если приглашение привязано к имени, проверяем соответствие
-    if (invite.name && userData.name && invite.name.trim() !== userData.name.trim()) {
-      return NextResponse.json(
-        { error: 'Это приглашение предназначено для другого пользователя' },
-        { status: 400 }
-      );
+    // Имя опционально - если не указано, используем из приглашения
+    if (!userData.name && invite.name) {
+      userData.name = invite.name;
     }
     
     // Валидация обязательных полей
-    if (!userData.password || !userData.name) {
+    if (!userData.password) {
       return NextResponse.json(
-        { error: 'Заполните все обязательные поля (имя и пароль)' },
+        { error: 'Пароль обязателен' },
         { status: 400 }
       );
     }

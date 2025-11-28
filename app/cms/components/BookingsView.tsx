@@ -106,14 +106,26 @@ export default function BookingsView() {
   const handleOpenPaymentModal = (booking: BookingInfo) => {
     const enrichedBooking = bookings.find(b => b.id === booking.id) || booking;
     const room = rooms.find(r => r.id === booking.roomId);
-    if (room && room.price) {
-      const checkIn = new Date(booking.checkIn);
-      const checkOut = new Date(booking.checkOut);
-      const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-      setPaymentAmount(nights * room.price);
-    } else {
-      setPaymentAmount(booking.amount || 0);
+    
+    // Вычисляем ожидаемую сумму на основе цены комнаты и количества ночей
+    const checkIn = new Date(booking.checkIn);
+    const checkOut = new Date(booking.checkOut);
+    const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+    const expectedAmount = nights * (room?.price || 0);
+    
+    // Если уже была оплата, устанавливаем остаток к доплате
+    const alreadyPaid = booking.isPaid ? (booking.amount || 0) : 0;
+    const remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
+    
+    // Если остаток = 0, не открываем модальное окно
+    if (remainingAmount <= 0) {
+      alert('Бронирование уже полностью оплачено');
+      return;
     }
+    
+    // Устанавливаем сумму = остаток к доплате (если есть), иначе полная сумма
+    setPaymentAmount(remainingAmount);
+    
     setSelectedBookingForPayment(enrichedBooking);
     setShowPaymentModal(true);
   };
@@ -446,7 +458,7 @@ export default function BookingsView() {
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Оплата</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Сумма</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Примечания</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Действия</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap sticky right-0 bg-gray-50 z-10 border-l border-gray-200">Действия</th>
                 </tr>
               </thead>
               <tbody>
@@ -456,7 +468,10 @@ export default function BookingsView() {
                     (1000 * 60 * 60 * 24)
                   );
                   const room = rooms.find(r => r.id === booking.roomId);
-                  const totalPrice = booking.amount || (nights * (room?.price || 0));
+                  const expectedAmount = nights * (room?.price || 0);
+                  const alreadyPaid = booking.isPaid ? (booking.amount || 0) : 0;
+                  const remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
+                  const totalPrice = booking.amount || expectedAmount;
 
                   return (
                     <tr
@@ -602,14 +617,14 @@ export default function BookingsView() {
                         </div>
                       </td>
                       
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-2.5 sticky right-0 bg-white z-10 hover:bg-gray-50 border-l border-gray-200">
                         <div className="flex flex-col gap-1">
                           <button
                             onClick={() => {
                               setSelectedBookingForDetail(booking);
                               setShowDetailModal(true);
                             }}
-                            className="px-2 py-1 bg-gray-900 hover:bg-gray-800 text-white rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
+                            className="px-2 py-1 bg-white hover:bg-gray-100 text-black border border-black rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
                             title="Подробнее о бронировании"
                           >
                             <Eye className="w-3 h-3" />
@@ -618,21 +633,21 @@ export default function BookingsView() {
                           {!booking.isConfirmed && (
                             <button
                               onClick={() => handleConfirmBooking(booking)}
-                              className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
+                              className="px-2 py-1 bg-white hover:bg-gray-100 text-black border border-black rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
                               title="Подтвердить бронирование"
                             >
                               <CheckCircle className="w-3 h-3" />
                               Подтвердить
                             </button>
                           )}
-                          {!booking.isPaid && (
+                          {remainingAmount > 0 && (
                             <button
                               onClick={() => handleOpenPaymentModal(booking)}
-                              className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
-                              title="Подтвердить оплату"
+                              className="px-2 py-1 bg-white hover:bg-gray-100 text-black border border-black rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
+                              title={booking.isPaid ? "Доплата" : "Подтвердить оплату"}
                             >
                               <CreditCard className="w-3 h-3" />
-                              Оплата
+                              {booking.isPaid ? 'Доплата' : 'Оплата'}
                             </button>
                           )}
                           <button
@@ -661,7 +676,10 @@ export default function BookingsView() {
           (1000 * 60 * 60 * 24)
         );
         const room = rooms.find(r => r.id === booking.roomId);
-        const totalPrice = booking.amount || (nights * (room?.price || 0));
+        const expectedAmount = nights * (room?.price || 0);
+        const alreadyPaid = booking.isPaid ? (booking.amount || 0) : 0;
+        const remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
+        const totalPrice = booking.amount || expectedAmount;
         
         return (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -931,22 +949,22 @@ export default function BookingsView() {
                         setShowDetailModal(false);
                         handleConfirmBooking(booking);
                       }}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold flex items-center gap-2"
+                      className="px-4 py-2 bg-white hover:bg-gray-100 text-black border border-black rounded-lg font-semibold flex items-center gap-2"
                     >
                       <CheckCircle className="w-4 h-4" />
                       Подтвердить бронирование
                     </button>
                   )}
-                  {!booking.isPaid && (
+                  {remainingAmount > 0 && (
                     <button
                       onClick={() => {
                         setShowDetailModal(false);
                         handleOpenPaymentModal(booking);
                       }}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2"
+                      className="px-4 py-2 bg-white hover:bg-gray-100 text-black border border-black rounded-lg font-semibold flex items-center gap-2"
                     >
                       <CreditCard className="w-4 h-4" />
-                      Подтвердить оплату
+                      {booking.isPaid ? 'Доплата' : 'Подтвердить оплату'}
                     </button>
                   )}
                   <button
@@ -965,7 +983,7 @@ export default function BookingsView() {
                       setShowDetailModal(false);
                       setSelectedBookingForDetail(null);
                     }}
-                    className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-semibold"
+                    className="px-4 py-2 bg-white hover:bg-gray-100 text-black border border-black rounded-lg font-semibold"
                   >
                     Закрыть
                   </button>
@@ -977,74 +995,119 @@ export default function BookingsView() {
       })()}
 
       {/* Модальное окно для подтверждения оплаты */}
-      {showPaymentModal && selectedBookingForPayment && (
-        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Подтверждение оплаты</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
-                  Способ оплаты <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'transfer')}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                >
-                  <option value="cash">Оплачено наличными</option>
-                  <option value="transfer">Оплачено переводом</option>
-                </select>
-              </div>
+      {showPaymentModal && selectedBookingForPayment && (() => {
+        // Вычисляем ожидаемую сумму на основе цены комнаты и количества ночей
+        const nights = Math.ceil(
+          (new Date(selectedBookingForPayment.checkOut).getTime() - new Date(selectedBookingForPayment.checkIn).getTime()) / 
+          (1000 * 60 * 60 * 24)
+        );
+        const room = rooms.find(r => r.id === selectedBookingForPayment.roomId);
+        // Ожидаемая сумма всегда рассчитывается на основе цены комнаты и ночей
+        const expectedAmount = nights * (room?.price || 0);
+        
+        // Учитываем уже оплаченную сумму
+        const alreadyPaid = selectedBookingForPayment.isPaid ? (selectedBookingForPayment.amount || 0) : 0;
+        const remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
+        
+        // Определяем, является ли это доплатой
+        // Если введенная сумма > 0 и меньше остатка (или ожидаемой суммы) - это частичная доплата
+        // Если введенная сумма = 0 (автоматический расчет) или >= остатка - это полная оплата
+        const targetAmount = alreadyPaid > 0 ? remainingAmount : expectedAmount;
+        const isPartialPayment = paymentAmount > 0 && paymentAmount < targetAmount;
+        
+        return (
+          <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Подтверждение оплаты</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">
+                    Способ оплаты <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'transfer')}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  >
+                    <option value="cash">Оплачено наличными</option>
+                    <option value="transfer">Оплачено переводом</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
-                  Сумма (€)
-                </label>
-                <input
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(Number(e.target.value))}
-                  min="0"
-                  step="0.01"
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Оставьте 0 для автоматического расчета
-                </p>
-              </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">
+                    Сумма (€)
+                  </label>
+                  <input
+                    type="number"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                    min="0"
+                    step="0.01"
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {alreadyPaid > 0 
+                      ? 'Введите сумму доплаты (0 для автоматического расчета остатка)'
+                      : 'Оставьте 0 для автоматического расчета'}
+                  </p>
+                  {expectedAmount > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs text-gray-600">
+                        Ожидаемая сумма: <span className="font-semibold">{expectedAmount.toFixed(2)}€</span>
+                      </p>
+                      {alreadyPaid > 0 && (
+                        <p className="text-xs text-blue-600">
+                          Уже оплачено: <span className="font-semibold">{alreadyPaid.toFixed(2)}€</span>
+                        </p>
+                      )}
+                      {alreadyPaid > 0 && remainingAmount > 0 && (
+                        <p className="text-xs text-gray-700">
+                          Остаток к доплате: <span className="font-semibold">{remainingAmount.toFixed(2)}€</span>
+                        </p>
+                      )}
+                      {isPartialPayment && (
+                        <p className="text-xs text-orange-600 font-semibold">
+                          После доплаты останется: <span>{((alreadyPaid > 0 ? remainingAmount : expectedAmount) - paymentAmount).toFixed(2)}€</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <div className="text-sm text-gray-700">
-                  <div className="font-semibold mb-1">Информация о бронировании:</div>
-                  <div>Комната: #{selectedBookingForPayment.roomNumber || 'N/A'}</div>
-                  <div>Гость: {selectedBookingForPayment.bookedBy}</div>
-                  <div>Заезд: {new Date(selectedBookingForPayment.checkIn).toLocaleDateString('ru-RU')}</div>
-                  <div>Выезд: {new Date(selectedBookingForPayment.checkOut).toLocaleDateString('ru-RU')}</div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <div className="text-sm text-gray-700">
+                    <div className="font-semibold mb-1">Информация о бронировании:</div>
+                    <div>Комната: #{selectedBookingForPayment.roomNumber || 'N/A'}</div>
+                    <div>Гость: {selectedBookingForPayment.bookedBy}</div>
+                    <div>Заезд: {new Date(selectedBookingForPayment.checkIn).toLocaleDateString('ru-RU')}</div>
+                    <div>Выезд: {new Date(selectedBookingForPayment.checkOut).toLocaleDateString('ru-RU')}</div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowPaymentModal(false);
-                  setSelectedBookingForPayment(null);
-                }}
-                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg font-semibold"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleConfirmPayment}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-semibold"
-              >
-                Подтвердить оплату
-              </button>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowPaymentModal(false);
+                    setSelectedBookingForPayment(null);
+                  }}
+                  className="flex-1 bg-white hover:bg-gray-100 text-black border border-black py-2 rounded-lg font-semibold"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleConfirmPayment}
+                  className="flex-1 bg-white hover:bg-gray-100 text-black border border-black py-2 rounded-lg font-semibold"
+                >
+                  {isPartialPayment ? 'Подтвердить доплату' : 'Подтвердить оплату'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

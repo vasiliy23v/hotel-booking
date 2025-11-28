@@ -84,15 +84,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Если приглашение привязано к имени, проверяем соответствие
-    if (inviteName && name && inviteName.trim() !== name.trim()) {
-      return NextResponse.json(
-        { error: 'Это приглашение предназначено для другого пользователя' },
-        { status: 400 }
-      );
-    }
-
-    // Ищем пользователя по имени из приглашения
+    // Имя опционально - используем из приглашения, если не указано
+    // Если имя указано и отличается от имени в приглашении, обновляем имя пользователя
     const userName = inviteName || name;
     if (!userName) {
       return NextResponse.json(
@@ -112,7 +105,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Обновляем пароль пользователя
-    await updateUser(user.id, { password });
+    // Если имя указано и отличается от текущего, обновляем и имя
+    const updateData: { password: string; name?: string } = { password };
+    if (name && name.trim() && name.trim() !== user.name?.trim()) {
+      updateData.name = name.trim();
+    }
+    await updateUser(user.id, updateData);
     
     // Помечаем приглашение как использованное
     await updateInvite(invite.id, {
