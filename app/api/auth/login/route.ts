@@ -104,6 +104,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(userWithoutPassword);
   } catch (error: unknown) {
     console.error('Login error:', error);
+    
+    // Обработка ошибок Prisma
+    if (error && typeof error === 'object' && 'code' in error) {
+      const prismaError = error as { code: string; message: string };
+      console.error('Prisma error code:', prismaError.code, 'message:', prismaError.message);
+      return NextResponse.json(
+        { error: 'Ошибка базы данных. Попробуйте позже.' },
+        { status: 500 }
+      );
+    }
+    
+    // Обработка ошибок парсинга JSON
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { error: 'Неверный формат данных' },
+        { status: 400 }
+      );
+    }
+    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

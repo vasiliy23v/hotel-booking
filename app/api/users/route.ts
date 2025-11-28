@@ -11,8 +11,10 @@ export async function GET() {
     // getUsers() уже возвращает пользователей без паролей
     const users = await getUsers();
     return NextResponse.json(users);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error('Error in GET /api/users:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -249,8 +251,37 @@ export async function POST(request: NextRequest) {
     
     const { password, ...userWithoutPassword } = newUser;
     return NextResponse.json(userWithoutPassword);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error('Error in POST /api/users:', error);
+    
+    // Обработка ошибок Prisma
+    if (error && typeof error === 'object' && 'code' in error) {
+      const prismaError = error as { code: string; message: string };
+      console.error('Prisma error code:', prismaError.code, 'message:', prismaError.message);
+      
+      if (prismaError.code === 'P2002') {
+        return NextResponse.json(
+          { error: 'Пользователь с таким email или телефоном уже существует' },
+          { status: 400 }
+        );
+      }
+      
+      return NextResponse.json(
+        { error: 'Ошибка базы данных. Попробуйте позже.' },
+        { status: 500 }
+      );
+    }
+    
+    // Обработка ошибок парсинга JSON
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { error: 'Неверный формат данных' },
+        { status: 400 }
+      );
+    }
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

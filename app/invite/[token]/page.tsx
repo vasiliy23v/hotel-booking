@@ -74,23 +74,9 @@ export default function InviteRegistrationPage() {
     }
   }, [token, params]);
 
-  // Проверка существующего пользователя
-  useEffect(() => {
-    const currentUser = localStorage.getItem('currentUser');
-    if (currentUser) {
-      try {
-        const user = JSON.parse(currentUser);
-        // Менеджеры перенаправляются на CMS, гости - на обычный dashboard
-        if (user.role === 'manager') {
-          router.push('/cms/dashboard');
-        } else {
-          router.push('/dashboard');
-        }
-      } catch {
-        router.push('/dashboard');
-      }
-    }
-  }, [router]);
+  // Проверка существующего пользователя - только после проверки токена
+  // Не редиректим автоматически, так как пользователь может использовать приглашение
+  // для регистрации нового аккаунта или сброса пароля даже если он залогинен
 
   const handleRegister = async () => {
     if (!token) {
@@ -127,6 +113,9 @@ export default function InviteRegistrationPage() {
 
       localStorage.setItem('currentUser', JSON.stringify(newUser));
       
+      // Сбрасываем состояние загрузки перед редиректом
+      setLoading(false);
+      
       // Проверяем, заполнен ли телефон (обязателен)
       if (!newUser.phone) {
         router.push('/complete-profile');
@@ -141,7 +130,6 @@ export default function InviteRegistrationPage() {
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Ошибка при регистрации');
-    } finally {
       setLoading(false);
     }
   };
@@ -182,6 +170,9 @@ export default function InviteRegistrationPage() {
         const loginResponse = await api.login(result.user.email || result.user.phone || '', password);
         localStorage.setItem('currentUser', JSON.stringify(loginResponse));
         
+        // Сбрасываем состояние загрузки перед редиректом
+        setLoading(false);
+        
         // Проверяем, заполнен ли телефон (обязателен)
         if (!loginResponse.phone) {
           router.push('/complete-profile');
@@ -194,10 +185,11 @@ export default function InviteRegistrationPage() {
         } else {
           router.push('/dashboard');
         }
+      } else {
+        setLoading(false);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Ошибка при сбросе пароля');
-    } finally {
       setLoading(false);
     }
   };

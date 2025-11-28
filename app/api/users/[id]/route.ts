@@ -17,8 +17,10 @@ export async function GET(
     
     const { password, ...userWithoutPassword } = user;
     return NextResponse.json(userWithoutPassword);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error('Error in GET /api/users/[id]:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -72,13 +74,31 @@ export async function PUT(
     
     const { password, ...userWithoutPassword } = updatedUser;
     return NextResponse.json(userWithoutPassword);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in PUT /api/users/[id]:', error);
-    if (error.message === 'Пользователь не найден') {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    
+    // Обработка ошибок Prisma
+    if (error && typeof error === 'object' && 'code' in error) {
+      const prismaError = error as { code: string; message: string };
+      if (prismaError.code === 'P2025') {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      if (prismaError.code === 'P2002') {
+        return NextResponse.json(
+          { error: 'Пользователь с таким email или телефоном уже существует' },
+          { status: 400 }
+        );
+      }
     }
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    
+    if (error instanceof Error) {
+      if (error.message === 'Пользователь не найден') {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    
+    return NextResponse.json({ error: 'Unknown error' }, { status: 500 });
   }
 }
 
@@ -92,8 +112,10 @@ export async function DELETE(
     await deleteUser(id);
     
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error('Error in DELETE /api/users/[id]:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

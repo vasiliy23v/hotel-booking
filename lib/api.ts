@@ -3,20 +3,35 @@ const API_URL = '/api';
 
 export class ApiClient {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-    });
+    try {
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+      });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: response.statusText }));
-      throw new Error(error.error || `API Error: ${response.statusText}`);
+      if (!response.ok) {
+        let errorMessage = `Ошибка: ${response.statusText}`;
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch {
+          // Если не удалось распарсить JSON, используем статус текст
+        }
+        throw new Error(errorMessage);
+      }
+
+      return response.json();
+    } catch (error) {
+      // Если это уже наша ошибка, пробрасываем её дальше
+      if (error instanceof Error) {
+        throw error;
+      }
+      // Иначе создаём новую ошибку
+      throw new Error('Ошибка сети. Проверьте подключение к интернету.');
     }
-
-    return response.json();
   }
 
   // Users

@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [selectedHotel, setSelectedHotel] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false); // Флаг загрузки данных
+  const [error, setError] = useState<string | null>(null); // Состояние ошибки
   const [viewMode, setViewMode] = useState<'plan' | 'list'>('plan');
   const [selectedFloor, setSelectedFloor] = useState<'EG' | '1OG' | '2OG'>('EG');
   const [stairs, setStairs] = useState<Stairs[]>([]);
@@ -164,7 +165,6 @@ export default function Dashboard() {
             localStorage.removeItem('dashboard_selectedHotel');
           }
         }
-
       } else {
         // Проверяем, что выбранный отель все еще существует (при обновлении данных)
         if (selectedHotel && !hotelsData.find(h => h.id === selectedHotel)) {
@@ -173,9 +173,16 @@ export default function Dashboard() {
           localStorage.removeItem('dashboard_selectedHotel');
         }
       }
+      
+      // Устанавливаем флаг только при успешной загрузке
+      setDataLoaded(true);
+      setError(null); // Очищаем ошибку при успешной загрузке
     } catch (error) {
       console.error('Error loading data:', error);
-      setDataLoaded(true); // Устанавливаем флаг даже при ошибке, чтобы не блокировать UI
+      const errorMessage = error instanceof Error ? error.message : 'Ошибка при загрузке данных';
+      setError(errorMessage);
+      // Не устанавливаем dataLoaded при ошибке, чтобы показать экран загрузки
+      // и пользователь мог увидеть, что что-то пошло не так
     } finally {
       setLoading(false);
     }
@@ -329,8 +336,28 @@ export default function Dashboard() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <div className="text-lg text-gray-900">Загрузка данных...</div>
+          {error ? (
+            <>
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <div className="text-lg text-gray-900 mb-4">Ошибка загрузки данных</div>
+              <div className="text-sm text-gray-600 mb-4">{error}</div>
+              <button
+                onClick={() => {
+                  setError(null);
+                  setLoading(true);
+                  loadData();
+                }}
+                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Попробовать снова
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+              <div className="text-lg text-gray-900">Загрузка данных...</div>
+            </>
+          )}
         </div>
       </div>
     );
