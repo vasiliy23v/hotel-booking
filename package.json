@@ -9,7 +9,7 @@
     "install:deps": "npm install",
     "generate:prisma": "prisma generate",
     "build:next": "next build",
-    "check:db": "tsx scripts/check-db-connection.ts",
+    "check:db": "npx tsx scripts/check-db-connection.ts",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint"
@@ -27,7 +27,8 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "sendpulse-api": "^1.1.7",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "tsx": "^4.7.0"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -37,7 +38,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
     "prisma": "^7.0.1",
-    "tsx": "^4.7.0",
     "typescript": "^5"
   }
 }
