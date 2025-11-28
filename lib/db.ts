@@ -163,6 +163,7 @@ export async function getUserById(id: string): Promise<User | null> {
     phone: user.phone || undefined,
     role: user.role as User['role'],
     createdAt: user.createdAt?.toISOString() || undefined,
+    isProfileComplete: user.isProfileComplete,
   };
 }
 
@@ -190,6 +191,7 @@ export async function getUserByEmail(email: string | null | undefined): Promise<
     phone: user.phone || undefined,
     role: user.role as User['role'],
     createdAt: user.createdAt?.toISOString() || undefined,
+    isProfileComplete: user.isProfileComplete,
   };
 }
 
@@ -217,6 +219,7 @@ export async function getUserByPhone(phone: string | null | undefined): Promise<
     phone: user.phone || undefined,
     role: user.role as User['role'],
     createdAt: user.createdAt?.toISOString() || undefined,
+    isProfileComplete: user.isProfileComplete,
   };
 }
 
@@ -251,6 +254,7 @@ export async function createUser(user: Omit<User, 'id'> & { id?: string }): Prom
       password: user.password || null,
       phone: normalizedPhone,
       role: user.role as any,
+      isProfileComplete: user.isProfileComplete ?? false,
     },
   });
   
@@ -262,6 +266,7 @@ export async function createUser(user: Omit<User, 'id'> & { id?: string }): Prom
     phone: newUser.phone || undefined,
     role: newUser.role as User['role'],
     createdAt: newUser.createdAt?.toISOString() || undefined,
+    isProfileComplete: newUser.isProfileComplete,
   };
 }
 
@@ -279,6 +284,7 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
     updateData.phone = updates.phone ? normalizePhone(updates.phone) : null;
   }
   if (updates.role !== undefined) updateData.role = updates.role as any;
+  if (updates.isProfileComplete !== undefined) updateData.isProfileComplete = updates.isProfileComplete;
   
   const updatedUser = await prisma.user.update({
     where: { id },
@@ -293,6 +299,7 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
     phone: updatedUser.phone || undefined,
     role: updatedUser.role as User['role'],
     createdAt: updatedUser.createdAt?.toISOString() || undefined,
+    isProfileComplete: updatedUser.isProfileComplete,
   };
 }
 

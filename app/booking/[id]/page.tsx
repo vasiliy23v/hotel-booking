@@ -412,7 +412,7 @@ export default function BookingPage() {
                           <button
                             type="button"
                             onClick={() => updateGuest(idx, 'image', '')}
-                            className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1"
+                            className="absolute -top-1 -right-1 bg-pink-900 hover:bg-pink-950 text-white rounded-full p-1"
                           >
                             <X className="w-3 h-3" />
                           </button>

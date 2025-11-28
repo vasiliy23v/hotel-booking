@@ -20,6 +20,7 @@ model User {
   password  String?
   phone     String?  @unique
   role      UserRole
+  isProfileComplete Boolean @default(false) @map("is_profile_complete")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

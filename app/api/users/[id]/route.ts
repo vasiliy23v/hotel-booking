@@ -73,10 +73,12 @@ export async function PUT(
     const { password, ...userWithoutPassword } = updatedUser;
     return NextResponse.json(userWithoutPassword);
   } catch (error: any) {
+    console.error('Error in PUT /api/users/[id]:', error);
     if (error.message === 'Пользователь не найден') {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

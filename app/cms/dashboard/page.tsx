@@ -163,19 +163,6 @@ export default function CMSDashboard() {
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900">CMS - Управление</h1>
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
-                {/* Колокольчик с неподтвержденными бронированиями */}
-                <button
-                  onClick={() => setViewMode('bookings')}
-                  className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Неподтвержденные бронирования"
-                >
-                  <Bell className="w-5 h-5" />
-                  {bookingStats.unconfirmed > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-black text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {bookingStats.unconfirmed > 99 ? '99+' : bookingStats.unconfirmed}
-                    </span>
-                  )}
-                </button>
 
                 {/* Доллар с неоплаченными бронированиями (только для менеджера) */}
                 {currentUser.role === 'manager' && (
@@ -186,7 +173,7 @@ export default function CMSDashboard() {
                   >
                     <DollarSign className="w-5 h-5" />
                     {bookingStats.unpaid > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-black text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      <span className="absolute -top-1 -right-1 bg-pink-900 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                         {bookingStats.unpaid > 99 ? '99+' : bookingStats.unpaid}
                       </span>
                     )}
@@ -277,7 +264,7 @@ export default function CMSDashboard() {
             <div className="relative">
               <BookOpen className={`w-5 h-5 ${viewMode === 'bookings' ? 'text-gray-900' : 'text-gray-500'}`} />
               {bookingStats.unconfirmed > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-black text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                   {bookingStats.unconfirmed > 9 ? '9+' : bookingStats.unconfirmed}
                 </span>
               )}

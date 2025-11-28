@@ -3,7 +3,7 @@
 // Singleton для использования Prisma Client в Next.js
 // ============================================
 
-import { PrismaClient } from './generated/prisma/index.js';
+import { PrismaClient } from './generated/prisma';
 import { PrismaNeon } from '@prisma/adapter-neon';
 
 const globalForPrisma = globalThis as unknown as {

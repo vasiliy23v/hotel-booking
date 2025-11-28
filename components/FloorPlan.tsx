@@ -659,7 +659,7 @@ export default function FloorPlan({
                       e.stopPropagation();
                       handleDeleteStairs(stair.id);
                     }}
-                    className="bg-red-500 hover:bg-red-600 rounded px-2 py-1"
+                    className="bg-pink-900 hover:bg-pink-950 rounded px-2 py-1"
                     title="Удалить"
                   >
                     <X className="w-3 h-3" />
@@ -785,7 +785,7 @@ export default function FloorPlan({
                       e.stopPropagation();
                       handleDeleteRoom(room.id);
                     }}
-                    className="bg-red-500 hover:bg-red-600 rounded px-1"
+                    className="bg-pink-900 hover:bg-pink-950 rounded px-1"
                     title="Удалить"
                   >
                     <Trash2 className="w-3 h-3 inline" />

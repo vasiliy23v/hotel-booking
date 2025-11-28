@@ -134,7 +134,7 @@ export default function HotelsView({
                 <div className="flex gap-1.5 sm:gap-2">
                   <button
                     onClick={() => setViewingHotelId(hotel.id)}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1"
+                    className="flex-1 bg-black hover:bg-black-90 text-white py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1"
                   >
                     <span className="hidden sm:inline">Открыть</span>
                     <span className="sm:hidden">Открыть</span>
@@ -145,14 +145,14 @@ export default function HotelsView({
                       setEditingHotel(hotel);
                       setShowHotelModal(true);
                     }}
-                    className="bg-green-600 hover:bg-green-700 text-white py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1 px-2 sm:px-3"
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1 px-2 sm:px-3"
                     title="Быстрое редактирование"
                   >
                     <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                   </button>
                   <button
                     onClick={() => handleDeleteHotel(hotel.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1 px-2 sm:px-3"
+                    className="bg-pink-900 hover:bg-pink-950 text-white py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1 px-2 sm:px-3"
                     title="Удалить"
                   >
                     <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />

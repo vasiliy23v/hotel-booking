@@ -75,6 +75,7 @@ export interface User {
   password?: string;
   phone?: string; // Опциональный телефон
   role: 'manager' | 'guest';
+  isProfileComplete?: boolean; // Флаг заполненности профиля
   createdAt?: string; // Дата регистрации
 }
 

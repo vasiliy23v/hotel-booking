@@ -167,3 +167,4 @@ CREATE TRIGGER update_stairs_updated_at BEFORE UPDATE ON stairs
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 
+

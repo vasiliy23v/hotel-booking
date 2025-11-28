@@ -573,7 +573,7 @@ export default function BookingsPage() {
                                   </button>
                                   <button
                                     onClick={() => handleCancel(booking)}
-                                    className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold"
+                                    className="px-3 py-1.5 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold"
                                     title="Отменить бронирование"
                                   >
                                     Отменить
@@ -881,7 +881,7 @@ export default function BookingsPage() {
                               {canCancel && (
                                 <button
                                   onClick={() => handleCancel(booking)}
-                                  className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                  className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
                                   title="Отменить бронирование"
                                 >
                                   Отменить
@@ -994,7 +994,7 @@ export default function BookingsPage() {
                                   </button>
                                   <button
                                     onClick={() => handleCancel(booking)}
-                                    className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                    className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
                                     title="Отменить бронирование"
                                   >
                                     Отменить

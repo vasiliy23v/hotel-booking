@@ -253,26 +253,25 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 ">
           <button
             onClick={onBack}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-semibold"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Назад к списку</span>
+            <ArrowLeft className="w-5 h-5" />
           </button>
           {!editing && (
-            <div className="flex gap-2">
+            <div className="flex sm:flex-row flex-col gap-2">
               <button
                 onClick={() => setEditing(true)}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+                className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
               >
                 <Edit className="w-4 h-4" />
                 Редактировать
               </button>
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+                className="px-4 py-2 bg-pink-900 hover:bg-pink-950 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
                 Удалить
@@ -311,7 +310,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
               {editing && (
                 <button
                   onClick={handleRemoveImage}
-                  className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2"
+                  className="absolute top-2 right-2 bg-pink-900 hover:bg-pink-950 text-white rounded-full p-2"
                 >
                   <X className="w-4 h-4" />
                 </button>

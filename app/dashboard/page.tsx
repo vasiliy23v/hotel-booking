@@ -575,7 +575,7 @@ export default function Dashboard() {
                 >
                   <Bell className="w-5 h-5" />
                   {bookingStats.unconfirmed > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-black text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 bg-pink-950 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                       {bookingStats.unconfirmed > 99 ? '99+' : bookingStats.unconfirmed}
                     </span>
                   )}
@@ -595,7 +595,7 @@ export default function Dashboard() {
                   >
                     <DollarSign className="w-5 h-5" />
                     {bookingStats.unpaid > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-black text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      <span className="absolute -top-1 -right-1 bg-pink-950 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                         {bookingStats.unpaid > 99 ? '99+' : bookingStats.unpaid}
                       </span>
                     )}
@@ -1059,7 +1059,7 @@ export default function Dashboard() {
                           {room.booking && (room.booking.bookedBy === currentUser.name || currentUser.role === 'manager') && (
                             <button
                               onClick={() => handleCancelBooking(room.id)}
-                              className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap"
+                              className="px-3 py-1.5 bg-pink-900 hover:bg-pink-950 text-white rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap"
                             >
                               Отменить бронь
                             </button>
@@ -1360,7 +1360,7 @@ export default function Dashboard() {
                                 {room.booking && (room.booking.bookedBy === currentUser.name || currentUser.role === 'manager') && (
                                   <button
                                     onClick={() => handleCancelBooking(room.id)}
-                                    className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                    className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
                                     title="Отменить бронирование"
                                   >
                                     Отменить
@@ -1673,7 +1673,7 @@ export default function Dashboard() {
                                 {room.booking && (room.booking.bookedBy === currentUser.name || currentUser.role === 'manager') && (
                                   <button
                                     onClick={() => handleCancelBooking(room.id)}
-                                    className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                    className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
                                     title="Отменить бронирование"
                                   >
                                     Отменить
@@ -1767,7 +1767,7 @@ export default function Dashboard() {
               <div className="relative">
                 <BookOpen className={`w-5 h-5 ${!selectedHotel && activeTab === 'bookings' ? 'text-gray-900' : 'text-gray-500'}`} />
                 {bookingStats.unconfirmed > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-pink-950 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                     {bookingStats.unconfirmed > 9 ? '9+' : bookingStats.unconfirmed}
                   </span>
                 )}
@@ -2089,7 +2089,7 @@ function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
                   <button
                     type="button"
                     onClick={handleRemoveImage}
-                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5"
+                    className="absolute top-2 right-2 bg-pink-900 hover:bg-pink-950 text-white rounded-full p-1.5"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3674,7 +3674,7 @@ function BookingsView({
                                   onCancelBooking(booking.id!);
                                 }
                               }}
-                              className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold whitespace-nowrap"
+                              className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
                               title="Отменить бронирование"
                             >
                               Отменить

@@ -23,3 +23,4 @@ export function shouldRedirectToCompleteProfile(user: User | null): boolean {
   return !isUserProfileComplete(user);
 }
 
+
