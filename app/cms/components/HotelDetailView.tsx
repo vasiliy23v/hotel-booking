@@ -29,6 +29,8 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
   const [stairs, setStairs] = useState<Stairs[]>([]);
   const [selectedFloor, setSelectedFloor] = useState<'EG' | '1OG' | '2OG'>('EG');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
 
   useEffect(() => {
     loadHotel();
@@ -157,10 +159,21 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
   const handleDelete = async () => {
     if (!hotel) return;
     
-    if (!confirm('Вы уверены, что хотите удалить этот отель?')) return;
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!hotel) return;
+    
+    if (deleteConfirmName.trim() !== hotel.name.trim()) {
+      alert('Название отеля не совпадает. Введите точное название отеля для подтверждения.');
+      return;
+    }
     
     try {
       await api.deleteHotel(hotel.id);
+      setShowDeleteModal(false);
+      setDeleteConfirmName('');
       onBack();
       onHotelUpdate();
     } catch (error) {
@@ -490,6 +503,67 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
           )}
         </div>
       </div>
+
+      {/* Модальное окно подтверждения удаления */}
+      {showDeleteModal && hotel && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Подтверждение удаления отеля</h2>
+            
+            <div className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm text-red-800 font-semibold mb-2">
+                  ⚠️ Внимание! Это действие необратимо.
+                </p>
+                <p className="text-sm text-red-700">
+                  При удалении отеля <strong>"{hotel.name}"</strong> будут безвозвратно удалены:
+                </p>
+                <ul className="text-sm text-red-700 mt-2 list-disc list-inside space-y-1">
+                  <li>Все комнаты отеля</li>
+                  <li>Все бронирования, связанные с этими комнатами</li>
+                  <li>Вся информация об отеле</li>
+                </ul>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  Для подтверждения введите название отеля: <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmName}
+                  onChange={(e) => setDeleteConfirmName(e.target.value)}
+                  placeholder={hotel.name}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Введите: <strong>{hotel.name}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmName('');
+                }}
+                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg font-semibold"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteConfirmName.trim() !== hotel.name.trim()}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Удалить отель
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

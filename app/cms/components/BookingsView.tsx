@@ -107,14 +107,14 @@ export default function BookingsView() {
     const enrichedBooking = bookings.find(b => b.id === booking.id) || booking;
     const room = rooms.find(r => r.id === booking.roomId);
     
-    // Вычисляем ожидаемую сумму на основе цены комнаты и количества ночей
+    // Вычисляем ожидаемую сумму на основе цены комнаты и количества ночей, округляем до целого
     const checkIn = new Date(booking.checkIn);
     const checkOut = new Date(booking.checkOut);
     const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-    const expectedAmount = nights * (room?.price || 0);
+    const expectedAmount = Math.round(nights * (room?.price || 0));
     
-    // Если уже была оплата, устанавливаем остаток к доплате
-    const alreadyPaid = booking.isPaid ? (booking.amount || 0) : 0;
+    // Если уже была оплата, устанавливаем остаток к доплате, округляем до целого
+    const alreadyPaid = Math.round(booking.isPaid ? (booking.amount || 0) : 0);
     const remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
     
     // Если остаток = 0, не открываем модальное окно
@@ -137,7 +137,7 @@ export default function BookingsView() {
       await api.confirmPayment(
         selectedBookingForPayment.id,
         paymentMethod,
-        paymentAmount || undefined,
+        paymentAmount ? Math.round(paymentAmount) : undefined,
         currentUser?.name || 'system'
       );
       setShowPaymentModal(false);
@@ -1002,11 +1002,11 @@ export default function BookingsView() {
           (1000 * 60 * 60 * 24)
         );
         const room = rooms.find(r => r.id === selectedBookingForPayment.roomId);
-        // Ожидаемая сумма всегда рассчитывается на основе цены комнаты и ночей
-        const expectedAmount = nights * (room?.price || 0);
+        // Ожидаемая сумма всегда рассчитывается на основе цены комнаты и ночей, округляем до целого
+        const expectedAmount = Math.round(nights * (room?.price || 0));
         
-        // Учитываем уже оплаченную сумму
-        const alreadyPaid = selectedBookingForPayment.isPaid ? (selectedBookingForPayment.amount || 0) : 0;
+        // Учитываем уже оплаченную сумму, округляем до целого
+        const alreadyPaid = Math.round(selectedBookingForPayment.isPaid ? (selectedBookingForPayment.amount || 0) : 0);
         const remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
         
         // Определяем, является ли это доплатой
@@ -1042,9 +1042,9 @@ export default function BookingsView() {
                   <input
                     type="number"
                     value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                    onChange={(e) => setPaymentAmount(Math.round(Number(e.target.value)))}
                     min="0"
-                    step="0.01"
+                    step="1"
                     className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
                   />
                   <p className="text-xs text-gray-500 mt-1">
@@ -1055,21 +1055,21 @@ export default function BookingsView() {
                   {expectedAmount > 0 && (
                     <div className="mt-2 space-y-1">
                       <p className="text-xs text-gray-600">
-                        Ожидаемая сумма: <span className="font-semibold">{expectedAmount.toFixed(2)}€</span>
+                        Ожидаемая сумма: <span className="font-semibold">{expectedAmount}€</span>
                       </p>
                       {alreadyPaid > 0 && (
                         <p className="text-xs text-blue-600">
-                          Уже оплачено: <span className="font-semibold">{alreadyPaid.toFixed(2)}€</span>
+                          Уже оплачено: <span className="font-semibold">{alreadyPaid}€</span>
                         </p>
                       )}
                       {alreadyPaid > 0 && remainingAmount > 0 && (
                         <p className="text-xs text-gray-700">
-                          Остаток к доплате: <span className="font-semibold">{remainingAmount.toFixed(2)}€</span>
+                          Остаток к доплате: <span className="font-semibold">{remainingAmount}€</span>
                         </p>
                       )}
                       {isPartialPayment && (
                         <p className="text-xs text-orange-600 font-semibold">
-                          После доплаты останется: <span>{((alreadyPaid > 0 ? remainingAmount : expectedAmount) - paymentAmount).toFixed(2)}€</span>
+                          После доплаты останется: <span>{Math.max(0, (alreadyPaid > 0 ? remainingAmount : expectedAmount) - Math.round(paymentAmount))}€</span>
                         </p>
                       )}
                     </div>
