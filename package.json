@@ -4,7 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm install && prisma generate && next build",
+    "build": "npm run build:full",
+    "build:full": "npm run install:deps && npm run check:db && npm run generate:prisma && npm run build:next",
+    "install:deps": "npm install",
+    "generate:prisma": "prisma generate",
+    "build:next": "next build",
+    "check:db": "tsx scripts/check-db-connection.ts",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint"
@@ -32,6 +37,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
     "prisma": "^7.0.1",
+    "tsx": "^4.7.0",
     "typescript": "^5"
   }
 }
