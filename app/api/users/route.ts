@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData, writeData } from '@/lib/data';
+import { getUsers, createUser, getUserByEmail, getUserByPhone, getUserByEmailOrPhone, updateInvite } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { verifyInviteToken } from '@/lib/crypto';
-import type { User, Invite } from '@/types';
+import { normalizePhone, isValidEmail, isValidPhone } from '@/lib/phone';
+import type { User } from '@/types';
 
 // GET /api/users
 export async function GET() {
   try {
-    const data = readData();
-    // Не возвращаем пароли
-    const users = data.users.map(({ password, ...user }: User) => user);
+    // getUsers() уже возвращает пользователей без паролей
+    const users = await getUsers();
     return NextResponse.json(users);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -19,9 +20,85 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { inviteToken, ...userData } = body;
+    const { inviteToken, directCreate, ...userData } = body;
     
-    // ОБЯЗАТЕЛЬНАЯ проверка токена приглашения
+    // Если directCreate = true, создаем пользователя напрямую (только для менеджеров)
+    if (directCreate) {
+      // Валидация обязательных полей
+      if (!userData.name) {
+        return NextResponse.json(
+          { error: 'Имя пользователя обязательно' },
+          { status: 400 }
+        );
+      }
+
+      // Телефон обязателен
+      if (!userData.phone) {
+        return NextResponse.json(
+          { error: 'Телефон обязателен' },
+          { status: 400 }
+        );
+      }
+
+      // Валидация email (если указан)
+      if (userData.email && !isValidEmail(userData.email)) {
+        return NextResponse.json(
+          { error: 'Неверный формат email' },
+          { status: 400 }
+        );
+      }
+
+      // Нормализация и валидация телефона (обязателен)
+      if (!userData.phone) {
+        return NextResponse.json(
+          { error: 'Телефон обязателен' },
+          { status: 400 }
+        );
+      }
+      
+      const normalizedPhone = normalizePhone(userData.phone);
+      if (!normalizedPhone || !isValidPhone(normalizedPhone)) {
+        return NextResponse.json(
+          { error: 'Неверный формат телефона' },
+          { status: 400 }
+        );
+      }
+      userData.phone = normalizedPhone;
+      
+      // Проверка на существующего пользователя по email
+      if (userData.email) {
+        const existingUserByEmail = await getUserByEmail(userData.email);
+        if (existingUserByEmail) {
+          return NextResponse.json(
+            { error: 'Пользователь с таким email уже существует' },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Проверка на существующего пользователя по телефону
+      if (userData.phone) {
+        const existingUserByPhone = await getUserByPhone(userData.phone);
+        if (existingUserByPhone) {
+          return NextResponse.json(
+            { error: 'Пользователь с таким телефоном уже существует' },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Создаем нового пользователя напрямую
+      const newUser = await createUser({
+        ...userData,
+        role: userData.role || 'guest',
+        password: userData.password || undefined, // Пароль опционален при прямом создании
+      });
+      
+      const { password, ...userWithoutPassword } = newUser;
+      return NextResponse.json(userWithoutPassword);
+    }
+    
+    // ОБЫЧНЫЙ ПУТЬ: ОБЯЗАТЕЛЬНАЯ проверка токена приглашения
     if (!inviteToken) {
       return NextResponse.json(
         { error: 'Токен приглашения обязателен для регистрации' },
@@ -29,12 +106,26 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const data = readData();
-    const invites = data.invites || [];
+    // Ищем приглашение по токену в БД через Prisma
+    // Нужно проверить все приглашения, так как токен хэширован
+    // Получаем полные данные приглашений с токенами для проверки
+    const invitesWithTokens = await prisma.invite.findMany({
+      select: {
+        id: true,
+        token: true,
+        createdBy: true,
+        createdAt: true,
+        expiresAt: true,
+        used: true,
+        name: true,
+        usedBy: true,
+        usedAt: true,
+      },
+    });
     
-    // Ищем приглашение по токену
-    let invite: Invite | undefined;
-    for (const inv of invites) {
+    // Проверяем каждый токен приглашения
+    let invite = null;
+    for (const inv of invitesWithTokens) {
       try {
         if (verifyInviteToken(inviteToken, inv.token)) {
           invite = inv;
@@ -79,40 +170,82 @@ export async function POST(request: NextRequest) {
     }
     
     // Валидация обязательных полей
-    if (!userData.email || !userData.password || !userData.name) {
+    if (!userData.password || !userData.name) {
       return NextResponse.json(
-        { error: 'Заполните все обязательные поля' },
+        { error: 'Заполните все обязательные поля (имя и пароль)' },
         { status: 400 }
       );
     }
 
-    // Очистка телефона от пробелов (если указан)
-    if (userData.phone) {
-      userData.phone = userData.phone.replace(/\s/g, '');
+    // Телефон обязателен
+    if (!userData.phone) {
+      return NextResponse.json(
+        { error: 'Телефон обязателен' },
+        { status: 400 }
+      );
+    }
+
+    // Валидация email (если указан)
+    if (userData.email && !isValidEmail(userData.email)) {
+      return NextResponse.json(
+        { error: 'Неверный формат email' },
+        { status: 400 }
+      );
+    }
+
+    // Нормализация и валидация телефона (обязателен)
+    if (!userData.phone) {
+      return NextResponse.json(
+        { error: 'Телефон обязателен' },
+        { status: 400 }
+      );
     }
     
-    // Проверка на существующего пользователя
-    if (data.users.find((u: User) => u.email === userData.email)) {
+    const normalizedPhone = normalizePhone(userData.phone);
+    if (!normalizedPhone || !isValidPhone(normalizedPhone)) {
       return NextResponse.json(
-        { error: 'Пользователь с таким email уже существует' },
+        { error: 'Неверный формат телефона' },
         { status: 400 }
       );
     }
+    userData.phone = normalizedPhone;
+    
+    // Проверка на существующего пользователя по email
+    if (userData.email) {
+      const existingUserByEmail = await getUserByEmail(userData.email);
+      if (existingUserByEmail) {
+        return NextResponse.json(
+          { error: 'Пользователь с таким email уже существует' },
+          { status: 400 }
+        );
+      }
+    }
 
-    const newUser: User = {
-      id: `user-${Date.now()}`,
+    // Проверка на существующего пользователя по телефону
+    if (userData.phone) {
+      const existingUserByPhone = await getUserByPhone(userData.phone);
+      if (existingUserByPhone) {
+        return NextResponse.json(
+          { error: 'Пользователь с таким телефоном уже существует' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Создаем нового пользователя
+    const newUser = await createUser({
       ...userData,
       role: userData.role || 'guest'
-    };
-    
-    data.users.push(newUser);
+    });
     
     // Помечаем приглашение как использованное
-    invite.used = true;
-    invite.usedBy = newUser.id;
-    invite.usedAt = new Date().toISOString();
-    
-    writeData(data);
+    // Преобразуем данные приглашения из БД формата
+    const inviteId = invite.id;
+    await updateInvite(inviteId, {
+      used: true,
+      usedBy: newUser.id,
+      usedAt: new Date().toISOString(),
+    });
     
     const { password, ...userWithoutPassword } = newUser;
     return NextResponse.json(userWithoutPassword);

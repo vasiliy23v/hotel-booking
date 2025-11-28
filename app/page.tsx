@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Eye, EyeOff, Mail } from 'lucide-react';
+import { Building2, Eye, EyeOff, Mail, Phone } from 'lucide-react';
 import { api } from '@/lib/api';
 
 export default function Home() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState('');
@@ -18,9 +18,22 @@ export default function Home() {
     setAuthError('');
 
     try {
+      if (!identifier || !password) {
+        setAuthError('Заполните все поля');
+        setLoading(false);
+        return;
+      }
+
       // Только вход, регистрация недоступна
-      const user = await api.login(email, password);
+      const user = await api.login(identifier, password);
       localStorage.setItem('currentUser', JSON.stringify(user));
+      
+      // Проверяем, заполнен ли телефон (обязателен)
+      if (!user.phone) {
+        router.push('/complete-profile');
+        return;
+      }
+      
       // Менеджеры перенаправляются на CMS, гости - на обычный dashboard
       if (user.role === 'manager') {
         router.push('/cms/dashboard');
@@ -40,6 +53,13 @@ export default function Home() {
     if (currentUser) {
       try {
         const user = JSON.parse(currentUser);
+        
+        // Проверяем, заполнен ли телефон (обязателен)
+        if (!user.phone) {
+          router.push('/complete-profile');
+          return;
+        }
+        
         // Менеджеры перенаправляются на CMS, гости - на обычный dashboard
         if (user.role === 'manager') {
           router.push('/cms/dashboard');
@@ -68,16 +88,16 @@ export default function Home() {
             <div>
               <label className="block text-sm font-semibold mb-2 text-gray-700">
                 <Mail className="w-4 h-4 inline mr-1" />
-                Email <span className="text-red-500">*</span>
+                Email или телефон <span className="text-red-500">*</span>
               </label>
               <input
-                type="email"
-                value={email}
+                type="text"
+                value={identifier}
                 onChange={(e) => {
-                  setEmail(e.target.value);
+                  setIdentifier(e.target.value);
                   setAuthError('');
                 }}
-                placeholder="email@example.com"
+                placeholder="email@example.com или +79991234567"
                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
               />
             </div>

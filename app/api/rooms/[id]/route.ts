@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData, writeData } from '@/lib/data';
-import type { Room } from '@/types';
+import { getRoomById, updateRoom, deleteRoom, getActiveBookingForRoom } from '@/lib/db';
 
 // GET /api/rooms/[id]
 export async function GET(
@@ -9,14 +8,17 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const data = readData();
-    const room = data.rooms?.find((r: Room) => r.id === id);
+    const room = await getRoomById(id);
     
     if (!room) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
     }
     
-    return NextResponse.json(room);
+    // Загружаем активное бронирование, если есть
+    const activeBooking = await getActiveBookingForRoom(id);
+    const roomWithBooking = activeBooking ? { ...room, booking: activeBooking } : room;
+    
+    return NextResponse.json(roomWithBooking);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -30,18 +32,17 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const data = readData();
-    const index = data.rooms?.findIndex((r: Room) => r.id === id) ?? -1;
+    const updatedRoom = await updateRoom(id, body);
     
-    if (index === -1) {
+    // Загружаем активное бронирование, если есть
+    const activeBooking = await getActiveBookingForRoom(id);
+    const roomWithBooking = activeBooking ? { ...updatedRoom, booking: activeBooking } : updatedRoom;
+    
+    return NextResponse.json(roomWithBooking);
+  } catch (error: any) {
+    if (error.message === 'Комната не найдена') {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
     }
-    
-    data.rooms[index] = { ...data.rooms[index], ...body };
-    writeData(data);
-    
-    return NextResponse.json(data.rooms[index]);
-  } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -53,9 +54,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const data = readData();
-    data.rooms = data.rooms?.filter((r: Room) => r.id !== id) || [];
-    writeData(data);
+    await deleteRoom(id);
     
     return NextResponse.json({ success: true });
   } catch (error: any) {

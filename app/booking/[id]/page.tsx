@@ -41,7 +41,7 @@ export default function BookingPage() {
     }
 
     setCurrentUser(user);
-    setEmail(user.email);
+    setEmail(user.email || '');
     setPhone(user.phone || '');
 
     loadRoom();
@@ -159,7 +159,7 @@ export default function BookingPage() {
       if (currentUser!.role === 'manager' && selectedUserForBooking) {
         const selectedUser = allUsers.find(u => u.name === selectedUserForBooking);
         if (selectedUser) {
-          bookingEmail = selectedUser.email;
+          bookingEmail = selectedUser.email || email;
           bookingPhone = selectedUser.phone || phone;
         }
       }
@@ -175,7 +175,7 @@ export default function BookingPage() {
           // Если нет гостей, добавляем менеджера как гостя
           finalGuests = [{ 
             name: currentUser!.name, 
-            email: currentUser!.email, 
+            email: currentUser!.email || email, 
             phone: currentUser!.phone || cleanPhone 
           }];
         } else {
@@ -185,7 +185,7 @@ export default function BookingPage() {
             // Если менеджера нет в списке, добавляем его
             finalGuests = [{ 
               name: currentUser!.name, 
-              email: currentUser!.email, 
+              email: currentUser!.email || email, 
               phone: currentUser!.phone || cleanPhone 
             }, ...validGuests];
           }
@@ -197,7 +197,7 @@ export default function BookingPage() {
           // Если нет гостей, добавляем выбранного пользователя как гостя
           finalGuests = [{ 
             name: selectedUser.name, 
-            email: selectedUser.email, 
+            email: selectedUser.email || email, 
             phone: selectedUser.phone || cleanPhone 
           }];
         }
@@ -205,7 +205,7 @@ export default function BookingPage() {
         // Обычный гость бронирует для себя - добавляем его в гости
         finalGuests = [{ 
           name: currentUser!.name, 
-          email: currentUser!.email, 
+          email: currentUser!.email || email, 
           phone: currentUser!.phone || cleanPhone 
         }];
       }
@@ -224,8 +224,9 @@ export default function BookingPage() {
 
       await api.createBooking(booking);
       router.push('/dashboard');
-    } catch (error: any) {
-      alert('Ошибка при создании бронирования: ' + (error.message || 'Неизвестная ошибка'));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      alert('Ошибка при создании бронирования: ' + message);
     } finally {
       setSubmitting(false);
     }
@@ -336,11 +337,11 @@ export default function BookingPage() {
                       setSelectedUserForBooking(e.target.value);
                       const selectedUser = allUsers.find(u => u.name === e.target.value);
                       if (selectedUser) {
-                        setEmail(selectedUser.email);
+                        setEmail(selectedUser.email || '');
                         setPhone(selectedUser.phone || '');
                       } else {
                         // Если выбрано "для себя", используем данные менеджера
-                        setEmail(currentUser.email);
+                        setEmail(currentUser.email || '');
                         setPhone(currentUser.phone || '');
                       }
                     }}
@@ -361,7 +362,7 @@ export default function BookingPage() {
                         if (selectedUser && !guests.find(g => g.name === selectedUser.name)) {
                           setGuests([...guests, { 
                             name: selectedUser.name, 
-                            email: selectedUser.email, 
+                            email: selectedUser.email || '', 
                             phone: selectedUser.phone || '' 
                           }]);
                         }

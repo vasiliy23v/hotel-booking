@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData, writeData } from '@/lib/data';
+import { query } from '@/lib/neon';
+import { getUsers, updateUser, updateInvite, getUserById } from '@/lib/db';
 import { verifyInviteToken } from '@/lib/crypto';
-import type { User, Invite } from '@/types';
 
 // POST /api/users/reset-password - Сброс пароля по токену приглашения
 export async function POST(request: NextRequest) {
@@ -33,11 +33,17 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const data = readData();
-    const invites = data.invites || [];
+    // Получаем все приглашения из БД
+    const invites = await query<{
+      id: string;
+      token: string;
+      expires_at: string;
+      name: string;
+      used: boolean;
+    }>(`SELECT * FROM invites`);
     
     // Ищем приглашение по токену
-    let invite: Invite | undefined;
+    let invite: (typeof invites)[0] | undefined = undefined;
     for (const inv of invites) {
       try {
         if (verifyInviteToken(inviteToken, inv.token)) {
@@ -56,9 +62,13 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Преобразуем данные приглашения из БД формата
+    const expiresAt = new Date(invite.expires_at);
+    const inviteName = invite.name;
+    const inviteUsed = invite.used;
+    
     // Проверяем срок действия
     const now = new Date();
-    const expiresAt = new Date(invite.expiresAt);
     if (now > expiresAt) {
       return NextResponse.json(
         { error: 'Приглашение истекло' },
@@ -67,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Проверяем, использовано ли приглашение
-    if (invite.used) {
+    if (inviteUsed) {
       return NextResponse.json(
         { error: 'Приглашение уже использовано' },
         { status: 400 }
@@ -75,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Если приглашение привязано к имени, проверяем соответствие
-    if (invite.name && name && invite.name.trim() !== name.trim()) {
+    if (inviteName && name && inviteName.trim() !== name.trim()) {
       return NextResponse.json(
         { error: 'Это приглашение предназначено для другого пользователя' },
         { status: 400 }
@@ -83,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Ищем пользователя по имени из приглашения
-    const userName = invite.name || name;
+    const userName = inviteName || name;
     if (!userName) {
       return NextResponse.json(
         { error: 'Не указано имя пользователя для сброса пароля' },
@@ -91,9 +101,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = data.users.find((u: User) => u.name?.trim() === userName.trim());
+    const allUsers = await getUsers();
+    const user = allUsers.find((u) => u.name?.trim() === userName.trim());
     
-    if (!user) {
+    if (!user || !user.id) {
       return NextResponse.json(
         { error: 'Пользователь с таким именем не найден. Используйте эту ссылку для регистрации.' },
         { status: 404 }
@@ -101,23 +112,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Обновляем пароль пользователя
-    user.password = password;
+    await updateUser(user.id, { password });
     
     // Помечаем приглашение как использованное
-    invite.used = true;
-    invite.usedBy = user.id;
-    invite.usedAt = new Date().toISOString();
+    await updateInvite(invite.id, {
+      used: true,
+      usedBy: user.id,
+      usedAt: new Date().toISOString(),
+    });
     
-    writeData(data);
+    // Получаем обновленного пользователя без пароля
+    const updatedUser = await getUserById(user.id);
+    if (updatedUser) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...userWithoutPassword } = updatedUser;
+      return NextResponse.json({
+        success: true,
+        message: 'Пароль успешно изменен',
+        user: userWithoutPassword
+      });
+    }
     
-    const { password: _, ...userWithoutPassword } = user;
+    // Fallback - возвращаем пользователя без пароля
     return NextResponse.json({
       success: true,
       message: 'Пароль успешно изменен',
-      user: userWithoutPassword
+      user: { ...user }
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+
+
 

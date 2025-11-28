@@ -1,117 +1,99 @@
 // ============================================
 // УТИЛИТЫ ДЛЯ РАБОТЫ С ДАННЫМИ
+// ОБЕРТКА ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ
+// Теперь использует Neon PostgreSQL вместо файловой системы
 // ============================================
 
-import fs from 'fs';
-import path from 'path';
+/**
+ * @deprecated Используйте функции из lib/db.ts напрямую
+ * Этот файл оставлен для обратной совместимости со старым кодом
+ */
 
-// На Vercel используем /tmp для записи, иначе data директорию
-const DATA_DIR = process.env.VERCEL 
-  ? '/tmp/data' 
-  : path.join(process.cwd(), 'data');
-const DATA_FILE = path.join(DATA_DIR, 'data.json');
+import * as db from './db';
+import type { User, Room, Hotel, Stairs, BookingInfo, Invite } from '@/types';
 
-// Инициализация данных
+// Тип для структуры данных (старый формат JSON)
+interface DataStructure {
+  users: User[];
+  rooms: Room[];
+  stairs: Stairs[];
+  hotels: Hotel[];
+  bookings: BookingInfo[];
+  invites: Invite[];
+}
+
+/**
+ * Инициализация данных (больше не нужна, но оставлена для совместимости)
+ * @deprecated
+ */
 export const initData = () => {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-
-  if (!fs.existsSync(DATA_FILE)) {
-    // На Vercel пытаемся скопировать исходный файл из репозитория
-    const sourceFile = path.join(process.cwd(), 'data', 'data.json');
-    if (fs.existsSync(sourceFile)) {
-      try {
-        fs.copyFileSync(sourceFile, DATA_FILE);
-        return; // Файл скопирован, выходим
-      } catch (error) {
-        console.warn('Не удалось скопировать исходный файл данных:', error);
-      }
-    }
-    
-    // Если исходный файл не найден, создаем дефолтные данные
-    const defaultData = {
-      users: [
-        {
-          id: 'admin-1',
-          email: 'admin@hotel.com',
-          name: 'Admin',
-          password: 'admin123',
-          role: 'manager' as const
-        }
-      ],
-      rooms: [],
-      stairs: [],
-      hotels: [
-        {
-          id: 'hotel-1',
-          name: 'Grand Hotel Düsseldorf',
-          address: 'Musterstraße 1, 40213 Düsseldorf',
-          description: 'Современный отель в центре города',
-          floors: 3
-        },
-        {
-          id: 'hotel-2',
-          name: 'Riverside Hotel',
-          address: 'Rheinufer 10, 40213 Düsseldorf',
-          description: 'Отель с видом на Рейн',
-          floors: 3
-        }
-      ],
-      bookings: [],
-      invites: []
-    };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(defaultData, null, 2));
-  }
+  // В PostgreSQL инициализация происходит через schema.sql
+  // Эта функция оставлена для обратной совместимости
+  console.warn('initData() больше не нужна при использовании PostgreSQL');
 };
 
-// Чтение данных
-export const readData = () => {
-  try {
-    initData();
-    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-    // Обратная совместимость: добавляем invites, если его нет
-    if (!data.invites) {
-      data.invites = [];
-      writeData(data);
-    }
-    return data;
-  } catch (error) {
-    console.error('Error reading data:', error);
-    return { users: [], rooms: [], stairs: [], hotels: [], bookings: [], invites: [] };
-  }
+/**
+ * Чтение данных (синхронная версия для обратной совместимости)
+ * @deprecated Используйте функции из lib/db.ts
+ */
+export const readData = (): DataStructure => {
+  // Эта функция больше не может быть синхронной, так как использует БД
+  // Возвращаем пустую структуру для обратной совместимости
+  // ВАЖНО: Все API роуты должны быть обновлены для использования lib/db.ts
+  console.warn('readData() устарела. Используйте функции из lib/db.ts');
+  return {
+    users: [],
+    rooms: [],
+    stairs: [],
+    hotels: [],
+    bookings: [],
+    invites: [],
+  };
 };
 
-// Запись данных
-export const writeData = (data: unknown) => {
-  try {
-    // Проверяем, доступна ли файловая система для записи
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    
-    const jsonData = JSON.stringify(data, null, 2);
-    fs.writeFileSync(DATA_FILE, jsonData, 'utf-8');
-    
-    // Проверяем, что данные действительно записались
-    const verifyData = fs.readFileSync(DATA_FILE, 'utf-8');
-    if (verifyData !== jsonData) {
-      console.error('Данные не совпадают после записи');
-      return false;
-    }
-    
-    return true;
-  } catch (error: unknown) {
-    const err = error as { message?: string; code?: string };
-    console.error('Error writing data:', error);
-    console.error('Error details:', {
-      message: err.message,
-      code: err.code,
-      path: DATA_FILE,
-      cwd: process.cwd(),
-      isVercel: !!process.env.VERCEL
-    });
-    return false;
-  }
+/**
+ * Запись данных (синхронная версия для обратной совместимости)
+ * @deprecated Используйте функции из lib/db.ts
+ */
+export const writeData = (data: unknown): boolean => {
+  // Эта функция больше не может быть синхронной, так как использует БД
+  // ВАЖНО: Все API роуты должны быть обновлены для использования lib/db.ts
+  console.warn('writeData() устарела. Используйте функции из lib/db.ts');
+  return false;
 };
 
+// Экспортируем функции из db.ts для удобства миграции
+export {
+  getUsers,
+  getUserById,
+  getUserByEmail,
+  createUser,
+  updateUser,
+  deleteUser,
+  getHotels,
+  getHotelById,
+  createHotel,
+  updateHotel,
+  deleteHotel,
+  getRooms,
+  getRoomById,
+  createRoom,
+  updateRoom,
+  deleteRoom,
+  getBookings,
+  getBookingById,
+  createBooking,
+  updateBooking,
+  deleteBooking,
+  getStairs,
+  getStairsById,
+  createStairs,
+  updateStairs,
+  deleteStairs,
+  getInvites,
+  getInviteById,
+  getInviteByToken,
+  createInvite,
+  updateInvite,
+  deleteInvite,
+} from './db';

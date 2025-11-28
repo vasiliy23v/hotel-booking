@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle, CreditCard, Euro } from 'lucide-react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle, CreditCard, Euro, TrendingUp, DollarSign, Wallet, Eye, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User, Room, Hotel, BookingInfo } from '@/types';
 
@@ -12,6 +12,7 @@ export default function BookingsView() {
   const [loading, setLoading] = useState(true);
   
   // Фильтры
+  const [filterHotel, setFilterHotel] = useState<string>('');
   const [filterBookedBy, setFilterBookedBy] = useState<string>('');
   const [filterRoomNumber, setFilterRoomNumber] = useState<string>('');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
@@ -28,6 +29,10 @@ export default function BookingsView() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer'>('cash');
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  // Модальное окно для детального просмотра
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedBookingForDetail, setSelectedBookingForDetail] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string }) | null>(null);
 
   useEffect(() => {
     const userStr = localStorage.getItem('currentUser');
@@ -135,6 +140,12 @@ export default function BookingsView() {
   // Фильтруем бронирования
   let filteredBookings = bookings;
 
+  if (filterHotel) {
+    filteredBookings = filteredBookings.filter(b => 
+      b.hotelName?.toLowerCase().includes(filterHotel.toLowerCase()) || 
+      hotels.find(h => h.id === filterHotel)?.name === b.hotelName
+    );
+  }
   if (filterBookedBy) {
     filteredBookings = filteredBookings.filter(b => 
       b.bookedBy.toLowerCase().includes(filterBookedBy.toLowerCase())
@@ -189,13 +200,14 @@ export default function BookingsView() {
   };
 
   const resetFilters = () => {
+    setFilterHotel('');
     setFilterBookedBy('');
     setFilterRoomNumber('');
     setFilterDateFrom('');
     setFilterDateTo('');
   };
 
-  const hasActiveFilters = filterBookedBy || filterRoomNumber || filterDateFrom || filterDateTo;
+  const hasActiveFilters = filterHotel || filterBookedBy || filterRoomNumber || filterDateFrom || filterDateTo;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -230,10 +242,110 @@ export default function BookingsView() {
           </div>
         </div>
 
+        {/* Статистика по отфильтрованным бронированиям - всегда сверху */}
+        {!loading && (() => {
+          const totalBookings = filteredBookings.length;
+          const confirmedBookings = filteredBookings.filter(b => b.isConfirmed).length;
+          const paidBookings = filteredBookings.filter(b => b.isPaid).length;
+          
+          let totalRevenue = 0;
+          let cashRevenue = 0;
+          let transferRevenue = 0;
+          let unpaidRevenue = 0;
+          
+          filteredBookings.forEach(booking => {
+            const nights = Math.ceil(
+              (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 
+              (1000 * 60 * 60 * 24)
+            );
+            const room = rooms.find(r => r.id === booking.roomId);
+            const amount = booking.amount || (nights * (room?.price || 0));
+            
+            totalRevenue += amount;
+            
+            if (booking.isPaid) {
+              if (booking.paymentMethod === 'cash') {
+                cashRevenue += amount;
+              } else if (booking.paymentMethod === 'transfer') {
+                transferRevenue += amount;
+              }
+            } else {
+              unpaidRevenue += amount;
+            }
+          });
+
+          return (
+            <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <BookOpen className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-semibold text-blue-900">Всего</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-blue-900">{totalBookings}</div>
+              </div>
+              
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-xs font-semibold text-green-900">Подтверждено</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-green-900">{confirmedBookings}</div>
+              </div>
+              
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Euro className="w-4 h-4 text-purple-600" />
+                  <span className="text-xs font-semibold text-purple-900">Оплачено</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-purple-900">{paidBookings}</div>
+              </div>
+              
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="w-4 h-4 text-gray-600" />
+                  <span className="text-xs font-semibold text-gray-900">Общая сумма</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900">{totalRevenue.toFixed(2)}€</div>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Wallet className="w-4 h-4 text-yellow-600" />
+                  <span className="text-xs font-semibold text-yellow-900">Наличные</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-yellow-900">{cashRevenue.toFixed(2)}€</div>
+              </div>
+              
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <CreditCard className="w-4 h-4 text-indigo-600" />
+                  <span className="text-xs font-semibold text-indigo-900">Перевод</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-indigo-900">{transferRevenue.toFixed(2)}€</div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Панель фильтров */}
         {showFilters && (
           <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Отель</label>
+                <select
+                  value={filterHotel}
+                  onChange={(e) => setFilterHotel(e.target.value)}
+                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                >
+                  <option value="">Все отели</option>
+                  {hotels.map((hotel) => (
+                    <option key={hotel.id} value={hotel.id}>
+                      {hotel.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Забронировано</label>
                 <input
@@ -492,6 +604,17 @@ export default function BookingsView() {
                       
                       <td className="px-3 py-2.5">
                         <div className="flex flex-col gap-1">
+                          <button
+                            onClick={() => {
+                              setSelectedBookingForDetail(booking);
+                              setShowDetailModal(true);
+                            }}
+                            className="px-2 py-1 bg-gray-900 hover:bg-gray-800 text-white rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
+                            title="Подробнее о бронировании"
+                          >
+                            <Eye className="w-3 h-3" />
+                            Подробнее
+                          </button>
                           {!booking.isConfirmed && (
                             <button
                               onClick={() => handleConfirmBooking(booking)}
@@ -529,6 +652,329 @@ export default function BookingsView() {
           </div>
         )}
       </div>
+
+      {/* Модальное окно для детального просмотра бронирования */}
+      {showDetailModal && selectedBookingForDetail && (() => {
+        const booking = selectedBookingForDetail;
+        const nights = Math.ceil(
+          (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 
+          (1000 * 60 * 60 * 24)
+        );
+        const room = rooms.find(r => r.id === booking.roomId);
+        const totalPrice = booking.amount || (nights * (room?.price || 0));
+        
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <BookOpen className="w-6 h-6" />
+                    Детали бронирования
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setShowDetailModal(false);
+                      setSelectedBookingForDetail(null);
+                    }}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Основная информация */}
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        Информация об отеле и комнате
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="text-gray-600">Отель:</span>
+                          <span className="ml-2 font-semibold text-gray-900">{booking.hotelName || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Комната:</span>
+                          <span className="ml-2 font-semibold text-gray-900">#{booking.roomNumber || 'N/A'}</span>
+                        </div>
+                        {room && (
+                          <>
+                            <div>
+                              <span className="text-gray-600">Тип:</span>
+                              <span className="ml-2 text-gray-900">
+                                {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : 'Общее'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Вместимость:</span>
+                              <span className="ml-2 text-gray-900">{room.capacity}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Цена за ночь:</span>
+                              <span className="ml-2 font-semibold text-gray-900">{room.price}€</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <UserIcon className="w-4 h-4" />
+                        Информация о госте
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="text-gray-600">Имя:</span>
+                          <span className="ml-2 font-semibold text-gray-900">{booking.bookedBy}</span>
+                        </div>
+                        {booking.email && (
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-600">Email:</span>
+                            <span className="ml-2 text-gray-900">{booking.email}</span>
+                          </div>
+                        )}
+                        {booking.phone && (
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-600">Телефон:</span>
+                            <span className="ml-2 text-gray-900">{booking.phone}</span>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-gray-600">Дата бронирования:</span>
+                          <span className="ml-2 text-gray-900">
+                            {new Date(booking.bookedDate).toLocaleDateString('ru-RU', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Даты и период */}
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        Даты пребывания
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="text-gray-600">Заезд:</span>
+                          <span className="ml-2 font-semibold text-gray-900">
+                            {new Date(booking.checkIn).toLocaleDateString('ru-RU', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                              weekday: 'long'
+                            })}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Выезд:</span>
+                          <span className="ml-2 font-semibold text-gray-900">
+                            {new Date(booking.checkOut).toLocaleDateString('ru-RU', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                              weekday: 'long'
+                            })}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Количество ночей:</span>
+                          <span className="ml-2 font-semibold text-gray-900">
+                            {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Гости */}
+                    {booking.guests && booking.guests.length > 0 && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                          <Bed className="w-4 h-4" />
+                          Гости ({booking.guests.length})
+                        </h3>
+                        <div className="space-y-2">
+                          {booking.guests.map((guest, index) => (
+                            <div key={index} className="flex items-center gap-3 p-2 bg-white rounded border border-gray-200">
+                              {guest.image ? (
+                                <img
+                                  src={guest.image}
+                                  alt={guest.name}
+                                  className="w-10 h-10 rounded-full object-cover border border-gray-300"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300">
+                                  <span className="text-sm text-gray-500 font-semibold">{guest.name.charAt(0).toUpperCase()}</span>
+                                </div>
+                              )}
+                              <div className="flex-1">
+                                <div className="font-semibold text-gray-900">{guest.name}</div>
+                                {guest.email && (
+                                  <div className="text-xs text-gray-500">{guest.email}</div>
+                                )}
+                                {guest.phone && (
+                                  <div className="text-xs text-gray-500">{guest.phone}</div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Примечания */}
+                    {booking.notes && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Примечания
+                        </h3>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{booking.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Статусы и оплата */}
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Статус подтверждения</h3>
+                    {booking.isConfirmed ? (
+                      <div className="flex items-center gap-2 text-green-600">
+                        <CheckCircle className="w-5 h-5" />
+                        <div>
+                          <div className="font-semibold">Подтверждено</div>
+                          {booking.confirmedBy && (
+                            <div className="text-xs text-gray-600">Подтвердил: {booking.confirmedBy}</div>
+                          )}
+                          {booking.confirmedDate && (
+                            <div className="text-xs text-gray-600">
+                              {new Date(booking.confirmedDate).toLocaleDateString('ru-RU', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-yellow-600">
+                        <AlertCircle className="w-5 h-5" />
+                        <span className="font-semibold">Ожидает подтверждения</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Статус оплаты</h3>
+                    {booking.isPaid ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-green-600">
+                          <Euro className="w-5 h-5" />
+                          <span className="font-semibold">Оплачено</span>
+                        </div>
+                        <div className="text-sm text-gray-700">
+                          <div>Способ: {booking.paymentMethod === 'cash' ? 'Наличные' : booking.paymentMethod === 'transfer' ? 'Перевод' : 'N/A'}</div>
+                          <div>Сумма: <span className="font-semibold">{totalPrice.toFixed(2)}€</span></div>
+                          {booking.paidBy && (
+                            <div>Оплатил: {booking.paidBy}</div>
+                          )}
+                          {booking.paymentDate && (
+                            <div className="text-xs text-gray-600">
+                              {new Date(booking.paymentDate).toLocaleDateString('ru-RU', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-red-600">
+                        <AlertCircle className="w-5 h-5" />
+                        <span className="font-semibold">Не оплачено</span>
+                      </div>
+                    )}
+                    {!booking.isPaid && (
+                      <div className="mt-2 text-sm text-gray-700">
+                        <div>Ожидаемая сумма: <span className="font-semibold">{totalPrice.toFixed(2)}€</span></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Действия */}
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {!booking.isConfirmed && (
+                    <button
+                      onClick={() => {
+                        setShowDetailModal(false);
+                        handleConfirmBooking(booking);
+                      }}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold flex items-center gap-2"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      Подтвердить бронирование
+                    </button>
+                  )}
+                  {!booking.isPaid && (
+                    <button
+                      onClick={() => {
+                        setShowDetailModal(false);
+                        handleOpenPaymentModal(booking);
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2"
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      Подтвердить оплату
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (confirm(`Вы уверены, что хотите отменить бронирование комнаты #${booking.roomNumber}?`)) {
+                        setShowDetailModal(false);
+                        handleCancel(booking);
+                      }
+                    }}
+                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold"
+                  >
+                    Отменить бронирование
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDetailModal(false);
+                      setSelectedBookingForDetail(null);
+                    }}
+                    className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-semibold"
+                  >
+                    Закрыть
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Модальное окно для подтверждения оплаты */}
       {showPaymentModal && selectedBookingForPayment && (

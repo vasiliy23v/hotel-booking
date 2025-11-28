@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readData, writeData } from '@/lib/data';
+import { getHotels, getRooms, deleteRoom, createRoom } from '@/lib/db';
 import { generateRoomsForHotel, generateAllRooms } from '@/lib/generateRooms';
 
 // POST /api/generate-rooms
@@ -8,18 +8,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { hotelId, template, generateForAll } = body;
     
-    const data = readData();
-    
     if (generateForAll) {
       // Генерируем комнаты для всех отелей
-      const hotels = data.hotels || [];
+      const hotels = await getHotels();
       const newRooms = generateAllRooms(hotels);
       
       // Удаляем существующие комнаты
-      data.rooms = [];
-      data.rooms = newRooms;
+      const existingRooms = await getRooms();
+      for (const room of existingRooms) {
+        await deleteRoom(room.id);
+      }
       
-      writeData(data);
+      // Создаем новые комнаты
+      for (const room of newRooms) {
+        await createRoom(room);
+      }
       
       return NextResponse.json({ 
         success: true, 
@@ -33,14 +36,16 @@ export async function POST(request: NextRequest) {
       }
       
       // Проверяем существование отеля
-      const hotel = data.hotels?.find((h: any) => h.id === hotelId);
+      const hotels = await getHotels();
+      const hotel = hotels.find((h) => h.id === hotelId);
       if (!hotel) {
         return NextResponse.json({ error: 'Hotel not found' }, { status: 404 });
       }
       
       // Удаляем существующие комнаты этого отеля
-      if (data.rooms) {
-        data.rooms = data.rooms.filter((r: any) => r.hotelId !== hotelId);
+      const existingRooms = await getRooms(hotelId);
+      for (const room of existingRooms) {
+        await deleteRoom(room.id);
       }
       
       // Генерируем новые комнаты
@@ -49,10 +54,10 @@ export async function POST(request: NextRequest) {
         template || 'legacy'
       );
       
-      if (!data.rooms) data.rooms = [];
-      data.rooms.push(...newRooms);
-      
-      writeData(data);
+      // Создаем новые комнаты
+      for (const room of newRooms) {
+        await createRoom(room);
+      }
       
       return NextResponse.json({ 
         success: true, 
