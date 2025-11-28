@@ -11,11 +11,11 @@ import { Pool } from '@neondatabase/serverless';
  * Использует ленивую инициализацию для поддержки загрузки переменных окружения через dotenv
  */
 function getDatabaseUrl(): string {
-  const databaseUrlEnv = process.env.NEON_DATABASE_URL;
+  const databaseUrlEnv = process.env.DATABASE_URL;
   
   if (!databaseUrlEnv) {
     throw new Error(
-      'NEON_DATABASE_URL не установлена. Пожалуйста, установите переменную окружения NEON_DATABASE_URL в .env.local'
+      'DATABASE_URL не установлена. Пожалуйста, установите переменную окружения DATABASE_URL в .env.local'
     );
   }
   

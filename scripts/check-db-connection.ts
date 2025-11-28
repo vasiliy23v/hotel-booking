@@ -8,15 +8,17 @@ import { PrismaNeon } from '@prisma/adapter-neon';
 
 /**
  * Проверяет подключение к базе данных
- * Выбрасывает ошибку, если подключение не удалось
+ * Если DATABASE_URL не установлена, выводит предупреждение, но не прерывает билд
  */
 async function checkDatabaseConnection(): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
   
   if (!connectionString) {
-    throw new Error(
-      '❌ DATABASE_URL не установлена. Пожалуйста, установите переменную окружения DATABASE_URL'
-    );
+    console.warn('⚠️  DATABASE_URL не установлена во время билда.');
+    console.warn('⚠️  Проверка подключения к базе данных пропущена.');
+    console.warn('⚠️  Убедитесь, что DATABASE_URL настроена в Vercel для runtime.');
+    console.log('✅ Продолжаем билд без проверки БД...');
+    return; // Не прерываем билд, просто пропускаем проверку
   }
 
   console.log('🔍 Проверка подключения к базе данных...');
