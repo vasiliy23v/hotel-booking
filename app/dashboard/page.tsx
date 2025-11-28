@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Building2, Bed, Users, BarChart3, LogOut, Plus, Edit, Trash2, LayoutGrid, Filter, Calendar, Euro, X, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, DollarSign, Mail, Copy, RefreshCw, CheckCircle, AlertCircle, Clock, KeyRound, ArrowRight, Phone, BookOpen, List, Eye, EyeOff, Bell } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -166,10 +165,6 @@ export default function Dashboard() {
           }
         }
 
-        // Устанавливаем флаг загрузки данных синхронно, чтобы все обновления состояния применились
-        flushSync(() => {
-          setDataLoaded(true);
-        });
       } else {
         // Проверяем, что выбранный отель все еще существует (при обновлении данных)
         if (selectedHotel && !hotelsData.find(h => h.id === selectedHotel)) {
