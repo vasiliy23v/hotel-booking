@@ -13,7 +13,8 @@ if (!connectionString) {
 }
 
 async function applyConstraint() {
-  const sql = neon(connectionString);
+  // connectionString гарантированно не undefined после проверки выше
+  const sql = neon(connectionString!);
   
   try {
     console.log('Создание расширения btree_gist...');

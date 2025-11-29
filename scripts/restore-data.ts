@@ -1,9 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
-import { PrismaClient } from '../lib/generated/prisma';
+import { PrismaClient, FloorType } from '../lib/generated/prisma';
 import { PrismaNeon } from '@prisma/adapter-neon';
-import { Pool } from '@neondatabase/serverless';
 
 // Загружаем переменные окружения
 dotenv.config({ path: '.env.local' });
@@ -14,8 +13,8 @@ async function restoreData() {
     throw new Error('DATABASE_URL не установлена в .env.local');
   }
 
-  const pool = new Pool({ connectionString });
-  const adapter = new PrismaNeon(pool);
+  // PrismaNeon принимает connectionString напрямую (сам создаст Pool внутри)
+  const adapter = new PrismaNeon({ connectionString });
   const prisma = new PrismaClient({ adapter });
 
   try {
@@ -93,7 +92,7 @@ async function restoreData() {
       console.log(`Восстанавливаю ${data.rooms.length} комнат...`);
       for (const room of data.rooms) {
         try {
-          const floor = room.floor === '1OG' ? 'oneOG' : room.floor === '2OG' ? 'twoOG' : 'EG';
+          const floor: FloorType = room.floor === '1OG' ? FloorType.oneOG : room.floor === '2OG' ? FloorType.twoOG : FloorType.EG;
           await prisma.room.upsert({
             where: { id: room.id },
             update: {
@@ -148,9 +147,9 @@ async function restoreData() {
       console.log(`Восстанавливаю ${data.stairs.length} лестниц...`);
       for (const stairs of data.stairs) {
         try {
-          const floor = stairs.floor === '1OG' ? 'oneOG' : stairs.floor === '2OG' ? 'twoOG' : 'EG';
-          const targetFloor = stairs.targetFloor 
-            ? (stairs.targetFloor === '1OG' ? 'oneOG' : stairs.targetFloor === '2OG' ? 'twoOG' : 'EG')
+          const floor: FloorType = stairs.floor === '1OG' ? FloorType.oneOG : stairs.floor === '2OG' ? FloorType.twoOG : FloorType.EG;
+          const targetFloor: FloorType | null = stairs.targetFloor 
+            ? (stairs.targetFloor === '1OG' ? FloorType.oneOG : stairs.targetFloor === '2OG' ? FloorType.twoOG : FloorType.EG)
             : null;
           await prisma.stairs.upsert({
             where: { id: stairs.id },
@@ -303,7 +302,6 @@ async function restoreData() {
     throw error;
   } finally {
     await prisma.$disconnect();
-    await pool.end();
   }
 }
 

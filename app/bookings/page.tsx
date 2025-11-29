@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut, ArrowLeft, Euro, DollarSign, Edit } from 'lucide-react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut, ArrowLeft, Euro, DollarSign, Edit, CheckCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User, Room, Hotel, BookingInfo } from '@/types';
 import Link from 'next/link';

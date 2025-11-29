@@ -23,6 +23,27 @@ export default function CMSDashboard() {
   const [bookingStats, setBookingStats] = useState({ unconfirmed: 0, unpaid: 0 });
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
 
+  const loadHotels = async () => {
+    try {
+      const data = await api.getHotels();
+      setHotels(data);
+      if (data.length > 0 && !selectedHotel) {
+        setSelectedHotel(data[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading hotels:', error);
+    }
+  };
+
+  const loadBookingStats = async () => {
+    try {
+      const stats = await api.getBookingStats();
+      setBookingStats(stats);
+    } catch (error) {
+      console.error('Error loading booking stats:', error);
+    }
+  };
+
   useEffect(() => {
     const userStr = localStorage.getItem('currentUser');
     if (!userStr) {
@@ -53,28 +74,8 @@ export default function CMSDashboard() {
     }, 30000);
     
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
-
-  const loadHotels = async () => {
-    try {
-      const data = await api.getHotels();
-      setHotels(data);
-      if (data.length > 0 && !selectedHotel) {
-        setSelectedHotel(data[0].id);
-      }
-    } catch (error) {
-      console.error('Error loading hotels:', error);
-    }
-  };
-
-  const loadBookingStats = async () => {
-    try {
-      const stats = await api.getBookingStats();
-      setBookingStats(stats);
-    } catch (error) {
-      console.error('Error loading booking stats:', error);
-    }
-  };
 
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
