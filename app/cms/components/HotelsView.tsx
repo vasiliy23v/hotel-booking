@@ -121,7 +121,7 @@ export default function HotelsView({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {hotels.map(hotel => (
-            <div key={hotel.id} className="bg-white border-2 border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors">
+            <div key={hotel.id} className="bg-white border-2 border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors flex flex-col">
               <div className="w-full h-48 overflow-hidden cursor-pointer" onClick={() => setViewingHotelId(hotel.id)}>
                 {hotel.image ? (
                   <img
@@ -135,7 +135,7 @@ export default function HotelsView({
                   </div>
                 )}
               </div>
-              <div className="p-4 sm:p-6">
+              <div className="p-4 sm:p-6 flex flex-col grow">
                 <h3 
                   className="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2 cursor-pointer hover:text-gray-700"
                   onClick={() => setViewingHotelId(hotel.id)}
@@ -151,7 +151,7 @@ export default function HotelsView({
                     Этажей: {hotel.floors} {hotel.floors === 1 ? 'этаж' : hotel.floors < 5 ? 'этажа' : 'этажей'}
                   </p>
                 )}
-                <div className="flex gap-1.5 sm:gap-2">
+                <div className="flex gap-1.5 sm:gap-2 mt-auto">
                   <button
                     onClick={() => setViewingHotelId(hotel.id)}
                     className="flex-1 bg-black hover:bg-black-90 text-white py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1"
