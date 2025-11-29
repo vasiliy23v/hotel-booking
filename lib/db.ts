@@ -1193,7 +1193,7 @@ export async function getActiveRegistrationToken(): Promise<RegistrationToken | 
   return {
     id: token.id,
     token: token.token,
-    originalToken: (token as any).originalToken || undefined,
+    originalToken: token.originalToken || undefined,
     isActive: token.isActive,
     createdAt: token.createdAt.toISOString(),
     updatedAt: token.updatedAt.toISOString(),
@@ -1263,7 +1263,7 @@ export async function createOrUpdateRegistrationToken(hashedToken: string, origi
   const newToken = await prisma.registrationToken.create({
     data: {
       token: hashedToken,
-      ...(originalToken && { originalToken }),
+      originalToken: originalToken || null,
       isActive: true,
     },
   });
@@ -1271,7 +1271,7 @@ export async function createOrUpdateRegistrationToken(hashedToken: string, origi
   return {
     id: newToken.id,
     token: newToken.token,
-    originalToken: (newToken as any).originalToken || undefined,
+    originalToken: newToken.originalToken || undefined,
     isActive: newToken.isActive,
     createdAt: newToken.createdAt.toISOString(),
     updatedAt: newToken.updatedAt.toISOString(),

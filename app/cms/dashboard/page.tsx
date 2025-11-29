@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, BarChart3, Users, LogOut, ArrowLeft, BookOpen, Bell, DollarSign, MessageSquare, MessageCircle } from 'lucide-react';
+import { Building2, Users, LogOut, ArrowLeft, BookOpen, Bell, DollarSign, MessageSquare, MessageCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User } from '@/types';
 import Link from 'next/link';
 import HotelsView from '../components/HotelsView';
-import StatisticsView from '../components/StatisticsView';
 import UsersManagementView from '../components/UsersManagementView';
 import BookingsView from '../components/BookingsView';
 import FeedbackView from '../components/FeedbackView';
@@ -16,7 +15,7 @@ import FeedbackForm from '@/components/FeedbackForm';
 export default function CMSDashboard() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [viewMode, setViewMode] = useState<'hotels' | 'statistics' | 'users' | 'bookings' | 'feedback'>('hotels');
+  const [viewMode, setViewMode] = useState<'hotels' | 'users' | 'bookings' | 'feedback'>('hotels');
   const [selectedHotel, setSelectedHotel] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [hotels, setHotels] = useState<any[]>([]);
@@ -110,17 +109,6 @@ export default function CMSDashboard() {
               <span>Отели</span>
             </button>
             <button
-              onClick={() => setViewMode('statistics')}
-              className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
-                viewMode === 'statistics'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-              }`}
-            >
-              <BarChart3 className="w-5 h-5" />
-              <span>Статистика</span>
-            </button>
-            <button
               onClick={() => setViewMode('users')}
               className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
                 viewMode === 'users'
@@ -169,22 +157,6 @@ export default function CMSDashboard() {
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
 
-                {/* Доллар с неоплаченными бронированиями (только для менеджера) */}
-                {currentUser.role === 'manager' && (
-                  <button
-                    onClick={() => setViewMode('bookings')}
-                    className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Неоплаченные бронирования"
-                  >
-                    <DollarSign className="w-5 h-5" />
-                    {bookingStats.unpaid > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-pink-900 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                        {bookingStats.unpaid > 99 ? '99+' : bookingStats.unpaid}
-                      </span>
-                    )}
-                  </button>
-                )}
-
                 {/* Кнопка обратной связи */}
                 <button
                   onClick={() => setShowFeedbackForm(true)}
@@ -211,10 +183,6 @@ export default function CMSDashboard() {
         <main className="flex-1 px-3 sm:px-4 py-4 sm:py-6 lg:py-8 overflow-y-auto">
         {viewMode === 'hotels' && (
           <HotelsView selectedHotel={selectedHotel} onSelectHotel={setSelectedHotel} />
-        )}
-
-        {viewMode === 'statistics' && (
-          <StatisticsView selectedHotel={selectedHotel} hotels={hotels} />
         )}
 
         {viewMode === 'users' && (
@@ -248,17 +216,6 @@ export default function CMSDashboard() {
           >
             <Building2 className={`w-5 h-5 ${viewMode === 'hotels' ? 'text-gray-900' : 'text-gray-500'}`} />
             <span className="text-xs font-semibold">Отели</span>
-          </button>
-          <button
-            onClick={() => setViewMode('statistics')}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-              viewMode === 'statistics'
-                ? 'text-gray-900 bg-gray-50'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <BarChart3 className={`w-5 h-5 ${viewMode === 'statistics' ? 'text-gray-900' : 'text-gray-500'}`} />
-            <span className="text-xs font-semibold">Статистика</span>
           </button>
           <button
             onClick={() => setViewMode('users')}

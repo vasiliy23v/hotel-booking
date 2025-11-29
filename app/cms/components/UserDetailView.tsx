@@ -532,8 +532,6 @@ export default function UserDetailView({
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Комната</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Заезд</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Выезд</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Статус</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Оплата</th>
                 </tr>
               </thead>
               <tbody>
@@ -561,25 +559,6 @@ export default function UserDetailView({
                         month: '2-digit',
                         year: 'numeric'
                       })}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
-                        booking.isConfirmed 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {booking.isConfirmed ? 'Подтверждено' : 'Ожидает'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {booking.isPaid ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                          {booking.amount ? `${booking.amount}€` : 'Оплачено'}
-                          {booking.paymentMethod && ` (${booking.paymentMethod === 'cash' ? 'наличные' : 'перевод'})`}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-sm">Не оплачено</span>
-                      )}
                     </td>
                   </tr>
                 ))}

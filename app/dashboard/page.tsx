@@ -677,26 +677,6 @@ export default function Dashboard() {
                   <MessageSquare className="w-5 h-5" />
                 </button>
 
-                {/* Доллар с неоплаченными бронированиями (только для менеджера) */}
-                {currentUser.role === 'manager' && (
-                  <button
-                    onClick={() => {
-                      setSelectedHotel('');
-                      if (currentUser.role === 'guest') {
-                        setActiveTab('bookings');
-                      }
-                    }}
-                    className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Неоплаченные бронирования"
-                  >
-                    <DollarSign className="w-5 h-5" />
-                    {bookingStats.unpaid > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-pink-950 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                        {bookingStats.unpaid > 99 ? '99+' : bookingStats.unpaid}
-                      </span>
-                    )}
-                  </button>
-                )}
 
                 {/* Кнопка CMS для менеджеров */}
                 {currentUser.role === 'manager' && (
@@ -3383,8 +3363,6 @@ function UserDetailView({
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Комната</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Заезд</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Выезд</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Статус</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Оплата</th>
                 </tr>
               </thead>
               <tbody>
@@ -3412,25 +3390,6 @@ function UserDetailView({
                         month: '2-digit',
                         year: 'numeric'
                       })}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
-                        booking.isConfirmed 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {booking.isConfirmed ? 'Подтверждено' : 'Ожидает'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {booking.isPaid ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                          {booking.amount ? `${booking.amount}€` : 'Оплачено'}
-                          {booking.paymentMethod && ` (${booking.paymentMethod === 'cash' ? 'наличные' : 'перевод'})`}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-sm">Не оплачено</span>
-                      )}
                     </td>
                   </tr>
                 ))}
@@ -3685,7 +3644,6 @@ function BookingsView({
                     </div>
                   </th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Гости</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Статус</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Действия</th>
                 </tr>
               </thead>
@@ -3753,32 +3711,6 @@ function BookingsView({
                             </div>
                           ) : (
                             <span className="text-gray-400">Нет гостей</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex flex-col gap-1">
-                          {booking.isConfirmed ? (
-                            <div className="flex items-center gap-1 text-xs text-green-600">
-                              <CheckCircle className="w-3 h-3" />
-                              <span>Подтверждено</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1 text-xs text-yellow-600">
-                              <span>Ожидает подтверждения</span>
-                            </div>
-                          )}
-                          {booking.isPaid ? (
-                            <div className="flex items-center gap-1 text-xs text-green-600">
-                              <Euro className="w-3 h-3" />
-                              <span>
-                                Оплачено ({booking.paymentMethod === 'cash' ? 'наличными' : booking.paymentMethod === 'transfer' ? 'переводом' : ''})
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1 text-xs text-red-600">
-                              <span>Не оплачено</span>
-                            </div>
                           )}
                         </div>
                       </td>
