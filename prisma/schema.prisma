@@ -79,6 +79,8 @@ model Room {
   isCommon    Boolean     @default(false) @map("is_common")
   zIndex      Int         @default(1) @map("z_index")
   description String?
+  hasShower   Boolean     @default(false) @map("has_shower")
+  hasToilet   Boolean     @default(false) @map("has_toilet")
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 

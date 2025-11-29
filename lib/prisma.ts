@@ -49,6 +49,13 @@ function createPrismaClient(): PrismaClient {
   }
 }
 
+// Принудительно создаем новый экземпляр, если нужно обновить схему
+// В development режиме можно сбросить кэш, установив PRISMA_RESET=true
+const shouldResetPrisma = process.env.PRISMA_RESET === 'true';
+if (shouldResetPrisma && process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = undefined;
+}
+
 export const prisma =
   globalForPrisma.prisma ?? createPrismaClient();
 

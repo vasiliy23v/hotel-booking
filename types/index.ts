@@ -46,6 +46,8 @@ export interface Room {
   isCommon?: boolean;
   zIndex?: number;
   description?: string;
+  hasShower?: boolean;
+  hasToilet?: boolean;
 }
 
 export interface Stairs {

@@ -496,7 +496,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
               onCancelBooking={handleCancelBooking}
               currentUser={currentUser.name}
               isManager={true}
-              stairs={stairs.filter(s => s.floor === selectedFloor)}
+              stairs={stairs}
               onStairsUpdate={handleStairsUpdate}
               hotelId={hotelId}
             />

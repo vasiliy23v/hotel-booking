@@ -50,6 +50,8 @@ function transformRoom(room: any): Room {
     isCommon: room.isCommon || false,
     zIndex: room.zIndex || 1,
     description: room.description || undefined,
+    hasShower: room.hasShower || false,
+    hasToilet: room.hasToilet || false,
   };
 }
 
@@ -488,6 +490,8 @@ export async function createRoom(room: Omit<Room, 'id'> & { id?: string }): Prom
       isCommon: room.isCommon || false,
       zIndex: room.zIndex || 1,
       description: room.description || null,
+      hasShower: room.hasShower || false,
+      hasToilet: room.hasToilet || false,
     },
   });
   
@@ -507,20 +511,31 @@ export async function updateRoom(id: string, updates: Partial<Room>): Promise<Ro
   const updateData: any = {};
   
   if (updates.number !== undefined) updateData.number = updates.number;
-  if (updates.hotelId !== undefined) updateData.hotelId = updates.hotelId;
+  // hotelId не обновляется напрямую, так как это связь через relation
+  // if (updates.hotelId !== undefined) updateData.hotelId = updates.hotelId;
   if (updates.name !== undefined) updateData.name = updates.name;
   if (updates.type !== undefined) updateData.type = updates.type as any;
   if (updates.capacity !== undefined) updateData.capacity = updates.capacity;
   if (updates.maxCapacity !== undefined) updateData.maxCapacity = updates.maxCapacity;
-      if (updates.beds !== undefined) updateData.beds = updates.beds as any;
-      if (updates.floor !== undefined) updateData.floor = transformFloorToPrisma(updates.floor) as any;
-      if (updates.price !== undefined) updateData.price = updates.price;
-      if (updates.position !== undefined) updateData.position = updates.position as any;
+  if (updates.beds !== undefined) updateData.beds = updates.beds as any;
+  if (updates.floor !== undefined) updateData.floor = transformFloorToPrisma(updates.floor) as any;
+  if (updates.price !== undefined) updateData.price = updates.price;
+  if (updates.position !== undefined) updateData.position = updates.position as any;
   if (updates.width !== undefined) updateData.width = updates.width;
   if (updates.height !== undefined) updateData.height = updates.height;
   if (updates.isCommon !== undefined) updateData.isCommon = updates.isCommon;
   if (updates.zIndex !== undefined) updateData.zIndex = updates.zIndex;
   if (updates.description !== undefined) updateData.description = updates.description;
+  
+  // Обработка полей hasShower и hasToilet
+  if (updates.hasShower !== undefined) {
+    updateData.hasShower = Boolean(updates.hasShower);
+  }
+  if (updates.hasToilet !== undefined) {
+    updateData.hasToilet = Boolean(updates.hasToilet);
+  }
+  
+  console.log('updateRoom: updateData:', JSON.stringify(updateData, null, 2));
   
   const updatedRoom = await prisma.room.update({
     where: { id },

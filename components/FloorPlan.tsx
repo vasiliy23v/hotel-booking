@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Bed, Users, DoorOpen, Lock, CheckCircle, Edit2, Plus, X, Trash2, 
-  ArrowUpDown, Copy
+  ArrowUpDown, Copy, ShowerHead, Bath
 } from 'lucide-react';
 import type { Room, Stairs } from '@/types';
 
@@ -39,6 +39,7 @@ export default function FloorPlan({
   const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set());
   const [copiedRooms, setCopiedRooms] = useState<Room[]>([]);
   const [showFloorSelectModal, setShowFloorSelectModal] = useState(false);
+  const [copyingType, setCopyingType] = useState<'rooms' | 'stairs'>('rooms');
   const [dragging, setDragging] = useState<string | null>(null);
   const [resizing, setResizing] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -134,27 +135,43 @@ export default function FloorPlan({
     const minX = Math.min(...copiedStairs.map(s => s.position.x));
     const minY = Math.min(...copiedStairs.map(s => s.position.y));
     
-    // Копируем ступени на текущий этаж
-    const duplicatedStairs: Stairs[] = copiedStairs.map((stair) => {
-      return {
-        ...stair,
-        id: `stairs-${generateId()}`,
-        floor: floor, // Оставляем на текущем этаже
-        position: {
-          x: Math.round(stair.position.x - minX + offset),
-          y: Math.round(stair.position.y - minY + offset)
-        }
-      };
-    });
+      // Копируем ступени на текущий этаж
+      // ВАЖНО: Создаем НОВЫЕ ступени с НОВЫМИ уникальными ID
+      const duplicatedStairs: Stairs[] = copiedStairs.map((stair) => {
+        return {
+          ...stair,
+          id: `stairs-${generateId()}`, // НОВЫЙ уникальный ID
+          hotelId: stair.hotelId || hotelId || '',
+          floor: floor, // Оставляем на текущем этаже
+          targetFloor: stair.targetFloor, // Сохраняем целевой этаж
+          position: {
+            x: Math.round(stair.position.x - minX + offset),
+            y: Math.round(stair.position.y - minY + offset)
+          },
+          width: stair.width, // Сохраняем размеры
+          height: stair.height,
+          direction: stair.direction // Сохраняем направление
+        };
+      });
     
-    // Добавляем в локальное состояние
-    setLocalStairs([...localStairs, ...duplicatedStairs]);
+    // Добавляем в локальное состояние используя функциональное обновление
+    setLocalStairs(prevStairs => {
+      // Проверяем, что новые ID не дублируются с существующими
+      const existingIds = new Set(prevStairs.map(s => s.id));
+      const newStairs = duplicatedStairs.filter(s => !existingIds.has(s.id));
+      
+      if (newStairs.length !== duplicatedStairs.length) {
+        console.warn('handlePasteStairs: some stairs have duplicate IDs, skipping them');
+      }
+      
+      return [...prevStairs, ...newStairs];
+    });
     
     // Выделяем вставленные ступени
     const newSelectedIds = new Set(duplicatedStairs.map(s => s.id));
     setSelectedStairsSet(newSelectedIds);
     setSelectedStairs(duplicatedStairs[0]?.id || null);
-  }, [copiedStairs, editMode, localStairs, floor, setLocalStairs, setSelectedStairsSet, setSelectedStairs]);
+  }, [copiedStairs, editMode, floor, hotelId]);
 
   // Обработка горячих клавиш для копирования и вставки
   useEffect(() => {
@@ -217,6 +234,7 @@ export default function FloorPlan({
       setSelectedStairsSet(new Set());
       setCopiedStairs([]);
       setShowFloorSelectModal(false);
+      setCopyingType('rooms');
     }
   }, [editMode, rooms, stairs]);
 
@@ -257,12 +275,19 @@ export default function FloorPlan({
 
   const containerSize = calculateContainerSize();
   const isMobile = windowWidth < 768;
+  const isLargeScreen = windowWidth >= 1920;
   
   // Масштаб для мобильных устройств - увеличиваем комнаты пропорционально
   const mobileScale = isMobile ? Math.max(1.5, Math.min(windowWidth / 400, 2.0)) : 1;
   
-  // Масштабируем размеры контейнера на мобильных
-  const scaledContainerHeight = isMobile ? containerSize.height * mobileScale : containerSize.height;
+  // Масштаб для больших экранов - уменьшаем для лучшей видимости
+  const largeScreenScale = isLargeScreen ? Math.min(windowWidth / 1920, 1.2) : 1;
+  
+  // Общий масштаб (приоритет мобильному, если это мобильное устройство)
+  const scale = isMobile ? mobileScale : largeScreenScale;
+  
+  // Масштабируем размеры контейнера
+  const scaledContainerHeight = containerSize.height * scale;
 
   const getRoomColor = (room: Room) => {
     if (room.isCommon) return 'bg-gray-200 border-gray-400';
@@ -278,6 +303,41 @@ export default function FloorPlan({
     const isMyBooking = room.booking.bookedBy === currentUser;
     if (isMyBooking) return <CheckCircle className="w-4 h-4 text-gray-700" />;
     return <Lock className="w-4 h-4 text-gray-600" />;
+  };
+
+  // Функция для форматирования кроватей в формат "1-HB 2-EB"
+  const formatBeds = (beds: string[]): string => {
+    if (!beds || beds.length === 0) return '';
+    
+    // Группируем кровати по типу
+    const bedCounts: Record<string, number> = {};
+    
+    beds.forEach(bed => {
+      if (!bed || !bed.trim()) return;
+      
+      // Обрабатываем разные форматы: "1-HB", "HB", "1-HB, 2-EB", "1 DB" и т.д.
+      const trimmed = bed.trim();
+      
+      // Проверяем формат "число-тип" или "число тип"
+      const matchWithCount = trimmed.match(/^(\d+)[-\s]+([A-Z]+)$/i);
+      if (matchWithCount) {
+        const count = parseInt(matchWithCount[1]);
+        const type = matchWithCount[2].toUpperCase();
+        bedCounts[type] = (bedCounts[type] || 0) + count;
+      } else {
+        // Просто тип без количества - считаем как 1
+        const type = trimmed.toUpperCase();
+        if (type) {
+          bedCounts[type] = (bedCounts[type] || 0) + 1;
+        }
+      }
+    });
+    
+    // Форматируем результат: "1-HB 2-EB"
+    return Object.entries(bedCounts)
+      .sort(([a], [b]) => a.localeCompare(b)) // Сортируем по типу для консистентности
+      .map(([type, count]) => `${count}-${type}`)
+      .join(' ');
   };
 
   const handleMouseDown = (e: React.MouseEvent, roomId: string) => {
@@ -313,9 +373,9 @@ export default function FloorPlan({
       const deltaX = e.clientX - dragStart.x;
       const deltaY = e.clientY - dragStart.y;
 
-      // На мобильных учитываем масштаб при перетаскивании
-      const adjustedDeltaX = isMobile ? deltaX / mobileScale : deltaX;
-      const adjustedDeltaY = isMobile ? deltaY / mobileScale : deltaY;
+      // Учитываем масштаб при перетаскивании
+      const adjustedDeltaX = deltaX / scale;
+      const adjustedDeltaY = deltaY / scale;
 
       let newPos = {
         x: Math.max(0, roomStartPos.x + adjustedDeltaX),
@@ -342,9 +402,9 @@ export default function FloorPlan({
       const deltaX = e.clientX - resizeStart.x;
       const deltaY = e.clientY - resizeStart.y;
 
-      // На мобильных учитываем масштаб при изменении размера
-      const adjustedDeltaX = isMobile ? deltaX / mobileScale : deltaX;
-      const adjustedDeltaY = isMobile ? deltaY / mobileScale : deltaY;
+      // Учитываем масштаб при изменении размера
+      const adjustedDeltaX = deltaX / scale;
+      const adjustedDeltaY = deltaY / scale;
 
       // Обновляем только локальное состояние
       const updatedRooms = localRooms.map(r => {
@@ -367,9 +427,9 @@ export default function FloorPlan({
       const deltaX = e.clientX - dragStart.x;
       const deltaY = e.clientY - dragStart.y;
 
-      // На мобильных учитываем масштаб при перетаскивании
-      const adjustedDeltaX = isMobile ? deltaX / mobileScale : deltaX;
-      const adjustedDeltaY = isMobile ? deltaY / mobileScale : deltaY;
+      // Учитываем масштаб при перетаскивании
+      const adjustedDeltaX = deltaX / scale;
+      const adjustedDeltaY = deltaY / scale;
 
       let newPos = {
         x: Math.max(0, stairsStartPos.x + adjustedDeltaX),
@@ -513,11 +573,9 @@ export default function FloorPlan({
       y = e.clientY - rect.top - 40;
     }
 
-    // На мобильных учитываем масштаб при вычислении позиции
-    if (isMobile) {
-      x = x / mobileScale;
-      y = y / mobileScale;
-    }
+    // Учитываем масштаб при вычислении позиции
+    x = x / scale;
+    y = y / scale;
 
     if (snapToGrid) {
       const snapped = snapPosition(x, y);
@@ -543,15 +601,34 @@ export default function FloorPlan({
       targetFloor
     };
 
-    // Добавляем только в локальное состояние
-    setLocalStairs([...localStairs, newStairs]);
+    // Добавляем только в локальное состояние используя функциональное обновление
+    setLocalStairs(prevStairs => [...prevStairs, newStairs]);
     setAddingStairs(false);
   };
 
   const handleDeleteStairs = (stairsId: string) => {
-    if (editMode) {
-      // Удаляем только из локального состояния
-      setLocalStairs(localStairs.filter(s => s.id !== stairsId));
+    if (!editMode) return;
+    
+    // Если выбрано несколько ступеней, удаляем все выбранные
+    if (selectedStairsSet.size > 1) {
+      const stairsToDelete = localStairs.filter(s => selectedStairsSet.has(s.id));
+      const count = stairsToDelete.length;
+      if (confirm(`Удалить ${count} ${count === 1 ? 'ступень' : count < 5 ? 'ступени' : 'ступеней'}?`)) {
+        // Удаляем все выбранные ступени из локального состояния
+        setLocalStairs(localStairs.filter(s => !selectedStairsSet.has(s.id)));
+        // Сбрасываем выделение
+        setSelectedStairsSet(new Set());
+        setSelectedStairs(null);
+      }
+    } else {
+      // Удаляем одну ступень
+      if (confirm('Удалить эту ступень?')) {
+        // Удаляем только из локального состояния
+        setLocalStairs(localStairs.filter(s => s.id !== stairsId));
+        // Сбрасываем выделение
+        setSelectedStairsSet(new Set());
+        setSelectedStairs(null);
+      }
     }
   };
 
@@ -570,50 +647,30 @@ export default function FloorPlan({
 
   const handleDuplicateStairs = (stairs: Stairs) => {
     if (editMode) {
-      // Если выбрано несколько ступеней, копируем все
+      // Если выбрано несколько ступеней, копируем на другой этаж
       if (selectedStairsSet.size > 1) {
-        const stairsToCopy = localStairs.filter(s => selectedStairsSet.has(s.id));
-        if (stairsToCopy.length > 0) {
-          // Вычисляем смещение для позиции
-          const offset = 30;
-          const minX = Math.min(...stairsToCopy.map(s => s.position.x));
-          const minY = Math.min(...stairsToCopy.map(s => s.position.y));
-          
-          // Копируем ступени
-          const duplicatedStairs: Stairs[] = stairsToCopy.map((stair) => {
-            return {
-              ...stair,
-              id: `stairs-${generateId()}`,
-              position: {
-                x: Math.round(stair.position.x - minX + offset),
-                y: Math.round(stair.position.y - minY + offset)
-              }
-            };
-          });
-          
-          // Добавляем в локальное состояние
-          setLocalStairs([...localStairs, ...duplicatedStairs]);
-          
-          // Выделяем новые ступени
-          const newSelectedIds = new Set(duplicatedStairs.map(s => s.id));
-          setSelectedStairsSet(newSelectedIds);
-          setSelectedStairs(duplicatedStairs[0]?.id || null);
-        }
+        handleDuplicateMultipleStairs();
         return;
       }
       
       // Копирование одной ступени
-      // Создаем копию ступеней с новым ID и немного смещенной позицией
+      // Создаем НОВУЮ ступень на основе текущей с новым ID и немного смещенной позицией
       const duplicatedStairs: Stairs = {
         ...stairs,
-        id: `stairs-${generateId()}`,
+        id: `stairs-${generateId()}`, // Новый уникальный ID
+        hotelId: stairs.hotelId || hotelId || '',
+        floor: stairs.floor, // Сохраняем тот же этаж
+        targetFloor: stairs.targetFloor, // Сохраняем целевой этаж
         position: {
-          x: stairs.position.x + stairs.width + 20,
+          x: stairs.position.x + stairs.width + 20, // Смещаем позицию
           y: stairs.position.y
-        }
+        },
+        width: stairs.width, // Сохраняем размеры
+        height: stairs.height,
+        direction: stairs.direction // Сохраняем направление
       };
-      // Добавляем в локальное состояние
-      setLocalStairs([...localStairs, duplicatedStairs]);
+      // Добавляем в локальное состояние используя функциональное обновление
+      setLocalStairs(prevStairs => [...prevStairs, duplicatedStairs]);
       // Выделяем новые ступени
       setSelectedStairs(duplicatedStairs.id);
       setSelectedStairsSet(new Set([duplicatedStairs.id]));
@@ -621,9 +678,28 @@ export default function FloorPlan({
   };
 
   const handleDeleteRoom = (roomId: string) => {
-    if (editMode && confirm('Удалить эту комнату?')) {
-      // Удаляем только из локального состояния
-      setLocalRooms(localRooms.filter(r => r.id !== roomId));
+    if (!editMode) return;
+    
+    // Если выбрано несколько комнат, удаляем все выбранные
+    if (selectedRooms.size > 1) {
+      const roomsToDelete = localRooms.filter(r => selectedRooms.has(r.id));
+      const count = roomsToDelete.length;
+      if (confirm(`Удалить ${count} ${count === 1 ? 'комнату' : count < 5 ? 'комнаты' : 'комнат'}?`)) {
+        // Удаляем все выбранные комнаты из локального состояния
+        setLocalRooms(localRooms.filter(r => !selectedRooms.has(r.id)));
+        // Сбрасываем выделение
+        setSelectedRooms(new Set());
+        setSelectedRoom(null);
+      }
+    } else {
+      // Удаляем одну комнату
+      if (confirm('Удалить эту комнату?')) {
+        // Удаляем только из локального состояния
+        setLocalRooms(localRooms.filter(r => r.id !== roomId));
+        // Сбрасываем выделение
+        setSelectedRooms(new Set());
+        setSelectedRoom(null);
+      }
     }
   };
 
@@ -724,8 +800,34 @@ export default function FloorPlan({
     }
     
     setCopiedRooms(roomsToCopy);
+    setCopyingType('rooms');
     setShowFloorSelectModal(true);
     console.log('handleDuplicateMultipleRooms: modal should be shown');
+  };
+
+  const handleDuplicateMultipleStairs = () => {
+    if (selectedStairsSet.size === 0) {
+      console.warn('handleDuplicateMultipleStairs: no stairs selected');
+      return;
+    }
+    
+    console.log('handleDuplicateMultipleStairs: selected stairs count:', selectedStairsSet.size);
+    console.log('handleDuplicateMultipleStairs: localStairs count:', localStairs.length);
+    
+    // Сохраняем выбранные ступени для копирования
+    const stairsToCopy = localStairs.filter(s => selectedStairsSet.has(s.id));
+    console.log('handleDuplicateMultipleStairs: stairs to copy:', stairsToCopy.length);
+    
+    if (stairsToCopy.length === 0) {
+      console.error('handleDuplicateMultipleStairs: no stairs found to copy');
+      alert('Не удалось найти выбранные ступени для копирования');
+      return;
+    }
+    
+    setCopiedStairs(stairsToCopy);
+    setCopyingType('stairs');
+    setShowFloorSelectModal(true);
+    console.log('handleDuplicateMultipleStairs: modal should be shown');
   };
 
   const handlePasteToFloor = (targetFloor: 'EG' | '1OG' | '2OG') => {
@@ -742,14 +844,7 @@ export default function FloorPlan({
       ? targetFloorRooms.reduce((max, r) => Math.max(max, r.zIndex || 1), 1)
       : 1;
     
-    // Вычисляем смещение для позиции (чтобы вставленные комнаты не накладывались на оригиналы)
-    const offset = 30;
-    
-    // Находим минимальные координаты скопированных комнат для вычисления смещения
-    const minX = Math.min(...copiedRooms.map(r => r.position.x));
-    const minY = Math.min(...copiedRooms.map(r => r.position.y));
-    
-    // Копируем комнаты на выбранный этаж
+    // Копируем комнаты на выбранный этаж с сохранением точных позиций и размеров
     const duplicatedRooms: Room[] = copiedRooms.map((room, index) => {
       return {
         ...room,
@@ -757,12 +852,12 @@ export default function FloorPlan({
         number: `${room.number}-copy`,
         floor: targetFloor,
         position: {
-          x: Math.round(room.position.x - minX + offset),
-          y: Math.round(room.position.y - minY + offset)
+          x: room.position.x, // Сохраняем точную позицию X
+          y: room.position.y  // Сохраняем точную позицию Y
         },
         zIndex: maxZIndex + index + 1,
-        width: room.width || 120,
-        height: room.height || 100
+        width: room.width || 120,  // Сохраняем точную ширину
+        height: room.height || 100  // Сохраняем точную высоту
       };
     });
     
@@ -772,6 +867,7 @@ export default function FloorPlan({
     setLocalRooms(prevRooms => {
       const newRooms = [...prevRooms, ...duplicatedRooms];
       console.log('handlePasteToFloor: total rooms after paste:', newRooms.length);
+      console.log('handlePasteToFloor: rooms on target floor', targetFloor, ':', newRooms.filter(r => r.floor === targetFloor).length);
       return newRooms;
     });
     
@@ -786,6 +882,65 @@ export default function FloorPlan({
     
     // Показываем уведомление об успешном копировании
     alert(`Успешно скопировано ${duplicatedRooms.length} ${duplicatedRooms.length === 1 ? 'комната' : duplicatedRooms.length < 5 ? 'комнаты' : 'комнат'} на ${targetFloor === 'EG' ? 'первый' : targetFloor === '1OG' ? 'второй' : 'третий'} этаж. Переключитесь на этот этаж, чтобы увидеть скопированные комнаты.`);
+  };
+
+  const handlePasteStairsToFloor = (targetFloor: 'EG' | '1OG' | '2OG') => {
+    if (copiedStairs.length === 0) {
+      console.warn('handlePasteStairsToFloor: copiedStairs is empty');
+      return;
+    }
+    
+    console.log('handlePasteStairsToFloor: copying', copiedStairs.length, 'stairs to floor', targetFloor);
+    
+    // Копируем ступени на выбранный этаж с сохранением точных позиций и размеров
+    const duplicatedStairs: Stairs[] = copiedStairs.map((stair) => {
+      // Определяем целевой этаж для ступеней
+      let newTargetFloor: 'EG' | '1OG' | '2OG' = targetFloor;
+      if (stair.targetFloor) {
+        // Если у ступеней был целевой этаж, вычисляем новый целевой этаж относительно нового этажа
+        const currentFloorIndex = ['EG', '1OG', '2OG'].indexOf(stair.floor);
+        const targetFloorIndex = ['EG', '1OG', '2OG'].indexOf(stair.targetFloor);
+        const floorOffset = targetFloorIndex - currentFloorIndex;
+        const newFloorIndex = ['EG', '1OG', '2OG'].indexOf(targetFloor);
+        const newTargetIndex = (newFloorIndex + floorOffset + 3) % 3;
+        newTargetFloor = ['EG', '1OG', '2OG'][newTargetIndex] as 'EG' | '1OG' | '2OG';
+      }
+      
+      return {
+        ...stair,
+        id: `stairs-${generateId()}`,
+        floor: targetFloor,
+        targetFloor: newTargetFloor,
+        position: {
+          x: stair.position.x, // Сохраняем точную позицию X
+          y: stair.position.y   // Сохраняем точную позицию Y
+        },
+        width: stair.width,   // Сохраняем точную ширину
+        height: stair.height   // Сохраняем точную высоту
+      };
+    });
+    
+    console.log('handlePasteStairsToFloor: created', duplicatedStairs.length, 'duplicated stairs');
+    
+    // Добавляем в локальное состояние используя функциональное обновление
+    setLocalStairs(prevStairs => {
+      const newStairs = [...prevStairs, ...duplicatedStairs];
+      console.log('handlePasteStairsToFloor: total stairs after paste:', newStairs.length);
+      console.log('handlePasteStairsToFloor: stairs on target floor', targetFloor, ':', newStairs.filter(s => s.floor === targetFloor).length);
+      return newStairs;
+    });
+    
+    // Выделяем скопированные ступени
+    const newSelectedIds = new Set(duplicatedStairs.map(s => s.id));
+    setSelectedStairsSet(newSelectedIds);
+    setSelectedStairs(duplicatedStairs[0]?.id || null);
+    
+    // Закрываем модальное окно
+    setShowFloorSelectModal(false);
+    setCopiedStairs([]);
+    
+    // Показываем уведомление об успешном копировании
+    alert(`Успешно скопировано ${duplicatedStairs.length} ${duplicatedStairs.length === 1 ? 'ступень' : duplicatedStairs.length < 5 ? 'ступени' : 'ступеней'} на ${targetFloor === 'EG' ? 'первый' : targetFloor === '1OG' ? 'второй' : 'третий'} этаж. Переключитесь на этот этаж, чтобы увидеть скопированные ступени.`);
   };
 
   // Функция для глубокого сравнения комнат
@@ -818,12 +973,16 @@ export default function FloorPlan({
       const updatePromises: Promise<unknown>[] = [];
       
       // Сохраняем только измененные комнаты
+      let newRoomsCount = 0;
+      let updatedRoomsCount = 0;
+      
       for (const room of localRooms) {
         const original = originalRooms.find(r => r.id === room.id);
         if (original) {
           // Существующая комната - проверяем, изменилась ли она
           if (!roomsAreEqual(room, original)) {
             // Комната изменилась - сохраняем только изменения
+            updatedRoomsCount++;
             const result = onRoomUpdate(room);
             if (result != null && typeof result === 'object' && 'then' in result) {
               updatePromises.push(result as Promise<unknown>);
@@ -832,6 +991,8 @@ export default function FloorPlan({
           // Если комната не изменилась, пропускаем её
         } else {
           // Новая комната - создаем через onRoomCreate
+          newRoomsCount++;
+          console.log('handleFinishEditing: creating new room', room.id, 'on floor', room.floor);
           if (onRoomCreate) {
             const result = onRoomCreate(room);
             if (result != null && typeof result === 'object' && 'then' in result) {
@@ -840,6 +1001,8 @@ export default function FloorPlan({
           }
         }
       }
+      
+      console.log('handleFinishEditing: new rooms:', newRoomsCount, ', updated rooms:', updatedRoomsCount);
 
       // Удаляем комнаты, которые были удалены (помечаем позицией -1000)
       const deletedRooms = originalRooms.filter(
@@ -858,14 +1021,112 @@ export default function FloorPlan({
         await Promise.all(updatePromises);
       }
 
-      // Сохраняем все изменения ступеней
-      // Объединяем локальные ступени текущего этажа с оригинальными ступенями других этажей
-      // чтобы не удалить ступени с других этажей
-      const allStairs = [
-        ...localStairs, // Локальные ступени текущего этажа (включая новые и измененные)
-        ...originalStairs.filter(s => s.floor !== floor) // Оригинальные ступени других этажей
-      ];
-      await onStairsUpdate(allStairs);
+      // Сохраняем изменения ступеней ТОЛЬКО если они были изменены
+      // Ступени - отдельная сущность, не должны обновляться при обновлении комнат
+      const stairsChanged = localStairs.length !== originalStairs.length || 
+        localStairs.some(localStair => {
+          const original = originalStairs.find(s => s.id === localStair.id);
+          if (!original) return true; // Новая ступень
+          // Проверяем, изменилась ли ступень
+          return (
+            localStair.floor !== original.floor ||
+            localStair.position.x !== original.position.x ||
+            localStair.position.y !== original.position.y ||
+            localStair.width !== original.width ||
+            localStair.height !== original.height ||
+            localStair.direction !== original.direction ||
+            localStair.targetFloor !== original.targetFloor
+          );
+        }) ||
+        originalStairs.some(originalStair => {
+          // Проверяем, была ли удалена ступень
+          return !localStairs.find(s => s.id === originalStair.id);
+        });
+      
+      if (stairsChanged) {
+        // КРИТИЧЕСКИ ВАЖНО: handleStairsUpdate в родительском компоненте УДАЛЯЕТ все ступени,
+        // которых нет в переданном списке. Поэтому мы ДОЛЖНЫ передать ВСЕ ступени отеля.
+        
+        // КРИТИЧЕСКИ ВАЖНО: Используем stairs из пропса как основной источник истины,
+        // так как он содержит ВСЕ ступени отеля (после исправления в HotelDetailView.tsx).
+        // originalStairs может быть неполным, если пользователь переключался между этажами.
+        
+        // ВАЖНО: Используем Map для дедупликации по ID, чтобы избежать дубликатов
+        const allStairsMap = new Map<string, Stairs>();
+        
+        // КРИТИЧЕСКИ ВАЖНО: Сначала добавляем ВСЕ ступени из пропса (основной источник истины)
+        // stairs из пропса должен содержать ВСЕ ступени отеля, не только текущего этажа
+        stairs.forEach(s => {
+          allStairsMap.set(s.id, s);
+        });
+        
+        // Затем добавляем все оригинальные ступени, которых нет в пропсе
+        // Это защита на случай, если originalStairs содержит ступени, которых нет в пропсе
+        originalStairs.forEach(s => {
+          if (!allStairsMap.has(s.id)) {
+            console.log('handleFinishEditing: adding stair from originalStairs not in props:', s.id, 'floor:', s.floor);
+            allStairsMap.set(s.id, s);
+          }
+        });
+        
+        // Затем перезаписываем локальными (измененными и новыми)
+        // Локальные имеют приоритет, так как они могут быть изменены или созданы
+        localStairs.forEach(s => {
+          if (allStairsMap.has(s.id)) {
+            const existing = allStairsMap.get(s.id);
+            if (existing && (existing.floor !== s.floor || existing.position.x !== s.position.x || existing.position.y !== s.position.y)) {
+              console.log('handleFinishEditing: overwriting stairs with ID:', s.id, 'floor:', existing.floor, '->', s.floor);
+            }
+          }
+          allStairsMap.set(s.id, s);
+        });
+        
+        const finalAllStairs = Array.from(allStairsMap.values());
+        
+        // Финальная проверка: убеждаемся, что мы передаем ВСЕ ступени отеля
+        // Количество должно быть >= оригинальных (могут быть добавлены новые)
+        if (finalAllStairs.length < originalStairs.length) {
+          console.error('handleFinishEditing: CRITICAL ERROR - finalAllStairs count is less than originalStairs!');
+          console.error('handleFinishEditing: originalStairs count:', originalStairs.length);
+          console.error('handleFinishEditing: finalAllStairs count:', finalAllStairs.length);
+          console.error('handleFinishEditing: originalStairs IDs:', originalStairs.map(s => s.id));
+          console.error('handleFinishEditing: finalAllStairs IDs:', finalAllStairs.map(s => s.id));
+        }
+        
+        console.log('handleFinishEditing: stairs were changed, saving...');
+        console.log('handleFinishEditing: localStairs count:', localStairs.length);
+        console.log('handleFinishEditing: originalStairs count:', originalStairs.length);
+        console.log('handleFinishEditing: stairs (from props) count:', stairs.length);
+        console.log('handleFinishEditing: finalAllStairs count:', finalAllStairs.length);
+        console.log('handleFinishEditing: stairs by floor:', {
+          EG: finalAllStairs.filter(s => s.floor === 'EG').length,
+          '1OG': finalAllStairs.filter(s => s.floor === '1OG').length,
+          '2OG': finalAllStairs.filter(s => s.floor === '2OG').length
+        });
+        console.log('handleFinishEditing: originalStairs by floor:', {
+          EG: originalStairs.filter(s => s.floor === 'EG').length,
+          '1OG': originalStairs.filter(s => s.floor === '1OG').length,
+          '2OG': originalStairs.filter(s => s.floor === '2OG').length
+        });
+        
+        // Финальная проверка: убеждаемся, что мы передаем ВСЕ ступени отеля
+        // Количество должно быть >= оригинальных (могут быть добавлены новые)
+        if (finalAllStairs.length < originalStairs.length) {
+          console.error('handleFinishEditing: CRITICAL ERROR - finalAllStairs count is less than originalStairs!');
+          console.error('handleFinishEditing: originalStairs count:', originalStairs.length);
+          console.error('handleFinishEditing: finalAllStairs count:', finalAllStairs.length);
+          console.error('handleFinishEditing: originalStairs IDs:', originalStairs.map(s => s.id));
+          console.error('handleFinishEditing: finalAllStairs IDs:', finalAllStairs.map(s => s.id));
+        }
+        
+        // Вызываем onStairsUpdate ТОЛЬКО если ступени были изменены
+        // Передаем полный список всех ступеней отеля, чтобы ничего не было удалено
+        await onStairsUpdate(finalAllStairs);
+      } else {
+        console.log('handleFinishEditing: stairs were not changed, skipping update');
+        console.log('handleFinishEditing: stairs (from props) count:', stairs.length);
+        console.log('handleFinishEditing: originalStairs count:', originalStairs.length);
+      }
 
       // Выходим из режима редактирования
       setEditMode(false);
@@ -973,18 +1234,18 @@ export default function FloorPlan({
         <div
           className="relative"
           style={{
-            width: isMobile ? `${containerSize.width * mobileScale}px` : `${containerSize.width}px`,
-            height: isMobile ? `${scaledContainerHeight}px` : `${containerSize.height}px`,
-            minHeight: isMobile ? `${scaledContainerHeight}px` : '600px',
+            width: `${containerSize.width * scale}px`,
+            height: `${scaledContainerHeight}px`,
+            minHeight: `${scaledContainerHeight}px`,
             position: 'relative',
           }}
         >
         {/* Ступени */}
         {floorStairs.map(stair => {
-          const scaledWidth = stair.width * mobileScale;
-          const scaledHeight = stair.height * mobileScale;
-          const scaledX = stair.position.x * mobileScale;
-          const scaledY = stair.position.y * mobileScale;
+          const scaledWidth = stair.width * scale;
+          const scaledHeight = stair.height * scale;
+          const scaledX = stair.position.x * scale;
+          const scaledY = stair.position.y * scale;
 
           return (
             <div
@@ -1069,9 +1330,12 @@ export default function FloorPlan({
                       handleDuplicateStairs(stair);
                     }}
                     className="bg-purple-500 hover:bg-purple-600 rounded px-2 py-1"
-                    title="Дублировать"
+                    title={selectedStairsSet.size > 1 ? `Копировать ${selectedStairsSet.size} ступеней` : 'Дублировать'}
                   >
                     <Copy className="w-3 h-3 inline" />
+                    {selectedStairsSet.size > 1 && (
+                      <span className="ml-1 text-[10px]">{selectedStairsSet.size}</span>
+                    )}
                   </button>
                   <button
                     onClick={(e) => {
@@ -1079,9 +1343,12 @@ export default function FloorPlan({
                       handleDeleteStairs(stair.id);
                     }}
                     className="bg-pink-900 hover:bg-pink-950 rounded px-2 py-1"
-                    title="Удалить"
+                    title={selectedStairsSet.size > 1 ? `Удалить ${selectedStairsSet.size} ступеней` : 'Удалить'}
                   >
                     <X className="w-3 h-3" />
+                    {selectedStairsSet.size > 1 && (
+                      <span className="ml-1 text-[10px]">{selectedStairsSet.size}</span>
+                    )}
                   </button>
                 </div>
               )}
@@ -1093,13 +1360,13 @@ export default function FloorPlan({
         {floorRooms.map(room => {
           const width = room.width || 120;
           const height = room.height || 100;
-          const isSelected = selectedRoom === room.id;
+          const isSelected = selectedRoom === room.id || selectedRooms.has(room.id);
           const isDragging = dragging === room.id;
 
-          const scaledWidth = width * mobileScale;
-          const scaledHeight = height * mobileScale;
-          const scaledX = room.position.x * mobileScale;
-          const scaledY = room.position.y * mobileScale;
+          const scaledWidth = width * scale;
+          const scaledHeight = height * scale;
+          const scaledX = room.position.x * scale;
+          const scaledY = room.position.y * scale;
 
           return (
             <div
@@ -1107,7 +1374,7 @@ export default function FloorPlan({
               data-room-id={room.id}
               className={`absolute border-2 rounded-lg transition-all overflow-hidden ${
                 getRoomColor(room)
-              } ${isSelected && editMode ? 'ring-4 ring-gray-700' : ''} ${
+              } ${(isSelected || selectedRooms.has(room.id)) && editMode ? 'ring-4 ring-gray-700' : ''} ${
                 editMode ? 'cursor-move' : room.isCommon ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
               } ${isDragging ? 'opacity-80' : ''}`}
               style={{
@@ -1116,36 +1383,114 @@ export default function FloorPlan({
                 width: `${scaledWidth}px`,
                 height: `${scaledHeight}px`,
                 zIndex: (room.zIndex || 1) + (isSelected ? 1000 : 0),
-                padding: isMobile ? `${4 * mobileScale}px` : '8px',
-                fontSize: isMobile ? `${10 * mobileScale}px` : '12px'
+                padding: `${6 * scale}px`,
+                fontSize: `${12 * scale}px`
               }}
               onMouseDown={(e) => handleMouseDown(e, room.id)}
               onClick={(e) => handleRoomClick(room, e)}
             >
-              <div className="absolute -top-2 -right-2">
+              <div className="h-full flex flex-col justify-start overflow-hidden">
+                {/* Номер комнаты */}
+                <div className="font-bold text-sm leading-tight truncate">{room.number}</div>
+                
+                {/* Компактная информация для маленьких комнат */}
+                {!room.isCommon && (scaledWidth < 100 || scaledHeight < 80) ? (
+                  // Компактный режим для маленьких комнат
+                  <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-700">
+                    {room.capacity && (
+                      <div className="flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        <span>{room.capacity}</span>
+                      </div>
+                    )}
+                    {room.beds && room.beds.length > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Bed className="w-4 h-4" />
+                        <span className="text-[10px]">{formatBeds(room.beds)}</span>
+                      </div>
+                    )}
+                    {room.hasShower && (
+                      <div className="flex items-center gap-1" title="Душ">
+                        <ShowerHead className="w-3 h-3 text-blue-600" />
+                      </div>
+                    )}
+                    {room.hasToilet && (
+                      <div className="flex items-center gap-1" title="Туалет">
+                        <Bath className="w-3 h-3 text-blue-600" />
+                      </div>
+                    )}
+                    {room.price > 0 && (
+                      <div className="font-semibold ml-auto">
+                        {Math.round(room.price)}€
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // Полный режим для больших комнат
+                  <>
+                    {/* Тип комнаты */}
+                    {!room.isCommon && (
+                      <div className="text-sm text-gray-600 leading-tight truncate mt-1">
+                        {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : ''}
+                      </div>
+                    )}
+                    
+                    {/* Информация о людях и кроватях */}
+                    {!room.isCommon && (
+                      <div className="flex items-start flex-col gap-2 mt-1 text-xs text-gray-700">
+                        {/* Количество людей */}
+                        {room.capacity && (
+                          <div className="flex items-center gap-1">
+                            <Users className="w-4 h-4" />
+                            <span>{room.capacity}</span>
+                            {room.maxCapacity && typeof room.maxCapacity === 'number' && typeof room.capacity === 'number' && room.maxCapacity > room.capacity && (
+                              <span className="text-gray-500">/ {room.maxCapacity}</span>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Кровати */}
+                        {room.beds && room.beds.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Bed className="w-4 h-4" />
+                            <span className="text-[10px]">{formatBeds(room.beds)}</span>
+                          </div>
+                        )}
+                        
+                        {/* Душ и туалет */}
+                        {(room.hasShower || room.hasToilet) && (
+                          <div className="flex items-center gap-2">
+                            {room.hasShower && (
+                              <div className="flex items-center gap-1" title="Душ">
+                                <ShowerHead className="w-4 h-4 text-blue-600" />
+                              </div>
+                            )}
+                            {room.hasToilet && (
+                              <div className="flex items-center gap-1" title="Туалет">
+                                <Bath className="w-4 h-4 text-blue-600" />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Цена */}
+                    {!room.isCommon && room.price > 0 && (
+                      <div className="text-xs font-semibold text-gray-700 leading-tight mt-1">
+                        {Math.round(room.price)}€
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Иконка статуса - смещена ниже и правее */}
+              <div className="absolute bottom-1 right-1">
                 {getRoomIcon(room)}
               </div>
 
-              <div className="h-full flex flex-col justify-start overflow-hidden">
-                {/* Номер комнаты */}
-                <div className="font-bold text-xs sm:text-sm leading-tight truncate">{room.number}</div>
-                
-                {/* Тип комнаты */}
-                {!room.isCommon && (
-                  <div className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate mt-0.5">
-                    {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : ''}
-                  </div>
-                )}
-                
-                {/* Цена */}
-                {!room.isCommon && room.price > 0 && (
-                  <div className="text-[10px] sm:text-xs font-semibold text-gray-700 leading-tight mt-0.5">
-                    {Math.round(room.price)}€
-                  </div>
-                )}
-              </div>
-
-              {editMode && isSelected && (
+              {editMode && (isSelected || selectedRooms.has(room.id)) && (
                 <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs p-1 overflow-x-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}>
                   <div className="flex gap-1 min-w-max whitespace-nowrap">
                   <button
@@ -1207,9 +1552,12 @@ export default function FloorPlan({
                       handleDeleteRoom(room.id);
                     }}
                     className="bg-pink-900 hover:bg-pink-950 rounded px-1 shrink-0"
-                    title="Удалить"
+                    title={selectedRooms.size > 1 ? `Удалить ${selectedRooms.size} комнат` : 'Удалить'}
                   >
                     <Trash2 className="w-3 h-3 inline" />
+                    {selectedRooms.size > 1 && (
+                      <span className="ml-1 text-[10px]">{selectedRooms.size}</span>
+                    )}
                   </button>
                   </div>
                 </div>
@@ -1268,10 +1616,17 @@ export default function FloorPlan({
       )}
 
       {/* Модальное окно выбора этажа для копирования */}
-      {showFloorSelectModal && (
+      {showFloorSelectModal && (copyingType === 'rooms' ? copiedRooms.length > 0 : copiedStairs.length > 0) && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowFloorSelectModal(false)}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] p-4"
+          onClick={() => {
+            setShowFloorSelectModal(false);
+            if (copyingType === 'rooms') {
+              setCopiedRooms([]);
+            } else {
+              setCopiedStairs([]);
+            }
+          }}
         >
           <div 
             className="bg-white rounded-lg max-w-md w-full shadow-2xl"
@@ -1282,12 +1637,22 @@ export default function FloorPlan({
                 Выберите этаж для копирования
               </h2>
               <p className="text-gray-600 mb-6">
-                Выберите этаж, на который нужно скопировать {copiedRooms.length} {copiedRooms.length === 1 ? 'комнату' : copiedRooms.length < 5 ? 'комнаты' : 'комнат'}
+                {copyingType === 'rooms' ? (
+                  <>Выберите этаж, на который нужно скопировать {copiedRooms.length} {copiedRooms.length === 1 ? 'комнату' : copiedRooms.length < 5 ? 'комнаты' : 'комнат'}</>
+                ) : (
+                  <>Выберите этаж, на который нужно скопировать {copiedStairs.length} {copiedStairs.length === 1 ? 'ступень' : copiedStairs.length < 5 ? 'ступени' : 'ступеней'}</>
+                )}
               </p>
               <div className="flex flex-col gap-3">
                 {floor !== 'EG' && (
                   <button
-                    onClick={() => handlePasteToFloor('EG')}
+                    onClick={() => {
+                      if (copyingType === 'rooms') {
+                        handlePasteToFloor('EG');
+                      } else {
+                        handlePasteStairsToFloor('EG');
+                      }
+                    }}
                     className="px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-semibold transition-colors"
                   >
                     Первый этаж (EG)
@@ -1295,7 +1660,13 @@ export default function FloorPlan({
                 )}
                 {floor !== '1OG' && (
                   <button
-                    onClick={() => handlePasteToFloor('1OG')}
+                    onClick={() => {
+                      if (copyingType === 'rooms') {
+                        handlePasteToFloor('1OG');
+                      } else {
+                        handlePasteStairsToFloor('1OG');
+                      }
+                    }}
                     className="px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-semibold transition-colors"
                   >
                     Второй этаж (1OG)
@@ -1303,7 +1674,13 @@ export default function FloorPlan({
                 )}
                 {floor !== '2OG' && (
                   <button
-                    onClick={() => handlePasteToFloor('2OG')}
+                    onClick={() => {
+                      if (copyingType === 'rooms') {
+                        handlePasteToFloor('2OG');
+                      } else {
+                        handlePasteStairsToFloor('2OG');
+                      }
+                    }}
                     className="px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-semibold transition-colors"
                   >
                     Третий этаж (2OG)
@@ -1312,7 +1689,11 @@ export default function FloorPlan({
                 <button
                   onClick={() => {
                     setShowFloorSelectModal(false);
-                    setCopiedRooms([]);
+                    if (copyingType === 'rooms') {
+                      setCopiedRooms([]);
+                    } else {
+                      setCopiedStairs([]);
+                    }
                   }}
                   className="px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-semibold transition-colors mt-2"
                 >
@@ -1348,6 +1729,8 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
     isCommon: room?.isCommon || false,
     width: room?.width || 120,
     height: room?.height || 100,
+    hasShower: room?.hasShower || false,
+    hasToilet: room?.hasToilet || false,
   });
 
   const handleSave = () => {
@@ -1374,14 +1757,16 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
       height: formData.height, // Без ограничений минимального размера
       isCommon: formData.type === 'COMMON' ? true : formData.isCommon,
       zIndex: room?.zIndex || 1,
-      description: formData.description.trim() || undefined
+      description: formData.description.trim() || undefined,
+      hasShower: formData.hasShower,
+      hasToilet: formData.hasToilet
     };
 
     onSave(roomData);
   };
 
   return (
-    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-[10000] p-4 overflow-y-auto">
       <div className="bg-white rounded-lg max-w-2xl w-full my-8 max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="p-6">
           <h2 className="text-2xl font-bold mb-4">
@@ -1485,6 +1870,37 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                     className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
                   />
                 </div>
+
+                {/* Душ и туалет */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="hasShower"
+                      checked={formData.hasShower}
+                      onChange={(e) => setFormData({ ...formData, hasShower: e.target.checked })}
+                      className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="hasShower" className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+                      <ShowerHead className="w-5 h-5 text-blue-600" />
+                      <span>Душ</span>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="hasToilet"
+                      checked={formData.hasToilet}
+                      onChange={(e) => setFormData({ ...formData, hasToilet: e.target.checked })}
+                      className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="hasToilet" className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+                      <Bath className="w-5 h-5 text-blue-600" />
+                      <span>Туалет</span>
+                    </label>
+                  </div>
+                </div>
               </>
             )}
 
@@ -1572,7 +1988,7 @@ function StairsEditModal({ stairs, hotelId, floor, onSave, onClose }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-[10000] p-4 overflow-y-auto">
       <div className="bg-white rounded-lg max-w-md w-full my-8 max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="p-6">
           <h2 className="text-2xl font-bold mb-4">Редактировать ступени</h2>
