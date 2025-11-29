@@ -26,14 +26,44 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Возвращаем информацию о токене без самого токена (для безопасности)
-    return NextResponse.json({
+    // Проверяем, нужна ли ссылка
+    const includeUrl = searchParams.get('includeUrl') === 'true';
+
+    const response: any = {
       exists: true,
       id: registrationToken.id,
       isActive: registrationToken.isActive,
       createdAt: registrationToken.createdAt,
       updatedAt: registrationToken.updatedAt,
-    });
+    };
+
+    // Если нужна ссылка
+    if (includeUrl) {
+      if (registrationToken.originalToken) {
+        // Получаем базовый URL для формирования ссылки
+        const host = request.headers.get('host') || request.headers.get('x-forwarded-host');
+        const protocol = request.headers.get('x-forwarded-proto') || 
+                         (request.url.startsWith('https') ? 'https' : 'http');
+        
+        let baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+        if (!baseUrl && host) {
+          baseUrl = `${protocol}://${host}`;
+        }
+        if (!baseUrl) {
+          const origin = new URL(request.url).origin;
+          baseUrl = origin;
+        }
+
+        response.registrationUrl = `${baseUrl}/register/${registrationToken.originalToken}`;
+      } else {
+        // Оригинальный токен отсутствует (токен создан до обновления)
+        response.registrationUrl = null;
+        response.urlUnavailable = true;
+        response.message = 'Ссылка недоступна. Токен был создан до обновления системы. Создайте новый токен для получения ссылки.';
+      }
+    }
+
+    return NextResponse.json(response);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -48,7 +78,8 @@ export async function POST(request: NextRequest) {
     const hashedToken = hashInviteToken(token);
 
     // Создаем или обновляем токен (старые автоматически деактивируются)
-    const registrationToken = await createOrUpdateRegistrationToken(hashedToken);
+    // Сохраняем оригинальный токен для возможности получения ссылки позже
+    const registrationToken = await createOrUpdateRegistrationToken(hashedToken, token);
 
     // Получаем базовый URL для формирования ссылки
     const host = request.headers.get('host') || request.headers.get('x-forwarded-host');

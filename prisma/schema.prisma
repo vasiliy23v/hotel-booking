@@ -227,11 +227,12 @@ model Feedback {
 // REGISTRATION TOKEN (Общий токен регистрации)
 // ============================================
 model RegistrationToken {
-  id        String   @id @default(uuid())
-  token     String   @unique
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id            String   @id @default(uuid())
+  token         String   @unique // Хэшированный токен
+  originalToken String?  @map("original_token") @db.VarChar(255) // Оригинальный токен для формирования ссылки
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([token])
   @@index([isActive])

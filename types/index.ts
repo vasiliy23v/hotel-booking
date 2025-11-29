@@ -129,6 +129,7 @@ export interface Feedback {
 export interface RegistrationToken {
   id: string;
   token: string; // Хэшированный токен
+  originalToken?: string; // Оригинальный токен для формирования ссылки
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

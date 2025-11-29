@@ -43,6 +43,7 @@ export default function UsersManagementView({
   const [registrationToken, setRegistrationToken] = useState<any>(null);
   const [registrationTokenLoading, setRegistrationTokenLoading] = useState(false);
   const [copiedRegistrationUrl, setCopiedRegistrationUrl] = useState(false);
+  const [activeRegistrationUrl, setActiveRegistrationUrl] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -54,8 +55,17 @@ export default function UsersManagementView({
       
       // Загружаем информацию об общем токене регистрации
       try {
-        const tokenData = await api.getRegistrationToken();
+        const tokenData = await api.getRegistrationToken(true); // Запрашиваем с ссылкой
         setRegistrationToken(tokenData);
+        // Если есть ссылка, сохраняем её
+        if (tokenData.registrationUrl) {
+          setActiveRegistrationUrl(tokenData.registrationUrl);
+          localStorage.setItem('activeRegistrationUrl', tokenData.registrationUrl);
+        } else if (tokenData.urlUnavailable) {
+          // Очищаем сохраненную ссылку, если она была сохранена ранее
+          setActiveRegistrationUrl(null);
+          localStorage.removeItem('activeRegistrationUrl');
+        }
       } catch (error) {
         // Если токен не создан, это нормально
         setRegistrationToken(null);
@@ -81,6 +91,11 @@ export default function UsersManagementView({
 
   useEffect(() => {
     loadData();
+    // Восстанавливаем сохраненную ссылку из localStorage
+    const savedUrl = localStorage.getItem('activeRegistrationUrl');
+    if (savedUrl) {
+      setActiveRegistrationUrl(savedUrl);
+    }
   }, []);
 
   const getInviteStatus = (invite: Invite) => {
@@ -398,6 +413,99 @@ export default function UsersManagementView({
                   })}
                 </div>
               </div>
+              
+              {/* Ссылка для копирования */}
+              {activeRegistrationUrl ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="text-xs text-blue-600 mb-2 font-semibold">Ссылка для регистрации:</div>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={activeRegistrationUrl}
+                      readOnly
+                      className="flex-1 px-3 py-2 border border-blue-300 rounded-lg bg-white text-sm"
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                    <button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(activeRegistrationUrl);
+                          setCopiedRegistrationUrl(true);
+                          setToast({
+                            message: 'Ссылка скопирована в буфер обмена',
+                            type: 'success'
+                          });
+                          setTimeout(() => setCopiedRegistrationUrl(false), 2000);
+                        } catch (error) {
+                          setToast({
+                            message: 'Ошибка при копировании ссылки',
+                            type: 'error'
+                          });
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 text-sm font-semibold shrink-0"
+                    >
+                      {copiedRegistrationUrl ? (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          Скопировано
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          Копировать
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-yellow-800">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="text-sm">Ссылка не загружена. Получите ссылку для активного токена.</span>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          setRegistrationTokenLoading(true);
+                          const tokenData = await api.getRegistrationToken(true); // Запрашиваем с ссылкой
+                          if (tokenData.registrationUrl) {
+                            setActiveRegistrationUrl(tokenData.registrationUrl);
+                            localStorage.setItem('activeRegistrationUrl', tokenData.registrationUrl);
+                            setToast({
+                              message: 'Ссылка успешно загружена',
+                              type: 'success'
+                            });
+                          } else if (tokenData.urlUnavailable) {
+                            setToast({
+                              message: tokenData.message || 'Ссылка недоступна. Токен был создан до обновления системы. Создайте новый токен для получения ссылки.',
+                              type: 'error'
+                            });
+                          } else {
+                            setToast({
+                              message: 'Не удалось получить ссылку',
+                              type: 'error'
+                            });
+                          }
+                        } catch (error) {
+                          const message = error instanceof Error ? error.message : 'Ошибка при получении ссылки';
+                          setToast({ message, type: 'error' });
+                        } finally {
+                          setRegistrationTokenLoading(false);
+                        }
+                      }}
+                      disabled={registrationTokenLoading}
+                      className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50 shrink-0"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${registrationTokenLoading ? 'animate-spin' : ''}`} />
+                      {registrationTokenLoading ? 'Загрузка...' : 'Получить ссылку'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={async () => {
@@ -409,6 +517,10 @@ export default function UsersManagementView({
                         createdAt: result.createdAt,
                         updatedAt: result.updatedAt,
                       });
+                      // Сохраняем ссылку в состоянии
+                      setActiveRegistrationUrl(result.registrationUrl);
+                      // Сохраняем ссылку в localStorage для сохранения после перезагрузки
+                      localStorage.setItem('activeRegistrationUrl', result.registrationUrl);
                       setToast({
                         message: 'Новый токен регистрации создан. Старый токен автоматически деактивирован.',
                         type: 'success'
@@ -451,6 +563,10 @@ export default function UsersManagementView({
                       createdAt: result.createdAt,
                       updatedAt: result.updatedAt,
                     });
+                    // Сохраняем ссылку в состоянии
+                    setActiveRegistrationUrl(result.registrationUrl);
+                    // Сохраняем ссылку в localStorage для сохранения после перезагрузки
+                    localStorage.setItem('activeRegistrationUrl', result.registrationUrl);
                     setToast({
                       message: 'Токен регистрации создан! Ссылка скопирована в буфер обмена.',
                       type: 'success'

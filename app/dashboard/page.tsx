@@ -50,7 +50,7 @@ export default function Dashboard() {
   const [bookingStats, setBookingStats] = useState({ unconfirmed: 0, unpaid: 0 });
   
   // Состояние для активной вкладки в мобильном меню (только для обычных пользователей)
-  const [activeTab, setActiveTab] = useState<'hotels' | 'bookings'>('bookings');
+  const [activeTab, setActiveTab] = useState<'hotels' | 'bookings'>('hotels');
   
   // Ref для отслеживания предыдущего значения выбранного отеля
   const prevSelectedHotelRef = useRef<string | null>(null);

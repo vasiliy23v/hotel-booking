@@ -1193,6 +1193,7 @@ export async function getActiveRegistrationToken(): Promise<RegistrationToken | 
   return {
     id: token.id,
     token: token.token,
+    originalToken: (token as any).originalToken || undefined,
     isActive: token.isActive,
     createdAt: token.createdAt.toISOString(),
     updatedAt: token.updatedAt.toISOString(),
@@ -1246,7 +1247,7 @@ export async function verifyRegistrationToken(hashedToken: string): Promise<bool
  * Создать или обновить токен регистрации
  * При создании нового токена все старые токены деактивируются
  */
-export async function createOrUpdateRegistrationToken(hashedToken: string): Promise<RegistrationToken> {
+export async function createOrUpdateRegistrationToken(hashedToken: string, originalToken?: string): Promise<RegistrationToken> {
   // Проверяем, что модель доступна
   if (!prisma.registrationToken) {
     throw new Error('RegistrationToken model is not available. Please restart the development server after running "npx prisma generate"');
@@ -1262,6 +1263,7 @@ export async function createOrUpdateRegistrationToken(hashedToken: string): Prom
   const newToken = await prisma.registrationToken.create({
     data: {
       token: hashedToken,
+      ...(originalToken && { originalToken }),
       isActive: true,
     },
   });
@@ -1269,6 +1271,7 @@ export async function createOrUpdateRegistrationToken(hashedToken: string): Prom
   return {
     id: newToken.id,
     token: newToken.token,
+    originalToken: (newToken as any).originalToken || undefined,
     isActive: newToken.isActive,
     createdAt: newToken.createdAt.toISOString(),
     updatedAt: newToken.updatedAt.toISOString(),

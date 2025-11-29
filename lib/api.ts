@@ -275,8 +275,9 @@ export class ApiClient {
   }
 
   // Registration Token
-  async getRegistrationToken() {
-    return this.request<any>('/registration-token');
+  async getRegistrationToken(includeUrl = false) {
+    const query = includeUrl ? '?includeUrl=true' : '';
+    return this.request<any>(`/registration-token${query}`);
   }
 
   async createOrUpdateRegistrationToken() {
