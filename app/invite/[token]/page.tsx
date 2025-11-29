@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Building2, Eye, EyeOff, Mail, Phone, AlertCircle, CheckCircle, Key } from 'lucide-react';
 import { api } from '@/lib/api';
+import { normalizePhone, isValidPhone } from '@/lib/phone';
 
 export default function InviteRegistrationPage() {
   const router = useRouter();
@@ -23,6 +24,8 @@ export default function InviteRegistrationPage() {
   const [inviteValid, setInviteValid] = useState(false);
   const [inviteName, setInviteName] = useState<string | null>(null);
   const [userExists, setUserExists] = useState(false); // Режим: регистрация или сброс пароля
+  const [phoneError, setPhoneError] = useState('');
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
   // Проверка токена при загрузке страницы
   useEffect(() => {
@@ -96,7 +99,19 @@ export default function InviteRegistrationPage() {
 
       // Проверяем, что указан телефон (обязателен)
       if (!phone.trim()) {
+        setPhoneTouched(true);
+        setPhoneError('Телефон обязателен');
         setError('Телефон обязателен');
+        setLoading(false);
+        return;
+      }
+
+      // Проверяем формат телефона
+      const normalized = normalizePhone(phone);
+      if (!normalized || !isValidPhone(normalized)) {
+        setPhoneTouched(true);
+        setPhoneError('Неверный формат телефона. Используйте формат: +7XXXXXXXXXX');
+        setError('Неверный формат телефона');
         setLoading(false);
         return;
       }
@@ -281,16 +296,64 @@ export default function InviteRegistrationPage() {
                     type="tel"
                     value={phone}
                     onChange={(e) => {
-                      setPhone(e.target.value);
+                      const value = e.target.value;
+                      setPhone(value);
                       setError('');
+                      
+                      // Валидация в реальном времени
+                      if (phoneTouched || value.length > 0) {
+                        if (!value.trim()) {
+                          setPhoneError('Телефон обязателен');
+                        } else {
+                          const normalized = normalizePhone(value);
+                          if (!normalized || !isValidPhone(normalized)) {
+                            setPhoneError('Неверный формат телефона. Используйте международный формат: +491234567890');
+                          } else {
+                            setPhoneError('');
+                          }
+                        }
+                      }
                     }}
-                    placeholder="+491234567890"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
+                    onBlur={() => {
+                      setPhoneTouched(true);
+                      if (!phone.trim()) {
+                        setPhoneError('Телефон обязателен');
+                      } else {
+                        const normalized = normalizePhone(phone);
+                        if (!normalized || !isValidPhone(normalized)) {
+                          setPhoneError('Неверный формат телефона. Используйте международный формат: +491234567890');
+                        } else {
+                          setPhoneError('');
+                        }
+                      }
+                    }}
+                    placeholder="+491234567890 или +79123456789"
+                    className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none bg-white text-gray-900 ${
+                      phoneError && phoneTouched
+                        ? 'border-red-500 focus:border-red-500'
+                        : phoneTouched && !phoneError && phone.trim()
+                        ? 'border-green-500 focus:border-green-500'
+                        : 'border-gray-300 focus:border-gray-900'
+                    }`}
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Обязательное поле для входа в систему
-                  </p>
+                  {phoneError && phoneTouched && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {phoneError}
+                    </p>
+                  )}
+                  {!phoneError && phoneTouched && phone.trim() && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" />
+                      Телефон введен корректно
+                    </p>
+                  )}
+                  {!phoneTouched && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Обязательное поле для входа в систему. Формат: +7XXXXXXXXXX
+                    </p>
+                  )}
                 </div>
 
                 <div>

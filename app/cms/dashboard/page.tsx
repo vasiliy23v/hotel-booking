@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, BarChart3, Users, LogOut, ArrowLeft, BookOpen, Bell, DollarSign } from 'lucide-react';
+import { Building2, BarChart3, Users, LogOut, ArrowLeft, BookOpen, Bell, DollarSign, MessageSquare, MessageCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User } from '@/types';
 import Link from 'next/link';
@@ -10,15 +10,18 @@ import HotelsView from '../components/HotelsView';
 import StatisticsView from '../components/StatisticsView';
 import UsersManagementView from '../components/UsersManagementView';
 import BookingsView from '../components/BookingsView';
+import FeedbackView from '../components/FeedbackView';
+import FeedbackForm from '@/components/FeedbackForm';
 
 export default function CMSDashboard() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [viewMode, setViewMode] = useState<'hotels' | 'statistics' | 'users' | 'bookings'>('hotels');
+  const [viewMode, setViewMode] = useState<'hotels' | 'statistics' | 'users' | 'bookings' | 'feedback'>('hotels');
   const [selectedHotel, setSelectedHotel] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [hotels, setHotels] = useState<any[]>([]);
   const [bookingStats, setBookingStats] = useState({ unconfirmed: 0, unpaid: 0 });
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem('currentUser');
@@ -138,18 +141,19 @@ export default function CMSDashboard() {
               <BookOpen className="w-5 h-5" />
               <span>Бронирования</span>
             </button>
+            <button
+              onClick={() => setViewMode('feedback')}
+              className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 ${
+                viewMode === 'feedback'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+              }`}
+            >
+              <MessageCircle className="w-5 h-5" />
+              <span>Отзывы</span>
+            </button>
           </nav>
 
-          {/* Sidebar Footer */}
-          <div className="p-4 border-t border-gray-200">
-            <Link
-              href="/dashboard"
-              className="w-full px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 text-gray-700 hover:bg-gray-50"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              <span>К бронированию</span>
-            </Link>
-          </div>
         </div>
       </aside>
 
@@ -179,6 +183,15 @@ export default function CMSDashboard() {
                     )}
                   </button>
                 )}
+
+                {/* Кнопка обратной связи */}
+                <button
+                  onClick={() => setShowFeedbackForm(true)}
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Отправить отзыв / Сообщить о баге"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                </button>
 
                 <span className="text-sm text-gray-600 hidden sm:inline">{currentUser.name}</span>
                 <button
@@ -213,6 +226,10 @@ export default function CMSDashboard() {
 
         {viewMode === 'bookings' && (
           <BookingsView />
+        )}
+
+        {viewMode === 'feedback' && (
+          <FeedbackView />
         )}
         </main>
       </div>
@@ -271,8 +288,27 @@ export default function CMSDashboard() {
             </div>
             <span className="text-xs font-semibold">Бронирования</span>
           </button>
+          <button
+            onClick={() => setViewMode('feedback')}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+              viewMode === 'feedback'
+                ? 'text-gray-900 bg-gray-50'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <MessageCircle className={`w-5 h-5 ${viewMode === 'feedback' ? 'text-gray-900' : 'text-gray-500'}`} />
+            <span className="text-xs font-semibold">Отзывы</span>
+          </button>
         </div>
       </nav>
+
+      {/* Форма обратной связи */}
+      {showFeedbackForm && currentUser && (
+        <FeedbackForm
+          currentUser={currentUser}
+          onClose={() => setShowFeedbackForm(false)}
+        />
+      )}
     </div>
   );
 }

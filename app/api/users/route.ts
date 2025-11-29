@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUsers, createUser, getUserByEmail, getUserByPhone, getUserByEmailOrPhone, updateInvite } from '@/lib/db';
+import { getUsers, createUser, getUserByEmail, getUserByPhone, getUserByEmailOrPhone, updateInvite, verifyRegistrationToken } from '@/lib/db';
 import { prisma } from '@/lib/prisma';
-import { verifyInviteToken } from '@/lib/crypto';
+import { verifyInviteToken, hashInviteToken } from '@/lib/crypto';
 import { normalizePhone, isValidEmail, isValidPhone } from '@/lib/phone';
 import type { User } from '@/types';
 
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(userWithoutPassword);
     }
     
-    // ОБЫЧНЫЙ ПУТЬ: ОБЯЗАТЕЛЬНАЯ проверка токена приглашения
+    // ОБЫЧНЫЙ ПУТЬ: ОБЯЗАТЕЛЬНАЯ проверка токена приглашения или общего токена регистрации
     if (!inviteToken) {
       return NextResponse.json(
         { error: 'Токен приглашения обязателен для регистрации' },
@@ -108,6 +108,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Сначала проверяем индивидуальное приглашение
     // Ищем приглашение по токену в БД через Prisma
     // Нужно проверить все приглашения, так как токен хэширован
     // Получаем полные данные приглашений с токенами для проверки
@@ -138,34 +139,44 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    let isRegistrationToken = false;
+    
+    // Если индивидуальное приглашение не найдено, проверяем общий токен регистрации
     if (!invite) {
-      return NextResponse.json(
-        { error: 'Недействительный токен приглашения' },
-        { status: 400 }
-      );
-    }
-    
-    // Проверяем срок действия
-    const now = new Date();
-    const expiresAt = new Date(invite.expiresAt);
-    if (now > expiresAt) {
-      return NextResponse.json(
-        { error: 'Приглашение истекло' },
-        { status: 400 }
-      );
-    }
-    
-    // Проверяем, использовано ли приглашение
-    if (invite.used) {
-      return NextResponse.json(
-        { error: 'Приглашение уже использовано' },
-        { status: 400 }
-      );
-    }
-    
-    // Имя опционально - если не указано, используем из приглашения
-    if (!userData.name && invite.name) {
-      userData.name = invite.name;
+      const hashedToken = hashInviteToken(inviteToken);
+      const isValidRegistrationToken = await verifyRegistrationToken(hashedToken);
+      
+      if (isValidRegistrationToken) {
+        isRegistrationToken = true;
+      } else {
+        return NextResponse.json(
+          { error: 'Недействительный токен приглашения или регистрации' },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Проверяем срок действия индивидуального приглашения
+      const now = new Date();
+      const expiresAt = new Date(invite.expiresAt);
+      if (now > expiresAt) {
+        return NextResponse.json(
+          { error: 'Приглашение истекло' },
+          { status: 400 }
+        );
+      }
+      
+      // Проверяем, использовано ли приглашение
+      if (invite.used) {
+        return NextResponse.json(
+          { error: 'Приглашение уже использовано' },
+          { status: 400 }
+        );
+      }
+      
+      // Имя опционально - если не указано, используем из приглашения
+      if (!userData.name && invite.name) {
+        userData.name = invite.name;
+      }
     }
     
     // Валидация обязательных полей
@@ -237,14 +248,16 @@ export async function POST(request: NextRequest) {
       role: userData.role || 'guest'
     });
     
-    // Помечаем приглашение как использованное
-    // Преобразуем данные приглашения из БД формата
-    const inviteId = invite.id;
-    await updateInvite(inviteId, {
-      used: true,
-      usedBy: newUser.id,
-      usedAt: new Date().toISOString(),
-    });
+    // Помечаем индивидуальное приглашение как использованное (если это не общий токен)
+    if (!isRegistrationToken && invite) {
+      const inviteId = invite.id;
+      await updateInvite(inviteId, {
+        used: true,
+        usedBy: newUser.id,
+        usedAt: new Date().toISOString(),
+      });
+    }
+    // Общий токен регистрации не помечается как использованный, так как он многоразовый
     
     const { password, ...userWithoutPassword } = newUser;
     return NextResponse.json(userWithoutPassword);

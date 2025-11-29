@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Rnd } from 'react-rnd';
 import { 
   Bed, Users, DoorOpen, Lock, CheckCircle, Edit2, Plus, X, Trash2, 
-  ArrowUpDown, Copy, ShowerHead, Bath
+  ArrowUpDown, Copy, ShowerHead, Bath, Grid3x3, Loader2
 } from 'lucide-react';
 import type { Room, Stairs } from '@/types';
 
@@ -55,8 +56,16 @@ export default function FloorPlan({
   const [creatingRoom, setCreatingRoom] = useState(false);
   const [editingStairs, setEditingStairs] = useState<Stairs | null>(null);
   const [snapToGrid, setSnapToGrid] = useState(true);
+  const [showGrid, setShowGrid] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
-  const SNAP_SIZE = 20;
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
+  const SNAP_SIZE = 10;
+  const GRID_SIZE = 10; // Размер сетки для отображения
+  // Храним начальные позиции выбранных комнат при начале перетаскивания
+  const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
+  // Храним начальные размеры выбранных комнат при начале изменения размера
+  const resizeStartSizes = useRef<Map<string, { width: number; height: number }>>(new Map());
   
   // Локальные состояния для редактирования (изменения не сохраняются до нажатия "Завершить")
   const [localRooms, setLocalRooms] = useState<Room[]>([]);
@@ -450,7 +459,49 @@ export default function FloorPlan({
     }
   };
 
-  const handleMouseUp = () => {
+  // Функция автосохранения комнаты
+  const autoSaveRoom = async (roomId: string) => {
+    if (!onRoomUpdate || !editMode) return;
+    
+    const localRoom = localRooms.find(r => r.id === roomId);
+    if (!localRoom) return;
+    
+    const originalRoom = originalRooms.find(r => r.id === roomId);
+    if (!originalRoom) {
+      // Если комнаты нет в оригинальных, значит это новая комната - не сохраняем автосохранением
+      return;
+    }
+    
+    // Проверяем, были ли изменения позиции или размера
+    const positionChanged = 
+      originalRoom.position.x !== localRoom.position.x || 
+      originalRoom.position.y !== localRoom.position.y;
+    const sizeChanged = 
+      (originalRoom.width || 0) !== (localRoom.width || 0) || 
+      (originalRoom.height || 0) !== (localRoom.height || 0);
+    
+    if (positionChanged || sizeChanged) {
+      try {
+        await onRoomUpdate(localRoom);
+        // Обновляем оригинальную комнату после успешного сохранения
+        setOriginalRooms(originalRooms.map(r => r.id === roomId ? localRoom : r));
+      } catch (error) {
+        console.error('Ошибка при автосохранении комнаты:', error);
+      }
+    }
+  };
+
+  const handleMouseUp = async () => {
+    // Автосохранение при завершении перемещения
+    if (dragging && onRoomUpdate) {
+      await autoSaveRoom(dragging);
+    }
+    
+    // Автосохранение при завершении изменения размера
+    if (resizing && onRoomUpdate) {
+      await autoSaveRoom(resizing);
+    }
+    
     setDragging(null);
     setResizing(null);
     setDraggingStairs(null);
@@ -473,22 +524,45 @@ export default function FloorPlan({
     });
   };
 
-  const handleRoomClick = (room: Room, e?: React.MouseEvent) => {
+  // Храним время последнего клика для обработки двойного клика (используем performance.now вместо Date.now)
+  const lastClickTime = useRef<{ roomId: string; time: number } | null>(null);
+
+  const handleRoomClick = async (room: Room, e?: React.MouseEvent) => {
     if (dragging || resizing) return;
 
     if (editMode) {
-      // Множественный выбор с Ctrl/Cmd
-      if (e && (e.ctrlKey || e.metaKey)) {
+      // Обработка двойного клика для редактирования
+      const now = typeof window !== 'undefined' ? performance.now() : 0;
+      if (lastClickTime.current?.roomId === room.id && now - lastClickTime.current.time < 300) {
+        // Двойной клик - открываем редактирование
+        e?.stopPropagation();
+        // Автосохранение предыдущей комнаты, если она редактировалась
+        if (editingRoom && editingRoom.id !== room.id) {
+          await autoSaveRoom(editingRoom.id);
+        }
+        setEditingRoom(room);
+        setSelectedRoom(room.id);
+        setSelectedRooms(new Set([room.id]));
+        lastClickTime.current = null;
+        return;
+      }
+      lastClickTime.current = { roomId: room.id, time: now };
+
+      // Множественный выбор с Ctrl/Cmd или Shift
+      if (e && (e.ctrlKey || e.metaKey || e.shiftKey)) {
         setSelectedRooms(prev => {
           const newSet = new Set(prev);
           if (newSet.has(room.id)) {
             newSet.delete(room.id);
+            if (selectedRoom === room.id) {
+              setSelectedRoom(newSet.size > 0 ? Array.from(newSet)[0] : null);
+            }
           } else {
             newSet.add(room.id);
+            setSelectedRoom(room.id);
           }
           return newSet;
         });
-        setSelectedRoom(room.id);
       } else {
         // Одиночный выбор
         setSelectedRoom(room.id);
@@ -508,9 +582,9 @@ export default function FloorPlan({
     }
   };
 
-  const handleRoomSave = (room: Room) => {
+  const handleRoomSave = async (room: Room) => {
     if (editingRoom && editMode) {
-      const currentRoom = floorRooms.find(r => r.id === editingRoom.id);
+      const currentRoom = localRooms.find(r => r.id === editingRoom.id);
       const updatedRoom = {
         ...room,
         position: currentRoom?.position || room.position,
@@ -518,8 +592,19 @@ export default function FloorPlan({
         height: room.height, // Используем размеры из формы
         zIndex: currentRoom?.zIndex || room.zIndex
       };
-      // Обновляем только локальное состояние
+      // Обновляем локальное состояние
       setLocalRooms(localRooms.map(r => r.id === updatedRoom.id ? updatedRoom : r));
+      
+      // Автосохранение в базу данных
+      if (onRoomUpdate) {
+        try {
+          await onRoomUpdate(updatedRoom);
+          // Обновляем оригинальную комнату после успешного сохранения
+          setOriginalRooms(originalRooms.map(r => r.id === updatedRoom.id ? updatedRoom : r));
+        } catch (error) {
+          console.error('Ошибка при сохранении комнаты:', error);
+        }
+      }
     } else if (onRoomCreate && editMode) {
       // Добавляем новую комнату в локальное состояние
       setLocalRooms([...localRooms, room]);
@@ -606,8 +691,8 @@ export default function FloorPlan({
     setAddingStairs(false);
   };
 
-  const handleDeleteStairs = (stairsId: string) => {
-    if (!editMode) return;
+  const handleDeleteStairs = async (stairsId: string) => {
+    if (!editMode || !onStairsUpdate) return;
     
     // Если выбрано несколько ступеней, удаляем все выбранные
     if (selectedStairsSet.size > 1) {
@@ -615,7 +700,37 @@ export default function FloorPlan({
       const count = stairsToDelete.length;
       if (confirm(`Удалить ${count} ${count === 1 ? 'ступень' : count < 5 ? 'ступени' : 'ступеней'}?`)) {
         // Удаляем все выбранные ступени из локального состояния
-        setLocalStairs(localStairs.filter(s => !selectedStairsSet.has(s.id)));
+        const updatedStairs = localStairs.filter(s => !selectedStairsSet.has(s.id));
+        setLocalStairs(updatedStairs);
+        
+        // Обновляем оригинальные ступени
+        setOriginalStairs(originalStairs.filter(s => !selectedStairsSet.has(s.id)));
+        
+        // Автосохранение: передаем все ступени отеля, исключая удаленные
+        const allStairsMap = new Map<string, Stairs>();
+        
+        // Добавляем все ступени из пропса (все ступени отеля)
+        stairs.forEach(s => {
+          // Пропускаем удаленные ступени
+          if (!selectedStairsSet.has(s.id)) {
+            allStairsMap.set(s.id, s);
+          }
+        });
+        
+        // Добавляем локальные (обновленные) ступени
+        updatedStairs.forEach(s => {
+          allStairsMap.set(s.id, s);
+        });
+        
+        const finalAllStairs = Array.from(allStairsMap.values());
+        
+        try {
+          await onStairsUpdate(finalAllStairs);
+        } catch (error) {
+          console.error('Ошибка при удалении ступеней:', error);
+          alert('Ошибка при удалении ступеней');
+        }
+        
         // Сбрасываем выделение
         setSelectedStairsSet(new Set());
         setSelectedStairs(null);
@@ -624,7 +739,36 @@ export default function FloorPlan({
       // Удаляем одну ступень
       if (confirm('Удалить эту ступень?')) {
         // Удаляем только из локального состояния
-        setLocalStairs(localStairs.filter(s => s.id !== stairsId));
+        const updatedStairs = localStairs.filter(s => s.id !== stairsId);
+        setLocalStairs(updatedStairs);
+        
+        // Обновляем оригинальные ступени
+        setOriginalStairs(originalStairs.filter(s => s.id !== stairsId));
+        
+        // Автосохранение: передаем все ступени отеля, исключая удаленную
+        const allStairsMap = new Map<string, Stairs>();
+        
+        // Добавляем все ступени из пропса (все ступени отеля), исключая удаленную
+        stairs.forEach(s => {
+          if (s.id !== stairsId) {
+            allStairsMap.set(s.id, s);
+          }
+        });
+        
+        // Добавляем локальные (обновленные) ступени
+        updatedStairs.forEach(s => {
+          allStairsMap.set(s.id, s);
+        });
+        
+        const finalAllStairs = Array.from(allStairsMap.values());
+        
+        try {
+          await onStairsUpdate(finalAllStairs);
+        } catch (error) {
+          console.error('Ошибка при удалении ступени:', error);
+          alert('Ошибка при удалении ступени');
+        }
+        
         // Сбрасываем выделение
         setSelectedStairsSet(new Set());
         setSelectedStairs(null);
@@ -677,28 +821,72 @@ export default function FloorPlan({
     }
   };
 
-  const handleDeleteRoom = (roomId: string) => {
-    if (!editMode) return;
+  const handleDeleteRoom = async (roomId: string) => {
+    if (!editMode || !onRoomUpdate || isLoading) return;
     
     // Если выбрано несколько комнат, удаляем все выбранные
     if (selectedRooms.size > 1) {
       const roomsToDelete = localRooms.filter(r => selectedRooms.has(r.id));
       const count = roomsToDelete.length;
       if (confirm(`Удалить ${count} ${count === 1 ? 'комнату' : count < 5 ? 'комнаты' : 'комнат'}?`)) {
-        // Удаляем все выбранные комнаты из локального состояния
-        setLocalRooms(localRooms.filter(r => !selectedRooms.has(r.id)));
-        // Сбрасываем выделение
-        setSelectedRooms(new Set());
-        setSelectedRoom(null);
+        setIsLoading(true);
+        setLoadingMessage(`Удаление ${count} ${count === 1 ? 'комнаты' : 'комнат'}...`);
+        
+        try {
+          // Удаляем все выбранные комнаты из локального состояния
+          const updatedRooms = localRooms.filter(r => !selectedRooms.has(r.id));
+          setLocalRooms(updatedRooms);
+          
+          // Обновляем оригинальные комнаты
+          setOriginalRooms(originalRooms.filter(r => !selectedRooms.has(r.id)));
+          
+          // Автосохранение: помечаем удаленные комнаты позицией -1000
+          for (const roomToDelete of roomsToDelete) {
+            try {
+              await onRoomUpdate({ ...roomToDelete, position: { x: -1000, y: -1000 } });
+            } catch (error) {
+              console.error(`Ошибка при удалении комнаты ${roomToDelete.id}:`, error);
+            }
+          }
+          
+          // Сбрасываем выделение
+          setSelectedRooms(new Set());
+          setSelectedRoom(null);
+        } finally {
+          setIsLoading(false);
+          setLoadingMessage('');
+        }
       }
     } else {
       // Удаляем одну комнату
       if (confirm('Удалить эту комнату?')) {
-        // Удаляем только из локального состояния
-        setLocalRooms(localRooms.filter(r => r.id !== roomId));
-        // Сбрасываем выделение
-        setSelectedRooms(new Set());
-        setSelectedRoom(null);
+        const roomToDelete = localRooms.find(r => r.id === roomId);
+        if (!roomToDelete) return;
+        
+        setIsLoading(true);
+        setLoadingMessage('Удаление комнаты...');
+        
+        try {
+          // Удаляем из локального состояния
+          const updatedRooms = localRooms.filter(r => r.id !== roomId);
+          setLocalRooms(updatedRooms);
+          
+          // Обновляем оригинальные комнаты
+          setOriginalRooms(originalRooms.filter(r => r.id !== roomId));
+          
+          // Автосохранение: помечаем удаленную комнату позицией -1000
+          await onRoomUpdate({ ...roomToDelete, position: { x: -1000, y: -1000 } });
+          
+          // Сбрасываем выделение
+          setSelectedRooms(new Set());
+          setSelectedRoom(null);
+        } catch (error) {
+          console.error(`Ошибка при удалении комнаты ${roomId}:`, error);
+          alert('Ошибка при удалении комнаты');
+        } finally {
+          setIsLoading(false);
+          setLoadingMessage('');
+        }
       }
     }
   };
@@ -740,43 +928,76 @@ export default function FloorPlan({
     }
   };
 
-  const handleDuplicateRoom = (room: Room) => {
-    if (editMode) {
-      // Если выбрано несколько комнат, копируем все
-      if (selectedRooms.size > 1) {
-        handleDuplicateMultipleRooms();
-        return;
+  const handleDuplicateRoom = async (room: Room) => {
+    if (!editMode || isLoading) return;
+    
+    // Если выбрано несколько комнат, копируем все
+    if (selectedRooms.size > 1) {
+      handleDuplicateMultipleRooms();
+      return;
+    }
+    
+    setIsLoading(true);
+    setLoadingMessage('Копирование комнаты...');
+    
+    // Копирование одной комнаты
+    // Находим максимальный zIndex для правильного наложения
+    const maxZIndex = localRooms.reduce((max, r) => Math.max(max, r.zIndex || 1), 1);
+    
+    // Вычисляем новую позицию с учетом размеров и отступа
+    const roomWidth = room.width || 120;
+    const roomHeight = room.height || 100;
+    const offset = 20;
+    
+    // Применяем снаппинг к сетке, если включен
+    let newX = room.position.x + roomWidth + offset;
+    let newY = room.position.y;
+    
+    if (snapToGrid) {
+      newX = Math.round(newX / GRID_SIZE) * GRID_SIZE;
+      newY = Math.round(newY / GRID_SIZE) * GRID_SIZE;
+    }
+    
+    // Создаем копию комнаты с новым ID и смещенной позицией
+    const duplicatedRoom: Room = {
+      ...room,
+      id: `room-${generateId()}`,
+      number: `${room.number}-copy`, // Временный номер, пользователь может изменить
+      position: {
+        x: newX,
+        y: newY
+      },
+      zIndex: maxZIndex + 1, // Размещаем поверх всех комнат
+      // Сохраняем размеры
+      width: roomWidth,
+      height: roomHeight
+    };
+    
+    // Добавляем в локальное состояние
+    setLocalRooms([...localRooms, duplicatedRoom]);
+    
+    // Автосохранение новой комнаты
+    if (onRoomCreate) {
+      try {
+        await onRoomCreate(duplicatedRoom);
+        // Добавляем в оригинальные комнаты после успешного создания
+        setOriginalRooms([...originalRooms, duplicatedRoom]);
+        
+        // Выделяем новую комнату
+        setSelectedRoom(duplicatedRoom.id);
+        setSelectedRooms(new Set([duplicatedRoom.id]));
+      } catch (error) {
+        console.error('Ошибка при создании копии комнаты:', error);
+        alert('Ошибка при создании копии комнаты');
+        // Удаляем из локального состояния при ошибке
+        setLocalRooms(localRooms.filter(r => r.id !== duplicatedRoom.id));
+      } finally {
+        setIsLoading(false);
+        setLoadingMessage('');
       }
-      
-      // Копирование одной комнаты
-      // Находим максимальный zIndex для правильного наложения
-      const maxZIndex = localRooms.reduce((max, r) => Math.max(max, r.zIndex || 1), 1);
-      
-      // Вычисляем новую позицию с учетом размеров и отступа
-      const roomWidth = room.width || 120;
-      const roomHeight = room.height || 100;
-      const offset = 20;
-      
-      // Создаем копию комнаты с новым ID и смещенной позицией
-      const duplicatedRoom: Room = {
-        ...room,
-        id: `room-${generateId()}`,
-        number: `${room.number}-copy`, // Временный номер, пользователь может изменить
-        position: {
-          x: Math.round(room.position.x + roomWidth + offset),
-          y: Math.round(room.position.y)
-        },
-        zIndex: maxZIndex + 1, // Размещаем поверх всех комнат
-        // Сохраняем размеры
-        width: roomWidth,
-        height: roomHeight
-      };
-      
-      // Добавляем в локальное состояние
-      setLocalRooms([...localRooms, duplicatedRoom]);
-      // Выделяем новую комнату
-      setSelectedRoom(duplicatedRoom.id);
-      setSelectedRooms(new Set([duplicatedRoom.id]));
+    } else {
+      setIsLoading(false);
+      setLoadingMessage('');
     }
   };
 
@@ -830,11 +1051,20 @@ export default function FloorPlan({
     console.log('handleDuplicateMultipleStairs: modal should be shown');
   };
 
-  const handlePasteToFloor = (targetFloor: 'EG' | '1OG' | '2OG') => {
-    if (copiedRooms.length === 0) {
-      console.warn('handlePasteToFloor: copiedRooms is empty');
+  const handlePasteToFloor = async (targetFloor: 'EG' | '1OG' | '2OG') => {
+    if (copiedRooms.length === 0 || isLoading) {
+      console.warn('handlePasteToFloor: copiedRooms is empty or loading');
       return;
     }
+    
+    if (!onRoomCreate) {
+      console.error('handlePasteToFloor: onRoomCreate is not available');
+      alert('Ошибка: функция создания комнат недоступна');
+      return;
+    }
+    
+    setIsLoading(true);
+    setLoadingMessage(`Копирование ${copiedRooms.length} ${copiedRooms.length === 1 ? 'комнаты' : 'комнат'} на ${targetFloor === 'EG' ? 'первый' : targetFloor === '1OG' ? 'второй' : 'третий'} этаж...`);
     
     console.log('handlePasteToFloor: copying', copiedRooms.length, 'rooms to floor', targetFloor);
     
@@ -871,17 +1101,45 @@ export default function FloorPlan({
       return newRooms;
     });
     
-    // Выделяем скопированные комнаты
-    const newSelectedIds = new Set(duplicatedRooms.map(r => r.id));
-    setSelectedRooms(newSelectedIds);
-    setSelectedRoom(duplicatedRooms[0]?.id || null);
-    
-    // Закрываем модальное окно
-    setShowFloorSelectModal(false);
-    setCopiedRooms([]);
-    
-    // Показываем уведомление об успешном копировании
-    alert(`Успешно скопировано ${duplicatedRooms.length} ${duplicatedRooms.length === 1 ? 'комната' : duplicatedRooms.length < 5 ? 'комнаты' : 'комнат'} на ${targetFloor === 'EG' ? 'первый' : targetFloor === '1OG' ? 'второй' : 'третий'} этаж. Переключитесь на этот этаж, чтобы увидеть скопированные комнаты.`);
+    try {
+      // Автосохранение всех скопированных комнат в базу данных
+      const savedRooms: Room[] = [];
+      for (const duplicatedRoom of duplicatedRooms) {
+        try {
+          await onRoomCreate(duplicatedRoom);
+          savedRooms.push(duplicatedRoom);
+        } catch (error) {
+          console.error(`Ошибка при создании комнаты ${duplicatedRoom.id}:`, error);
+        }
+      }
+      
+      // Обновляем оригинальные комнаты только для успешно сохраненных
+      if (savedRooms.length > 0) {
+        setOriginalRooms(prevOriginal => [...prevOriginal, ...savedRooms]);
+      }
+      
+      // Если не все комнаты сохранились, показываем предупреждение
+      if (savedRooms.length < duplicatedRooms.length) {
+        alert(`Внимание: сохранено ${savedRooms.length} из ${duplicatedRooms.length} комнат. Некоторые комнаты не удалось сохранить.`);
+      }
+      
+      // Выделяем скопированные комнаты
+      const newSelectedIds = new Set(savedRooms.map(r => r.id));
+      setSelectedRooms(newSelectedIds);
+      setSelectedRoom(savedRooms[0]?.id || null);
+      
+      // Закрываем модальное окно
+      setShowFloorSelectModal(false);
+      setCopiedRooms([]);
+      
+      // Показываем уведомление об успешном копировании
+      if (savedRooms.length === duplicatedRooms.length) {
+        alert(`Успешно скопировано ${savedRooms.length} ${savedRooms.length === 1 ? 'комната' : savedRooms.length < 5 ? 'комнаты' : 'комнат'} на ${targetFloor === 'EG' ? 'первый' : targetFloor === '1OG' ? 'второй' : 'третий'} этаж. Переключитесь на этот этаж, чтобы увидеть скопированные комнаты.`);
+      }
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage('');
+    }
   };
 
   const handlePasteStairsToFloor = (targetFloor: 'EG' | '1OG' | '2OG') => {
@@ -1081,17 +1339,20 @@ export default function FloorPlan({
           allStairsMap.set(s.id, s);
         });
         
-        const finalAllStairs = Array.from(allStairsMap.values());
+        // Удаляем ступени, которые были удалены (есть в originalStairs, но нет в localStairs)
+        const deletedStairsIds = new Set(
+          originalStairs
+            .filter(os => !localStairs.find(ls => ls.id === os.id))
+            .map(s => s.id)
+        );
         
-        // Финальная проверка: убеждаемся, что мы передаем ВСЕ ступени отеля
-        // Количество должно быть >= оригинальных (могут быть добавлены новые)
-        if (finalAllStairs.length < originalStairs.length) {
-          console.error('handleFinishEditing: CRITICAL ERROR - finalAllStairs count is less than originalStairs!');
-          console.error('handleFinishEditing: originalStairs count:', originalStairs.length);
-          console.error('handleFinishEditing: finalAllStairs count:', finalAllStairs.length);
-          console.error('handleFinishEditing: originalStairs IDs:', originalStairs.map(s => s.id));
-          console.error('handleFinishEditing: finalAllStairs IDs:', finalAllStairs.map(s => s.id));
-        }
+        // Удаляем удаленные ступени из финального списка
+        deletedStairsIds.forEach(id => {
+          allStairsMap.delete(id);
+          console.log('handleFinishEditing: removing deleted stair:', id);
+        });
+        
+        const finalAllStairs = Array.from(allStairsMap.values());
         
         console.log('handleFinishEditing: stairs were changed, saving...');
         console.log('handleFinishEditing: localStairs count:', localStairs.length);
@@ -1147,7 +1408,17 @@ export default function FloorPlan({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
+    <div className="bg-white rounded-lg shadow-lg p-6 relative">
+      {/* Лоадер */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10001] rounded-lg">
+          <div className="bg-white rounded-lg p-6 flex flex-col items-center gap-4 shadow-xl">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <p className="text-gray-700 font-semibold">{loadingMessage}</p>
+          </div>
+        </div>
+      )}
+      
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-bold">
           {floor === 'EG' ? 'Первый этаж' : floor === '1OG' ? 'Второй этаж' : 'Третий этаж'}
@@ -1205,7 +1476,18 @@ export default function FloorPlan({
                   }`}
                   title="Примагничивание к сетке"
                 >
+                  <Grid3x3 className="w-4 h-4" />
                   {snapToGrid ? '✓ Сетка' : 'Сетка'}
+                </button>
+                <button
+                  onClick={() => setShowGrid(!showGrid)}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+                    showGrid ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                  title="Показать сетку"
+                >
+                  <Grid3x3 className="w-4 h-4" />
+                  {showGrid ? 'Скрыть сетку' : 'Показать сетку'}
                 </button>
               </>
             )}
@@ -1215,12 +1497,12 @@ export default function FloorPlan({
 
       {editMode && (
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-          <strong>Режим редактирования:</strong> Перетаскивайте комнаты мышью, изменяйте размеры за угол, используйте кнопки для управления.
+          <strong>Режим редактирования:</strong> Перетаскивайте комнаты мышью, изменяйте размеры за угол. Двойной клик по комнате открывает форму редактирования. Используйте Ctrl/Cmd+клик или Shift+клик для множественного выбора - затем перетащите любую выбранную комнату, чтобы переместить все выбранные одновременно, или измените размер любой выбранной комнаты, чтобы изменить размер всех выбранных одновременно. Все изменения сохраняются автоматически.
         </div>
       )}
 
       <div
-        className="relative border-2 border-gray-300 rounded-lg bg-gray-50 overflow-auto"
+        className={`relative border-2 border-gray-300 rounded-lg bg-gray-50 overflow-auto ${isLoading ? 'pointer-events-none' : ''}`}
         style={{
           minHeight: isMobile ? `${scaledContainerHeight}px` : '600px',
           height: isMobile ? `${scaledContainerHeight}px` : 'auto',
@@ -1240,6 +1522,20 @@ export default function FloorPlan({
             position: 'relative',
           }}
         >
+        {/* Визуализация сетки */}
+        {showGrid && editMode && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage: `
+                linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)
+              `,
+              backgroundSize: `${GRID_SIZE * scale}px ${GRID_SIZE * scale}px`,
+            }}
+          />
+        )}
+
         {/* Ступени */}
         {floorStairs.map(stair => {
           const scaledWidth = stair.width * scale;
@@ -1361,34 +1657,16 @@ export default function FloorPlan({
           const width = room.width || 120;
           const height = room.height || 100;
           const isSelected = selectedRoom === room.id || selectedRooms.has(room.id);
-          const isDragging = dragging === room.id;
+          const localRoom = localRooms.find(r => r.id === room.id) || room;
 
           const scaledWidth = width * scale;
           const scaledHeight = height * scale;
-          const scaledX = room.position.x * scale;
-          const scaledY = room.position.y * scale;
+          const scaledX = localRoom.position.x * scale;
+          const scaledY = localRoom.position.y * scale;
 
-          return (
-            <div
-              key={room.id}
-              data-room-id={room.id}
-              className={`absolute border-2 rounded-lg transition-all overflow-hidden ${
-                getRoomColor(room)
-              } ${(isSelected || selectedRooms.has(room.id)) && editMode ? 'ring-4 ring-gray-700' : ''} ${
-                editMode ? 'cursor-move' : room.isCommon ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-              } ${isDragging ? 'opacity-80' : ''}`}
-              style={{
-                left: `${scaledX}px`,
-                top: `${scaledY}px`,
-                width: `${scaledWidth}px`,
-                height: `${scaledHeight}px`,
-                zIndex: (room.zIndex || 1) + (isSelected ? 1000 : 0),
-                padding: `${6 * scale}px`,
-                fontSize: `${12 * scale}px`
-              }}
-              onMouseDown={(e) => handleMouseDown(e, room.id)}
-              onClick={(e) => handleRoomClick(room, e)}
-            >
+          // Контент комнаты
+          const roomContent = (
+            <>
               <div className="h-full flex flex-col justify-start overflow-hidden">
                 {/* Номер комнаты */}
                 <div className="font-bold text-sm leading-tight truncate">{room.number}</div>
@@ -1494,8 +1772,12 @@ export default function FloorPlan({
                 <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs p-1 overflow-x-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}>
                   <div className="flex gap-1 min-w-max whitespace-nowrap">
                   <button
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
+                      // Автосохранение предыдущей комнаты, если она редактировалась
+                      if (editingRoom && editingRoom.id !== room.id) {
+                        await autoSaveRoom(editingRoom.id);
+                      }
                       setEditingRoom(room);
                     }}
                     className="bg-green-500 hover:bg-green-600 rounded px-1 shrink-0"
@@ -1506,9 +1788,12 @@ export default function FloorPlan({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDuplicateRoom(room);
+                      if (!isLoading) {
+                        handleDuplicateRoom(room);
+                      }
                     }}
-                    className="bg-purple-500 hover:bg-purple-600 rounded px-1 shrink-0"
+                    disabled={isLoading}
+                    className="bg-purple-500 hover:bg-purple-600 rounded px-1 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                     title={selectedRooms.size > 1 ? `Копировать ${selectedRooms.size} комнат` : 'Дублировать'}
                   >
                     <Copy className="w-3 h-3 inline" />
@@ -1549,9 +1834,12 @@ export default function FloorPlan({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteRoom(room.id);
+                      if (!isLoading) {
+                        handleDeleteRoom(room.id);
+                      }
                     }}
-                    className="bg-pink-900 hover:bg-pink-950 rounded px-1 shrink-0"
+                    disabled={isLoading}
+                    className="bg-pink-900 hover:bg-pink-950 rounded px-1 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                     title={selectedRooms.size > 1 ? `Удалить ${selectedRooms.size} комнат` : 'Удалить'}
                   >
                     <Trash2 className="w-3 h-3 inline" />
@@ -1562,15 +1850,443 @@ export default function FloorPlan({
                   </div>
                 </div>
               )}
+            </>
+          );
 
-              {/* Ресайзер */}
-              {editMode && isSelected && (
+          // В режиме редактирования используем react-rnd
+          if (editMode) {
+            return (
+              <Rnd
+                key={room.id}
+                data-room-id={room.id}
+                size={{
+                  width: scaledWidth,
+                  height: scaledHeight,
+                }}
+                position={{
+                  x: scaledX,
+                  y: scaledY,
+                }}
+                onDragStart={() => {
+                  // Сохраняем начальные позиции всех выбранных комнат при начале перетаскивания
+                  if (selectedRooms.size > 1 && selectedRooms.has(room.id)) {
+                    dragStartPositions.current.clear();
+                    localRooms.forEach(r => {
+                      if (selectedRooms.has(r.id)) {
+                        dragStartPositions.current.set(r.id, { x: r.position.x, y: r.position.y });
+                      }
+                    });
+                  } else {
+                    dragStartPositions.current.clear();
+                    dragStartPositions.current.set(room.id, { x: localRoom.position.x, y: localRoom.position.y });
+                  }
+                }}
+                onDrag={(e, d) => {
+                  // Во время перетаскивания обновляем позицию перетаскиваемой комнаты
+                  // и всех других выбранных комнат в реальном времени
+                  if (selectedRooms.size > 1 && selectedRooms.has(room.id)) {
+                    // Вычисляем новую позицию перетаскиваемой комнаты
+                    let newX = d.x / scale;
+                    let newY = d.y / scale;
+                    
+                    if (snapToGrid) {
+                      newX = Math.round(newX / GRID_SIZE) * GRID_SIZE;
+                      newY = Math.round(newY / GRID_SIZE) * GRID_SIZE;
+                    }
+                    
+                    // Получаем начальную позицию перетаскиваемой комнаты
+                    const startPos = dragStartPositions.current.get(room.id);
+                    if (!startPos) return;
+                    
+                    // Вычисляем смещение
+                    const deltaX = newX - startPos.x;
+                    const deltaY = newY - startPos.y;
+                    
+                    // Обновляем все выбранные комнаты с тем же смещением
+                    setLocalRooms(localRooms.map(r => {
+                      if (selectedRooms.has(r.id)) {
+                        const rStartPos = dragStartPositions.current.get(r.id);
+                        if (!rStartPos) return r;
+                        
+                        let updatedX = rStartPos.x + deltaX;
+                        let updatedY = rStartPos.y + deltaY;
+                        
+                        if (snapToGrid) {
+                          updatedX = Math.round(updatedX / GRID_SIZE) * GRID_SIZE;
+                          updatedY = Math.round(updatedY / GRID_SIZE) * GRID_SIZE;
+                        }
+                        
+                        return {
+                          ...r,
+                          position: { x: updatedX, y: updatedY }
+                        };
+                      }
+                      return r;
+                    }));
+                  }
+                }}
+                onDragStop={(e, d) => {
+                  (async () => {
+                  // Применяем снаппинг к сетке, если включен
+                  let newX = d.x / scale;
+                  let newY = d.y / scale;
+                  
+                  if (snapToGrid) {
+                    newX = Math.round(newX / GRID_SIZE) * GRID_SIZE;
+                    newY = Math.round(newY / GRID_SIZE) * GRID_SIZE;
+                  }
+
+                  // Если выбрано несколько комнат, перемещаем все выбранные
+                  if (selectedRooms.size > 1 && selectedRooms.has(room.id)) {
+                    const startPos = dragStartPositions.current.get(room.id);
+                    if (!startPos) return;
+                    
+                    // Вычисляем смещение относительно начальной позиции
+                    const deltaX = newX - startPos.x;
+                    const deltaY = newY - startPos.y;
+                    
+                    const updatedRooms: Room[] = [];
+                    
+                    // Обновляем все выбранные комнаты
+                    localRooms.forEach(r => {
+                      if (selectedRooms.has(r.id)) {
+                        const rStartPos = dragStartPositions.current.get(r.id);
+                        if (!rStartPos) return;
+                        
+                        let updatedX = rStartPos.x + deltaX;
+                        let updatedY = rStartPos.y + deltaY;
+                        
+                        if (snapToGrid) {
+                          updatedX = Math.round(updatedX / GRID_SIZE) * GRID_SIZE;
+                          updatedY = Math.round(updatedY / GRID_SIZE) * GRID_SIZE;
+                        }
+                        
+                        const updatedRoom = {
+                          ...r,
+                          position: { x: updatedX, y: updatedY }
+                        };
+                        updatedRooms.push(updatedRoom);
+                      }
+                    });
+                    
+                    // Обновляем локальное состояние для всех комнат
+                    const roomMap = new Map(updatedRooms.map(r => [r.id, r]));
+                    setLocalRooms(localRooms.map(r => roomMap.get(r.id) || r));
+
+                    // Автосохранение всех перемещенных комнат
+                    for (const updatedRoom of updatedRooms) {
+                      const originalRoom = originalRooms.find(r => r.id === updatedRoom.id);
+                      if (originalRoom) {
+                        // Комната существует - обновляем
+                        if (onRoomUpdate) {
+                          try {
+                            await onRoomUpdate(updatedRoom);
+                            setOriginalRooms(originalRooms.map(r => r.id === updatedRoom.id ? updatedRoom : r));
+                          } catch (error) {
+                            console.error(`Ошибка при автосохранении комнаты ${updatedRoom.id}:`, error);
+                          }
+                        }
+                      } else {
+                        // Новая комната - создаем
+                        if (onRoomCreate) {
+                          try {
+                            await onRoomCreate(updatedRoom);
+                            setOriginalRooms([...originalRooms, updatedRoom]);
+                          } catch (error) {
+                            console.error(`Ошибка при создании комнаты ${updatedRoom.id}:`, error);
+                          }
+                        }
+                      }
+                    }
+                    
+                    // Очищаем сохраненные позиции
+                    dragStartPositions.current.clear();
+                  } else {
+                    // Одиночное перемещение
+                    const updatedRoom = {
+                      ...localRoom,
+                      position: { x: newX, y: newY }
+                    };
+                    setLocalRooms(localRooms.map(r => r.id === room.id ? updatedRoom : r));
+
+                    // Автосохранение
+                    const originalRoom = originalRooms.find(r => r.id === room.id);
+                    if (originalRoom) {
+                      // Комната существует - обновляем
+                      if (onRoomUpdate) {
+                        try {
+                          await onRoomUpdate(updatedRoom);
+                          setOriginalRooms(originalRooms.map(r => r.id === room.id ? updatedRoom : r));
+                        } catch (error) {
+                          console.error('Ошибка при автосохранении:', error);
+                        }
+                      }
+                    } else {
+                      // Новая комната - создаем
+                      if (onRoomCreate) {
+                        try {
+                          await onRoomCreate(updatedRoom);
+                          setOriginalRooms([...originalRooms, updatedRoom]);
+                        } catch (error) {
+                          console.error('Ошибка при создании комнаты:', error);
+                        }
+                      }
+                    }
+                    
+                    // Очищаем сохраненные позиции
+                    dragStartPositions.current.clear();
+                  }
+                })();
+                }}
+                onResizeStart={() => {
+                  // Сохраняем начальные размеры всех выбранных комнат при начале изменения размера
+                  if (selectedRooms.size > 1 && selectedRooms.has(room.id)) {
+                    resizeStartSizes.current.clear();
+                    localRooms.forEach(r => {
+                      if (selectedRooms.has(r.id)) {
+                        resizeStartSizes.current.set(r.id, { 
+                          width: r.width || 120, 
+                          height: r.height || 100 
+                        });
+                      }
+                    });
+                  } else {
+                    resizeStartSizes.current.clear();
+                    resizeStartSizes.current.set(room.id, { 
+                      width: localRoom.width || 120, 
+                      height: localRoom.height || 100 
+                    });
+                  }
+                }}
+                onResize={(e, direction, ref) => {
+                  // Во время изменения размера обновляем размер перетаскиваемой комнаты
+                  // и всех других выбранных комнат в реальном времени
+                  if (selectedRooms.size > 1 && selectedRooms.has(room.id)) {
+                    // Вычисляем новый размер перетаскиваемой комнаты
+                    let newWidth = ref.offsetWidth / scale;
+                    let newHeight = ref.offsetHeight / scale;
+                    
+                    if (snapToGrid) {
+                      newWidth = Math.round(newWidth / GRID_SIZE) * GRID_SIZE;
+                      newHeight = Math.round(newHeight / GRID_SIZE) * GRID_SIZE;
+                    }
+                    
+                    // Получаем начальный размер перетаскиваемой комнаты
+                    const startSize = resizeStartSizes.current.get(room.id);
+                    if (!startSize) return;
+                    
+                    // Вычисляем изменение размера
+                    const deltaWidth = newWidth - startSize.width;
+                    const deltaHeight = newHeight - startSize.height;
+                    
+                    // Обновляем все выбранные комнаты с тем же изменением размера
+                    setLocalRooms(localRooms.map(r => {
+                      if (selectedRooms.has(r.id)) {
+                        const rStartSize = resizeStartSizes.current.get(r.id);
+                        if (!rStartSize) return r;
+                        
+                        let updatedWidth = rStartSize.width + deltaWidth;
+                        let updatedHeight = rStartSize.height + deltaHeight;
+                        
+                        // Минимальный размер
+                        updatedWidth = Math.max(40, updatedWidth);
+                        updatedHeight = Math.max(40, updatedHeight);
+                        
+                        if (snapToGrid) {
+                          updatedWidth = Math.round(updatedWidth / GRID_SIZE) * GRID_SIZE;
+                          updatedHeight = Math.round(updatedHeight / GRID_SIZE) * GRID_SIZE;
+                        }
+                        
+                        return {
+                          ...r,
+                          width: updatedWidth,
+                          height: updatedHeight
+                        };
+                      }
+                      return r;
+                    }));
+                  }
+                }}
+                onResizeStop={(e, direction, ref, delta, position) => {
+                  (async () => {
+                  // Применяем снаппинг к сетке, если включен
+                  let newWidth = ref.offsetWidth / scale;
+                  let newHeight = ref.offsetHeight / scale;
+                  let newX = position.x / scale;
+                  let newY = position.y / scale;
+                  
+                  if (snapToGrid) {
+                    newWidth = Math.round(newWidth / GRID_SIZE) * GRID_SIZE;
+                    newHeight = Math.round(newHeight / GRID_SIZE) * GRID_SIZE;
+                    newX = Math.round(newX / GRID_SIZE) * GRID_SIZE;
+                    newY = Math.round(newY / GRID_SIZE) * GRID_SIZE;
+                  }
+
+                  // Если выбрано несколько комнат, изменяем размер всех выбранных
+                  if (selectedRooms.size > 1 && selectedRooms.has(room.id)) {
+                    const startSize = resizeStartSizes.current.get(room.id);
+                    if (!startSize) return;
+                    
+                    // Вычисляем изменение размера относительно начального размера
+                    const deltaWidth = newWidth - startSize.width;
+                    const deltaHeight = newHeight - startSize.height;
+                    
+                    const updatedRooms: Room[] = [];
+                    
+                    // Обновляем все выбранные комнаты
+                    localRooms.forEach(r => {
+                      if (selectedRooms.has(r.id)) {
+                        const rStartSize = resizeStartSizes.current.get(r.id);
+                        if (!rStartSize) return;
+                        
+                        let updatedWidth = rStartSize.width + deltaWidth;
+                        let updatedHeight = rStartSize.height + deltaHeight;
+                        
+                        // Минимальный размер
+                        updatedWidth = Math.max(40, updatedWidth);
+                        updatedHeight = Math.max(40, updatedHeight);
+                        
+                        if (snapToGrid) {
+                          updatedWidth = Math.round(updatedWidth / GRID_SIZE) * GRID_SIZE;
+                          updatedHeight = Math.round(updatedHeight / GRID_SIZE) * GRID_SIZE;
+                        }
+                        
+                        const updatedRoom = {
+                          ...r,
+                          width: updatedWidth,
+                          height: updatedHeight
+                        };
+                        updatedRooms.push(updatedRoom);
+                      }
+                    });
+                    
+                    // Обновляем локальное состояние для всех комнат
+                    const roomMap = new Map(updatedRooms.map(r => [r.id, r]));
+                    setLocalRooms(localRooms.map(r => roomMap.get(r.id) || r));
+
+                    // Автосохранение всех измененных комнат
+                    for (const updatedRoom of updatedRooms) {
+                      const originalRoom = originalRooms.find(r => r.id === updatedRoom.id);
+                      if (originalRoom) {
+                        // Комната существует - обновляем
+                        if (onRoomUpdate) {
+                          try {
+                            await onRoomUpdate(updatedRoom);
+                            setOriginalRooms(originalRooms.map(r => r.id === updatedRoom.id ? updatedRoom : r));
+                          } catch (error) {
+                            console.error(`Ошибка при автосохранении комнаты ${updatedRoom.id}:`, error);
+                          }
+                        }
+                      } else {
+                        // Новая комната - создаем
+                        if (onRoomCreate) {
+                          try {
+                            await onRoomCreate(updatedRoom);
+                            setOriginalRooms([...originalRooms, updatedRoom]);
+                          } catch (error) {
+                            console.error(`Ошибка при создании комнаты ${updatedRoom.id}:`, error);
+                          }
+                        }
+                      }
+                    }
+                    
+                    // Очищаем сохраненные размеры
+                    resizeStartSizes.current.clear();
+                  } else {
+                    // Одиночное изменение размера
+                    const updatedRoom = {
+                      ...localRoom,
+                      position: { x: newX, y: newY },
+                      width: newWidth,
+                      height: newHeight
+                    };
+                    setLocalRooms(localRooms.map(r => r.id === room.id ? updatedRoom : r));
+
+                    // Автосохранение
+                    const originalRoom = originalRooms.find(r => r.id === room.id);
+                    if (originalRoom) {
+                      // Комната существует - обновляем
+                      if (onRoomUpdate) {
+                        try {
+                          await onRoomUpdate(updatedRoom);
+                          setOriginalRooms(originalRooms.map(r => r.id === room.id ? updatedRoom : r));
+                        } catch (error) {
+                          console.error('Ошибка при автосохранении:', error);
+                        }
+                      }
+                    } else {
+                      // Новая комната - создаем
+                      if (onRoomCreate) {
+                        try {
+                          await onRoomCreate(updatedRoom);
+                          setOriginalRooms([...originalRooms, updatedRoom]);
+                        } catch (error) {
+                          console.error('Ошибка при создании комнаты:', error);
+                        }
+                      }
+                    }
+                    
+                    // Очищаем сохраненные размеры
+                    resizeStartSizes.current.clear();
+                  }
+                })();
+                }}
+                bounds="parent"
+                minWidth={40 * scale}
+                minHeight={40 * scale}
+                grid={snapToGrid ? [GRID_SIZE * scale, GRID_SIZE * scale] : undefined}
+                style={{
+                  border: isSelected ? '3px solid #3b82f6' : '2px solid #e5e7eb',
+                  cursor: 'move',
+                  zIndex: (room.zIndex || 1) + (isSelected ? 1000 : 0),
+                }}
+                className={`rounded-lg overflow-hidden ${getRoomColor(room)}`}
+                onClick={(e: React.MouseEvent) => handleRoomClick(room, e)}
+                onDoubleClick={(e: React.MouseEvent) => {
+                  (async () => {
+                  e.stopPropagation();
+                  // Автосохранение предыдущей комнаты
+                  if (editingRoom && editingRoom.id !== room.id) {
+                    await autoSaveRoom(editingRoom.id);
+                  }
+                  setEditingRoom(room);
+                })();
+                }}
+              >
                 <div
-                  className="absolute bottom-0 right-0 w-4 h-4 bg-gray-600 cursor-nwse-resize"
-                  onMouseDown={(e) => handleResizeStart(e, room.id)}
-                  style={{ transform: 'translate(50%, 50%)' }}
-                />
-              )}
+                  style={{
+                    padding: `${6 * scale}px`,
+                    fontSize: `${12 * scale}px`,
+                    width: '100%',
+                    height: '100%',
+                  }}
+                >
+                  {roomContent}
+                </div>
+              </Rnd>
+            );
+          }
+
+          // В обычном режиме просто div
+          return (
+            <div
+              key={room.id}
+              data-room-id={room.id}
+              className={`absolute border-2 rounded-lg transition-all overflow-hidden ${
+                getRoomColor(room)
+              } ${room.isCommon ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+              style={{
+                left: `${scaledX}px`,
+                top: `${scaledY}px`,
+                width: `${scaledWidth}px`,
+                height: `${scaledHeight}px`,
+                zIndex: room.zIndex || 1,
+                padding: `${6 * scale}px`,
+                fontSize: `${12 * scale}px`
+              }}
+              onClick={(e) => handleRoomClick(room, e)}
+            >
+              {roomContent}
             </div>
           );
         })}
@@ -1593,7 +2309,11 @@ export default function FloorPlan({
           hotelId={hotelId}
           floor={floor}
           onSave={handleRoomSave}
-          onClose={() => {
+          onClose={async () => {
+            // Автосохранение при закрытии модального окна, если были изменения позиции/размера
+            if (editingRoom && onRoomUpdate) {
+              await autoSaveRoom(editingRoom.id);
+            }
             setEditingRoom(null);
             setCreatingRoom(false);
             setSelectedRoom(null);
@@ -1647,13 +2367,16 @@ export default function FloorPlan({
                 {floor !== 'EG' && (
                   <button
                     onClick={() => {
-                      if (copyingType === 'rooms') {
-                        handlePasteToFloor('EG');
-                      } else {
-                        handlePasteStairsToFloor('EG');
+                      if (!isLoading) {
+                        if (copyingType === 'rooms') {
+                          handlePasteToFloor('EG');
+                        } else {
+                          handlePasteStairsToFloor('EG');
+                        }
                       }
                     }}
-                    className="px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-semibold transition-colors"
+                    disabled={isLoading}
+                    className="px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Первый этаж (EG)
                   </button>
@@ -1661,13 +2384,16 @@ export default function FloorPlan({
                 {floor !== '1OG' && (
                   <button
                     onClick={() => {
-                      if (copyingType === 'rooms') {
-                        handlePasteToFloor('1OG');
-                      } else {
-                        handlePasteStairsToFloor('1OG');
+                      if (!isLoading) {
+                        if (copyingType === 'rooms') {
+                          handlePasteToFloor('1OG');
+                        } else {
+                          handlePasteStairsToFloor('1OG');
+                        }
                       }
                     }}
-                    className="px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-semibold transition-colors"
+                    disabled={isLoading}
+                    className="px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Второй этаж (1OG)
                   </button>
@@ -1675,13 +2401,16 @@ export default function FloorPlan({
                 {floor !== '2OG' && (
                   <button
                     onClick={() => {
-                      if (copyingType === 'rooms') {
-                        handlePasteToFloor('2OG');
-                      } else {
-                        handlePasteStairsToFloor('2OG');
+                      if (!isLoading) {
+                        if (copyingType === 'rooms') {
+                          handlePasteToFloor('2OG');
+                        } else {
+                          handlePasteStairsToFloor('2OG');
+                        }
                       }
                     }}
-                    className="px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-semibold transition-colors"
+                    disabled={isLoading}
+                    className="px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Третий этаж (2OG)
                   </button>

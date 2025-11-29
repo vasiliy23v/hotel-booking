@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut, ArrowLeft, CheckCircle, CreditCard, Euro, DollarSign, Edit } from 'lucide-react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut, ArrowLeft, Euro, DollarSign, Edit } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User, Room, Hotel, BookingInfo } from '@/types';
 import Link from 'next/link';
@@ -27,11 +27,6 @@ export default function BookingsPage() {
   const [sortBy, setSortBy] = useState<'checkIn' | 'checkOut' | 'bookedDate' | 'bookedBy' | 'roomNumber'>('checkIn');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
-  // Модальное окно для оплаты
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedBookingForPayment, setSelectedBookingForPayment] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string }) | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer'>('cash');
-  const [paymentAmount, setPaymentAmount] = useState<number>(0);
 
   // Модальное окно для редактирования
   const [showEditModal, setShowEditModal] = useState(false);
@@ -96,52 +91,6 @@ export default function BookingsPage() {
     }
   };
 
-  const handleConfirmBooking = async (booking: BookingInfo) => {
-    if (!booking.id) return;
-    
-    try {
-      await api.confirmBooking(booking.id, currentUser?.name || 'system');
-      await loadBookings();
-    } catch (error) {
-      console.error('Error confirming booking:', error);
-      alert('Ошибка при подтверждении бронирования');
-    }
-  };
-
-  const handleOpenPaymentModal = (booking: BookingInfo) => {
-    // Находим обогащенное бронирование из массива bookings, которое содержит roomNumber
-    const enrichedBooking = bookings.find(b => b.id === booking.id) || booking;
-    const room = rooms.find(r => r.id === booking.roomId);
-    if (room && room.price) {
-      const checkIn = new Date(booking.checkIn);
-      const checkOut = new Date(booking.checkOut);
-      const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-      setPaymentAmount(nights * room.price);
-    } else {
-      setPaymentAmount(booking.amount || 0);
-    }
-    setSelectedBookingForPayment(enrichedBooking);
-    setShowPaymentModal(true);
-  };
-
-  const handleConfirmPayment = async () => {
-    if (!selectedBookingForPayment?.id) return;
-    
-    try {
-      await api.confirmPayment(
-        selectedBookingForPayment.id,
-        paymentMethod,
-        paymentAmount || undefined,
-        currentUser?.name || 'system'
-      );
-      setShowPaymentModal(false);
-      setSelectedBookingForPayment(null);
-      await loadBookings();
-    } catch (error) {
-      console.error('Error confirming payment:', error);
-      alert('Ошибка при подтверждении оплаты');
-    }
-  };
 
   const handleEdit = (booking: BookingInfo & { roomNumber?: string; hotelName?: string }) => {
     setSelectedBookingForEdit(booking);
@@ -858,26 +807,6 @@ export default function BookingsPage() {
                           {/* Действия */}
                           <td className="px-3 py-2.5">
                             <div className="flex flex-col gap-1">
-                              {!booking.isConfirmed && (
-                                <button
-                                  onClick={() => handleConfirmBooking(booking)}
-                                  className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
-                                  title="Подтвердить бронирование"
-                                >
-                                  <CheckCircle className="w-3 h-3" />
-                                  Подтвердить
-                                </button>
-                              )}
-                              {!booking.isPaid && (
-                                <button
-                                  onClick={() => handleOpenPaymentModal(booking)}
-                                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
-                                  title="Подтвердить оплату"
-                                >
-                                  <CreditCard className="w-3 h-3" />
-                                  Оплата
-                                </button>
-                              )}
                               {canCancel && (
                                 <button
                                   onClick={() => handleCancel(booking)}
@@ -1014,75 +943,6 @@ export default function BookingsPage() {
         </div>
       </main>
 
-      {/* Модальное окно для подтверждения оплаты */}
-      {showPaymentModal && selectedBookingForPayment && (
-        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Подтверждение оплаты</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
-                  Способ оплаты <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'transfer')}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                >
-                  <option value="cash">Оплачено наличными</option>
-                  <option value="transfer">Оплачено переводом</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
-                  Сумма (€)
-                </label>
-                <input
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(Number(e.target.value))}
-                  min="0"
-                  step="0.01"
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Оставьте 0 для автоматического расчета
-                </p>
-              </div>
-
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <div className="text-sm text-gray-700">
-                  <div className="font-semibold mb-1">Информация о бронировании:</div>
-                  <div>Комната: #{selectedBookingForPayment.roomNumber || 'N/A'}</div>
-                  <div>Гость: {selectedBookingForPayment.bookedBy}</div>
-                  <div>Заезд: {new Date(selectedBookingForPayment.checkIn).toLocaleDateString('ru-RU')}</div>
-                  <div>Выезд: {new Date(selectedBookingForPayment.checkOut).toLocaleDateString('ru-RU')}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowPaymentModal(false);
-                  setSelectedBookingForPayment(null);
-                }}
-                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg font-semibold"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleConfirmPayment}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-semibold"
-              >
-                Подтвердить оплату
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Модальное окно для редактирования бронирования */}
       {showEditModal && selectedBookingForEdit && (

@@ -4,12 +4,18 @@ const API_URL = '/api';
 export class ApiClient {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     try {
+      // Для FormData не устанавливаем Content-Type, браузер сам установит
+      const isFormData = options?.body instanceof FormData;
+      const headers: HeadersInit = isFormData
+        ? { ...options?.headers }
+        : {
+            'Content-Type': 'application/json',
+            ...options?.headers,
+          };
+
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options?.headers,
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -156,19 +162,6 @@ export class ApiClient {
     return this.request<{ unconfirmed: number; unpaid: number }>('/bookings/stats');
   }
 
-  async confirmBooking(id: string, confirmedBy: string) {
-    return this.request<any>(`/bookings/${id}/confirm`, {
-      method: 'PUT',
-      body: JSON.stringify({ confirmedBy }),
-    });
-  }
-
-  async confirmPayment(id: string, paymentMethod: 'cash' | 'transfer', amount?: number, paidBy?: string) {
-    return this.request<any>(`/bookings/${id}/payment`, {
-      method: 'PUT',
-      body: JSON.stringify({ paymentMethod, amount, paidBy }),
-    });
-  }
 
   async getCashMonitoring(hotelId?: string) {
     const query = hotelId ? `?hotelId=${hotelId}` : '';
@@ -237,6 +230,58 @@ export class ApiClient {
     return this.request<any>('/users/reset-password', {
       method: 'POST',
       body: JSON.stringify({ inviteToken, password, confirmPassword, name }),
+    });
+  }
+
+  // Feedback
+  async getFeedbacks() {
+    return this.request<any[]>('/feedback');
+  }
+
+  async deleteFeedback(id: string) {
+    return this.request(`/feedback?id=${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async createFeedback(feedback: FormData) {
+    // Для FormData используем прямой fetch, так как request устанавливает Content-Type
+    try {
+      const response = await fetch(`${API_URL}/feedback`, {
+        method: 'POST',
+        body: feedback,
+      });
+
+      if (!response.ok) {
+        let errorMessage = `Ошибка: ${response.statusText}`;
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch {
+          // Если не удалось распарсить JSON, используем статус текст
+        }
+        throw new Error(errorMessage);
+      }
+
+      return response.json();
+    } catch (error) {
+      // Если это уже наша ошибка, пробрасываем её дальше
+      if (error instanceof Error) {
+        throw error;
+      }
+      // Иначе создаём новую ошибку
+      throw new Error('Ошибка сети. Проверьте подключение к интернету.');
+    }
+  }
+
+  // Registration Token
+  async getRegistrationToken() {
+    return this.request<any>('/registration-token');
+  }
+
+  async createOrUpdateRegistrationToken() {
+    return this.request<any>('/registration-token', {
+      method: 'POST',
     });
   }
 }

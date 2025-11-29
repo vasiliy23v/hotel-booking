@@ -24,7 +24,15 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(newBooking);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Если это ошибка о занятости комнаты, возвращаем 409 Conflict
+    if (error.message && error.message.includes('уже забронирована')) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    // Для других ошибок валидации возвращаем 400
+    if (error.message && (error.message.includes('Дата заезда') || error.message.includes('формат'))) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    return NextResponse.json({ error: error.message || 'Ошибка при создании бронирования' }, { status: 500 });
   }
 }
 

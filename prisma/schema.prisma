@@ -202,3 +202,38 @@ model Invite {
   @@index([expiresAt])
   @@map("invites")
 }
+
+// ============================================
+// FEEDBACK (Отзывы и баг-репорты)
+// ============================================
+model Feedback {
+  id          String   @id @default(uuid())
+  userName    String   @map("user_name")
+  userEmail   String?  @map("user_email")
+  userRole    String   @map("user_role")
+  comment     String   @db.Text
+  screenshot  String?  @db.VarChar(500)
+  userAgent   String?  @map("user_agent") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userName])
+  @@index([userEmail])
+  @@index([createdAt])
+  @@map("feedback")
+}
+
+// ============================================
+// REGISTRATION TOKEN (Общий токен регистрации)
+// ============================================
+model RegistrationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([token])
+  @@index([isActive])
+  @@map("registration_tokens")
+}

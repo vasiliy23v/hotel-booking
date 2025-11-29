@@ -5,8 +5,8 @@
 
 /**
  * Нормализует номер телефона к единому формату
- * Удаляет все символы кроме цифр, затем форматирует
- * Формат: +7XXXXXXXXXX (11 цифр) или XXXXXXXXXX (10 цифр без кода страны)
+ * Формат: +[код страны][номер]
+ * Поддерживает любые коды стран (любая длина)
  * 
  * @param phone - номер телефона в любом формате
  * @returns нормализованный номер телефона или null, если номер невалидный
@@ -14,57 +14,70 @@
 export function normalizePhone(phone: string | null | undefined): string | null {
   if (!phone) return null;
   
-  // Удаляем все символы кроме цифр
-  const digits = phone.replace(/\D/g, '');
+  // Убираем все пробелы, дефисы и скобки
+  let cleaned = phone.replace(/[\s\-()]/g, '');
   
-  // Если пусто после удаления нецифровых символов
-  if (!digits) return null;
+  // Если пусто после очистки
+  if (!cleaned) return null;
   
-  // Если номер начинается с 8, заменяем на 7
-  let normalized = digits.startsWith('8') ? '7' + digits.slice(1) : digits;
-  
-  // Если номер начинается с 7 и имеет 11 цифр - оставляем как есть
-  if (normalized.startsWith('7') && normalized.length === 11) {
-    return '+' + normalized;
+  // Если номер уже начинается с +, оставляем как есть
+  if (cleaned.startsWith('+')) {
+    // Проверяем, что после + есть хотя бы одна цифра кода страны
+    const afterPlus = cleaned.slice(1);
+    if (!afterPlus || !/^\d/.test(afterPlus)) {
+      return null;
+    }
+    return cleaned;
   }
   
-  // Если номер имеет 10 цифр (без кода страны) - добавляем +7
-  if (normalized.length === 10) {
-    return '+7' + normalized;
+  // Если номер начинается с 8 (российский формат), заменяем на +7
+  if (cleaned.startsWith('8')) {
+    return '+7' + cleaned.slice(1);
   }
   
-  // Если номер имеет 11 цифр и начинается не с 7 - добавляем +7
-  if (normalized.length === 11 && !normalized.startsWith('7')) {
-    return '+7' + normalized.slice(1);
+  // Если номер начинается с 7 и имеет 11 цифр (российский формат без +)
+  if (cleaned.startsWith('7') && cleaned.length === 11) {
+    return '+' + cleaned;
   }
   
-  // Если номер имеет меньше 10 цифр - невалидный
-  if (normalized.length < 10) {
-    return null;
+  // Если номер имеет 10 цифр (российский формат без кода страны)
+  if (cleaned.length === 10 && /^\d{10}$/.test(cleaned)) {
+    return '+7' + cleaned;
   }
   
-  // Если номер имеет больше 11 цифр - обрезаем до 11
-  if (normalized.length > 11) {
-    normalized = normalized.slice(0, 11);
+  // Для других случаев просто добавляем + если его нет
+  if (!cleaned.startsWith('+')) {
+    // Проверяем, что это только цифры
+    if (!/^\d+$/.test(cleaned)) {
+      return null;
+    }
+    return '+' + cleaned;
   }
   
-  // Если после обрезки не начинается с 7, добавляем +7
-  if (!normalized.startsWith('7')) {
-    normalized = '7' + normalized;
-  }
-  
-  return '+' + normalized;
+  return cleaned;
 }
 
 /**
  * Проверяет, является ли строка валидным номером телефона
+ * Формат: +[код страны любой длины][номер, минимум 4 цифры]
  */
 export function isValidPhone(phone: string | null | undefined): boolean {
+  if (!phone) return false;
+  
   const normalized = normalizePhone(phone);
   if (!normalized) return false;
   
-  // Проверяем формат: +7 и 10 цифр после
-  return /^\+7\d{10}$/.test(normalized);
+  // Проверяем формат: +[код страны любой длины][номер, минимум 4 цифры]
+  // Код страны должен начинаться с 1-9 (не может быть 0)
+  // Общая длина должна быть не менее 6 символов (+ + минимум 1 цифра кода + минимум 4 цифры номера)
+  // И не более 20 символов (разумный максимум)
+  if (normalized.length < 6 || normalized.length > 20) {
+    return false;
+  }
+  
+  // Проверяем формат: +[код страны начинается с 1-9][любое количество цифр кода][номер минимум 4 цифры]
+  const phoneRegex = /^\+[1-9]\d+\d{4,}$/;
+  return phoneRegex.test(normalized);
 }
 
 /**

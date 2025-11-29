@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Bed, Users, BarChart3, LogOut, Plus, Edit, Trash2, LayoutGrid, Filter, Calendar, Euro, X, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, DollarSign, Mail, Copy, RefreshCw, CheckCircle, AlertCircle, Clock, KeyRound, ArrowRight, Phone, BookOpen, List, Eye, EyeOff, Bell } from 'lucide-react';
+import { Building2, Bed, Users, BarChart3, LogOut, Plus, Edit, Trash2, LayoutGrid, Filter, Calendar, Euro, X, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, DollarSign, Mail, Copy, RefreshCw, CheckCircle, AlertCircle, Clock, KeyRound, ArrowRight, Phone, BookOpen, List, Eye, EyeOff, Bell, MessageSquare } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User, Room, Hotel, Stairs, Statistics, CashMonitoring, Invite, BookingInfo } from '@/types';
 import FloorPlan from '@/components/FloorPlan';
 import Link from 'next/link';
+import FeedbackForm from '@/components/FeedbackForm';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -17,12 +18,14 @@ export default function Dashboard() {
   const [selectedHotel, setSelectedHotel] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false); // Флаг загрузки данных
+  const [isRefreshing, setIsRefreshing] = useState(false); // Тихая перезагрузка без скелетона
   const [error, setError] = useState<string | null>(null); // Состояние ошибки
   const [viewMode, setViewMode] = useState<'plan' | 'list'>('plan');
   const [selectedFloor, setSelectedFloor] = useState<'EG' | '1OG' | '2OG'>('EG');
   const [stairs, setStairs] = useState<Stairs[]>([]);
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   
   // Фильтры и сортировка
   const [filterType, setFilterType] = useState<'all' | 'FZ' | 'DZ' | 'EZ'>('all');
@@ -48,6 +51,9 @@ export default function Dashboard() {
   
   // Состояние для активной вкладки в мобильном меню (только для обычных пользователей)
   const [activeTab, setActiveTab] = useState<'hotels' | 'bookings'>('bookings');
+  
+  // Ref для отслеживания предыдущего значения выбранного отеля
+  const prevSelectedHotelRef = useRef<string | null>(null);
 
   useEffect(() => {
     const userStr = localStorage.getItem('currentUser');
@@ -129,9 +135,35 @@ export default function Dashboard() {
     }
   }, [rooms, selectedHotel, filterPriceMax]);
 
-  const loadData = async () => {
+  // Перезагрузка данных при смене отеля
+  useEffect(() => {
+    // Пропускаем первоначальную загрузку и пустые значения
+    if (!dataLoaded) {
+      prevSelectedHotelRef.current = selectedHotel;
+      return;
+    }
+    
+    // Проверяем, действительно ли изменился отель
+    if (prevSelectedHotelRef.current !== selectedHotel && selectedHotel) {
+      console.log('Hotel changed, reloading data for:', selectedHotel);
+      loadData(true); // Тихая перезагрузка без скелетона
+      loadBookings();
+    }
+    
+    // Обновляем предыдущее значение
+    prevSelectedHotelRef.current = selectedHotel;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedHotel, dataLoaded]);
+
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
+      // При тихой перезагрузке не показываем скелетон
+      if (silent) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
       const [hotelsData, roomsData, stairsData] = await Promise.all([
         api.getHotels(),
         api.getRooms(),
@@ -185,6 +217,7 @@ export default function Dashboard() {
       // и пользователь мог увидеть, что что-то пошло не так
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -333,32 +366,86 @@ export default function Dashboard() {
 
   // Показываем индикатор загрузки, пока пользователь не загружен или данные не получены
   if (!currentUser || loading || !dataLoaded) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          {error ? (
-            <>
-              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <div className="text-lg text-gray-900 mb-4">Ошибка загрузки данных</div>
-              <div className="text-sm text-gray-600 mb-4">{error}</div>
-              <button
-                onClick={() => {
-                  setError(null);
-                  setLoading(true);
-                  loadData();
-                }}
-                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-              >
-                Попробовать снова
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-              <div className="text-lg text-gray-900">Загрузка данных...</div>
-            </>
-          )}
+    // Если есть ошибка - показываем сообщение об ошибке
+    if (error) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <div className="text-lg text-gray-900 mb-4">Ошибка загрузки данных</div>
+            <div className="text-sm text-gray-600 mb-4">{error}</div>
+            <button
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                loadData();
+              }}
+              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              Попробовать снова
+            </button>
+          </div>
         </div>
+      );
+    }
+    
+    // Скелетон загрузки
+    return (
+      <div className="min-h-screen bg-gray-50 flex">
+        {/* Skeleton Sidebar - только для десктопа */}
+        <aside className="hidden lg:block w-64 bg-white border-r border-gray-200 h-screen">
+          <div className="h-full flex flex-col">
+            {/* Sidebar Header */}
+            <div className="p-4 border-b border-gray-200">
+              <div className="h-6 w-24 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+            {/* Navigation skeleton */}
+            <nav className="flex-1 p-4 space-y-2">
+              <div className="h-3 w-16 bg-gray-100 rounded mb-3"></div>
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse"></div>
+              ))}
+              <div className="h-10 bg-gray-200 rounded-lg animate-pulse mt-4"></div>
+            </nav>
+          </div>
+        </aside>
+
+        {/* Skeleton Main Content */}
+        <main className="flex-1 p-4 lg:p-6">
+          {/* Header skeleton */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-10 w-10 bg-gray-200 rounded-full animate-pulse"></div>
+          </div>
+
+          {/* Cards skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-xl p-5 border border-gray-100">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-gray-100 rounded-lg animate-pulse"></div>
+                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+                <div className="h-6 w-16 bg-gray-100 rounded animate-pulse"></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Rooms grid skeleton */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+              <div 
+                key={i} 
+                className="bg-white rounded-xl p-4 border border-gray-100"
+                style={{ animationDelay: `${i * 50}ms` }}
+              >
+                <div className="h-4 w-12 bg-gray-200 rounded animate-pulse mb-3"></div>
+                <div className="h-3 w-16 bg-gray-100 rounded animate-pulse mb-2"></div>
+                <div className="h-5 w-14 bg-gray-100 rounded animate-pulse"></div>
+              </div>
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
@@ -498,7 +585,7 @@ export default function Dashboard() {
                   <Building2 className="w-4 h-4 shrink-0" />
                   <span>Все отели</span>
                 </button>
-                <div className="space-y-1">
+                <div className="space-y-1 mb-2">
                   {hotels.map(hotel => (
                     <button
                       key={hotel.id}
@@ -514,9 +601,7 @@ export default function Dashboard() {
                     </button>
                   ))}
                 </div>
-              </div>
-
-              {/* Мои бронирования */}
+                 {/* Мои бронирования */}
               <button
                 onClick={() => {
                   setSelectedHotel('');
@@ -533,12 +618,10 @@ export default function Dashboard() {
               >
                 <BookOpen className="w-5 h-5" />
                 <span>Мои бронирования</span>
-                {myBookingsCount > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {myBookingsCount > 99 ? '99+' : myBookingsCount}
-                  </span>
-                )}
               </button>
+              </div>
+
+             
             </nav>
 
             {/* Sidebar Footer */}
@@ -584,23 +667,14 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {/* Колокольчик с неподтвержденными бронированиями */}
+
+                {/* Кнопка обратной связи */}
                 <button
-                  onClick={() => {
-                    setSelectedHotel('');
-                    if (currentUser.role === 'guest') {
-                      setActiveTab('bookings');
-                    }
-                  }}
-                  className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Неподтвержденные бронирования"
+                  onClick={() => setShowFeedbackForm(true)}
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Отправить отзыв / Сообщить об ошибке "
                 >
-                  <Bell className="w-5 h-5" />
-                  {bookingStats.unconfirmed > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-pink-950 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {bookingStats.unconfirmed > 99 ? '99+' : bookingStats.unconfirmed}
-                    </span>
-                  )}
+                  <MessageSquare className="w-5 h-5" />
                 </button>
 
                 {/* Доллар с неоплаченными бронированиями (только для менеджера) */}
@@ -653,12 +727,19 @@ export default function Dashboard() {
 
       {/* Информация о выбранном отеле */}
       {selectedHotel && currentHotel && (
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-white border-b border-gray-200 relative overflow-hidden">
+          {/* Индикатор обновления данных */}
+          {isRefreshing && (
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gray-100 overflow-hidden">
+              <div className="h-full w-1/3 bg-gray-900 animate-[shimmer_1s_ease-in-out_infinite]" 
+                   style={{ animation: 'shimmer 1s ease-in-out infinite' }} />
+            </div>
+          )}
           <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
               {/* Фото отеля */}
               {currentHotel.image ? (
-                <div className="w-full sm:w-48 h-48 sm:h-32 flex-shrink-0 rounded-lg overflow-hidden">
+                <div className={`w-full sm:w-48 h-48 sm:h-32 shrink-0 rounded-xl overflow-hidden shadow-sm transition-opacity ${isRefreshing ? 'opacity-70' : ''}`}>
                   <img
                     src={currentHotel.image}
                     alt={currentHotel.name}
@@ -666,21 +747,27 @@ export default function Dashboard() {
                   />
                 </div>
               ) : (
-                <div className="w-full sm:w-48 h-48 sm:h-32 flex-shrink-0 rounded-lg bg-gray-200 flex items-center justify-center">
-                  <Building2 className="w-16 h-16 text-gray-400" />
+                <div className={`w-full sm:w-48 h-48 sm:h-32 shrink-0 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-sm transition-opacity ${isRefreshing ? 'opacity-70' : ''}`}>
+                  <Building2 className="w-12 h-12 text-gray-400" />
                 </div>
               )}
               
               {/* Информация об отеле */}
-              <div className="flex-1">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                  {currentHotel.name}
-                </h1>
-                <p className="text-sm sm:text-base text-gray-600 mb-3">
+              <div className={`flex-1 transition-opacity ${isRefreshing ? 'opacity-70' : ''}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    {currentHotel.name}
+                  </h1>
+                  {isRefreshing && (
+                    <RefreshCw className="w-4 h-4 text-gray-400 animate-spin" />
+                  )}
+                </div>
+                <p className="text-sm sm:text-base text-gray-600 mb-3 flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500"></span>
                   {currentHotel.address}
                 </p>
                 {currentHotel.description && (
-                  <p className="text-sm text-gray-500 line-clamp-2">
+                  <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
                     {currentHotel.description}
                   </p>
                 )}
@@ -1807,6 +1894,14 @@ export default function Dashboard() {
             </button>
           </div>
         </nav>
+      )}
+
+      {/* Форма обратной связи */}
+      {showFeedbackForm && currentUser && (
+        <FeedbackForm
+          currentUser={currentUser}
+          onClose={() => setShowFeedbackForm(false)}
+        />
       )}
     </div>
   );

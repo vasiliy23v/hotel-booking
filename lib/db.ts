@@ -4,7 +4,7 @@
 // ============================================
 
 import { prisma } from './prisma';
-import type { User, Room, Hotel, Stairs, BookingInfo, Invite } from '@/types';
+import type { User, Room, Hotel, Stairs, BookingInfo, Invite, RegistrationToken } from '@/types';
 import { normalizePhone } from './phone';
 
 // ============================================
@@ -624,45 +624,166 @@ export async function getActiveBookingForRoom(roomId: string): Promise<BookingIn
 }
 
 /**
+ * Проверить доступность комнаты в указанный период
+ * Возвращает true, если комната доступна, false если занята
+ */
+export async function isRoomAvailable(
+  roomId: string,
+  checkIn: Date,
+  checkOut: Date,
+  excludeBookingId?: string
+): Promise<boolean> {
+  // Проверяем пересечения дат
+  // Пересечение происходит если: newCheckIn < existingCheckOut AND newCheckOut > existingCheckIn
+  const conflictingBooking = await prisma.booking.findFirst({
+    where: {
+      roomId,
+      id: excludeBookingId ? { not: excludeBookingId } : undefined,
+      // Проверяем пересечение дат: существующее бронирование пересекается с новым,
+      // если checkIn < existingCheckOut AND checkOut > existingCheckIn
+      AND: [
+        {
+          checkIn: {
+            lt: checkOut, // existingCheckIn < newCheckOut
+          },
+        },
+        {
+          checkOut: {
+            gt: checkIn, // existingCheckOut > newCheckIn
+          },
+        },
+      ],
+    },
+  });
+
+  return conflictingBooking === null;
+}
+
+/**
  * Создать новое бронирование
+ * EXCLUDE constraint на уровне базы данных предотвращает пересекающиеся бронирования
  */
 export async function createBooking(
   booking: Omit<BookingInfo, 'id'> & { id?: string }
 ): Promise<BookingInfo> {
-  const bookingId = booking.id || `booking-${Date.now()}`;
-  const newBooking = await prisma.booking.create({
-    data: {
-      id: bookingId,
-      roomId: booking.roomId,
-      bookedBy: booking.bookedBy,
-      bookedDate: new Date(booking.bookedDate),
-      email: booking.email,
-      phone: booking.phone,
-      checkIn: new Date(booking.checkIn),
-      checkOut: new Date(booking.checkOut),
-      guests: (booking.guests || []) as any,
-      notes: booking.notes || null,
-      isConfirmed: booking.isConfirmed || false,
-      confirmedBy: booking.confirmedBy || null,
-      confirmedDate: booking.confirmedDate ? new Date(booking.confirmedDate) : null,
-      isPaid: booking.isPaid || false,
-      paymentMethod: booking.paymentMethod as any || null,
-      paymentDate: booking.paymentDate ? new Date(booking.paymentDate) : null,
-      paidBy: booking.paidBy || null,
-      amount: booking.amount || null,
-    },
-  });
-  
-  return transformBooking(newBooking);
+  const checkInDate = new Date(booking.checkIn);
+  const checkOutDate = new Date(booking.checkOut);
+
+  // Валидация дат
+  if (checkInDate >= checkOutDate) {
+    throw new Error('Дата заезда должна быть раньше даты выезда');
+  }
+
+  try {
+    // Создаем бронирование
+    // EXCLUDE constraint на уровне базы данных автоматически предотвратит пересечения
+    const bookingId = booking.id || `booking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const newBooking = await prisma.booking.create({
+      data: {
+        id: bookingId,
+        roomId: booking.roomId,
+        bookedBy: booking.bookedBy,
+        bookedDate: new Date(booking.bookedDate),
+        email: booking.email,
+        phone: booking.phone,
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
+        guests: (booking.guests || []) as any,
+        notes: booking.notes || null,
+        isConfirmed: booking.isConfirmed || false,
+        confirmedBy: booking.confirmedBy || null,
+        confirmedDate: booking.confirmedDate ? new Date(booking.confirmedDate) : null,
+        isPaid: booking.isPaid || false,
+        paymentMethod: booking.paymentMethod as any || null,
+        paymentDate: booking.paymentDate ? new Date(booking.paymentDate) : null,
+        paidBy: booking.paidBy || null,
+        amount: booking.amount || null,
+      },
+    });
+
+    return transformBooking(newBooking);
+  } catch (error: any) {
+    // Обрабатываем ошибку constraint от PostgreSQL
+    if (error.code === '23P01' || error.message?.includes('bookings_no_overlap') || error.message?.includes('violates exclusion constraint')) {
+      // Получаем информацию о конфликтующем бронировании для более понятного сообщения
+      try {
+        const conflicting = await prisma.booking.findFirst({
+          where: {
+            roomId: booking.roomId,
+            AND: [
+              {
+                checkIn: {
+                  lt: checkOutDate,
+                },
+              },
+              {
+                checkOut: {
+                  gt: checkInDate,
+                },
+              },
+            ],
+          },
+          orderBy: {
+            checkIn: 'asc',
+          },
+        });
+
+        if (conflicting) {
+          const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
+          const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
+          throw new Error(
+            `Комната уже забронирована на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
+          );
+        }
+      } catch (innerError) {
+        // Если не удалось получить информацию, используем общее сообщение
+      }
+      throw new Error('Комната уже забронирована на выбранные даты. Пожалуйста, выберите другие даты.');
+    }
+    // Пробрасываем другие ошибки
+    throw error;
+  }
 }
 
 /**
- * Обновить бронирование
+ * Обновить бронирование с проверкой доступности комнаты
  */
 export async function updateBooking(
   id: string,
   updates: Partial<BookingInfo>
 ): Promise<BookingInfo> {
+  // Получаем текущее бронирование
+  const currentBooking = await prisma.booking.findUnique({
+    where: { id },
+  });
+
+  if (!currentBooking) {
+    throw new Error('Бронирование не найдено');
+  }
+
+  // Определяем, нужно ли проверять доступность
+  const needsAvailabilityCheck = 
+    updates.checkIn !== undefined || 
+    updates.checkOut !== undefined || 
+    updates.roomId !== undefined;
+
+  // Если изменяются даты или комната, проверяем валидацию
+  if (needsAvailabilityCheck) {
+    const checkInDate = updates.checkIn ? new Date(updates.checkIn) : new Date(currentBooking.checkIn);
+    const checkOutDate = updates.checkOut ? new Date(updates.checkOut) : new Date(currentBooking.checkOut);
+
+    // Валидация дат
+    if (checkInDate >= checkOutDate) {
+      throw new Error('Дата заезда должна быть раньше даты выезда');
+    }
+
+    // EXCLUDE constraint автоматически проверит пересечения при обновлении
+    // Но нужно временно исключить текущее бронирование из проверки
+    // Для этого используем частичный индекс или просто полагаемся на constraint
+    // Constraint проверит все бронирования, но при UPDATE текущее бронирование будет заменено новыми данными
+  }
+
+  // Подготавливаем данные для обновления
   const updateData: any = {};
   
   if (updates.roomId !== undefined) updateData.roomId = updates.roomId;
@@ -672,7 +793,7 @@ export async function updateBooking(
   if (updates.phone !== undefined) updateData.phone = updates.phone;
   if (updates.checkIn !== undefined) updateData.checkIn = new Date(updates.checkIn);
   if (updates.checkOut !== undefined) updateData.checkOut = new Date(updates.checkOut);
-      if (updates.guests !== undefined) updateData.guests = updates.guests as any;
+  if (updates.guests !== undefined) updateData.guests = updates.guests as any;
   if (updates.notes !== undefined) updateData.notes = updates.notes;
   if (updates.isConfirmed !== undefined) updateData.isConfirmed = updates.isConfirmed;
   if (updates.confirmedBy !== undefined) updateData.confirmedBy = updates.confirmedBy;
@@ -683,12 +804,60 @@ export async function updateBooking(
   if (updates.paidBy !== undefined) updateData.paidBy = updates.paidBy;
   if (updates.amount !== undefined) updateData.amount = updates.amount;
   
-  const updatedBooking = await prisma.booking.update({
-    where: { id },
-    data: updateData,
-  });
-  
-  return transformBooking(updatedBooking);
+  try {
+    // EXCLUDE constraint автоматически проверит пересечения при обновлении
+    const updatedBooking = await prisma.booking.update({
+      where: { id },
+      data: updateData,
+    });
+    
+    return transformBooking(updatedBooking);
+  } catch (error: any) {
+    // Обрабатываем ошибку constraint от PostgreSQL
+    if (error.code === '23P01' || error.message?.includes('bookings_no_overlap') || error.message?.includes('violates exclusion constraint')) {
+      // Получаем информацию о конфликтующем бронировании
+      const checkInDate = updates.checkIn ? new Date(updates.checkIn) : new Date(currentBooking.checkIn);
+      const checkOutDate = updates.checkOut ? new Date(updates.checkOut) : new Date(currentBooking.checkOut);
+      const roomId = updates.roomId || currentBooking.roomId;
+
+      try {
+        const conflicting = await prisma.booking.findFirst({
+          where: {
+            roomId,
+            id: { not: id }, // Исключаем текущее бронирование
+            AND: [
+              {
+                checkIn: {
+                  lt: checkOutDate,
+                },
+              },
+              {
+                checkOut: {
+                  gt: checkInDate,
+                },
+              },
+            ],
+          },
+          orderBy: {
+            checkIn: 'asc',
+          },
+        });
+
+        if (conflicting) {
+          const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
+          const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
+          throw new Error(
+            `Комната уже забронирована на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
+          );
+        }
+      } catch (innerError) {
+        // Если не удалось получить информацию, используем общее сообщение
+      }
+      throw new Error('Комната уже забронирована на выбранные даты. Пожалуйста, выберите другие даты.');
+    }
+    // Пробрасываем другие ошибки
+    throw error;
+  }
 }
 
 /**
@@ -898,4 +1067,210 @@ export async function deleteInvite(id: string): Promise<void> {
   await prisma.invite.delete({
     where: { id },
   });
+}
+
+// ============================================
+// FEEDBACK (Отзывы и баг-репорты)
+// ============================================
+
+export interface Feedback {
+  id: string;
+  userName: string;
+  userEmail?: string;
+  userRole: string;
+  comment: string;
+  screenshot?: string;
+  userAgent?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/**
+ * Получить все отзывы
+ */
+export async function getFeedbacks(): Promise<Feedback[]> {
+  const feedbacks = await prisma.feedback.findMany({
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  return feedbacks.map(f => ({
+    id: f.id,
+    userName: f.userName,
+    userEmail: f.userEmail || undefined,
+    userRole: f.userRole,
+    comment: f.comment,
+    screenshot: f.screenshot || undefined,
+    userAgent: f.userAgent || undefined,
+    createdAt: f.createdAt.toISOString(),
+    updatedAt: f.updatedAt.toISOString(),
+  }));
+}
+
+/**
+ * Получить отзыв по ID
+ */
+export async function getFeedbackById(id: string): Promise<Feedback | null> {
+  const feedback = await prisma.feedback.findUnique({
+    where: { id },
+  });
+
+  if (!feedback) return null;
+
+  return {
+    id: feedback.id,
+    userName: feedback.userName,
+    userEmail: feedback.userEmail || undefined,
+    userRole: feedback.userRole,
+    comment: feedback.comment,
+    screenshot: feedback.screenshot || undefined,
+    userAgent: feedback.userAgent || undefined,
+    createdAt: feedback.createdAt.toISOString(),
+    updatedAt: feedback.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * Создать новый отзыв
+ */
+export async function createFeedback(
+  feedback: Omit<Feedback, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<Feedback> {
+  const newFeedback = await prisma.feedback.create({
+    data: {
+      userName: feedback.userName,
+      userEmail: feedback.userEmail || null,
+      userRole: feedback.userRole,
+      comment: feedback.comment,
+      screenshot: feedback.screenshot || null,
+      userAgent: feedback.userAgent || null,
+    },
+  });
+
+  return {
+    id: newFeedback.id,
+    userName: newFeedback.userName,
+    userEmail: newFeedback.userEmail || undefined,
+    userRole: newFeedback.userRole,
+    comment: newFeedback.comment,
+    screenshot: newFeedback.screenshot || undefined,
+    userAgent: newFeedback.userAgent || undefined,
+    createdAt: newFeedback.createdAt.toISOString(),
+    updatedAt: newFeedback.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * Удалить отзыв
+ */
+export async function deleteFeedback(id: string): Promise<void> {
+  await prisma.feedback.delete({
+    where: { id },
+  });
+}
+
+// ============================================
+// REGISTRATION TOKEN (Общий токен регистрации)
+// ============================================
+
+/**
+ * Получить активный токен регистрации
+ */
+export async function getActiveRegistrationToken(): Promise<RegistrationToken | null> {
+  // Проверяем, что модель доступна
+  if (!prisma.registrationToken) {
+    throw new Error('RegistrationToken model is not available. Please restart the development server after running "npx prisma generate"');
+  }
+
+  const token = await prisma.registrationToken.findFirst({
+    where: { isActive: true },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!token) return null;
+
+  return {
+    id: token.id,
+    token: token.token,
+    isActive: token.isActive,
+    createdAt: token.createdAt.toISOString(),
+    updatedAt: token.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * Получить токен регистрации по ID
+ */
+export async function getRegistrationTokenById(id: string): Promise<RegistrationToken | null> {
+  // Проверяем, что модель доступна
+  if (!prisma.registrationToken) {
+    throw new Error('RegistrationToken model is not available. Please restart the development server after running "npx prisma generate"');
+  }
+
+  const token = await prisma.registrationToken.findUnique({
+    where: { id },
+  });
+
+  if (!token) return null;
+
+  return {
+    id: token.id,
+    token: token.token,
+    isActive: token.isActive,
+    createdAt: token.createdAt.toISOString(),
+    updatedAt: token.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * Проверить токен регистрации (по хэшированному токену)
+ */
+export async function verifyRegistrationToken(hashedToken: string): Promise<boolean> {
+  // Проверяем, что модель доступна
+  if (!prisma.registrationToken) {
+    throw new Error('RegistrationToken model is not available. Please restart the development server after running "npx prisma generate"');
+  }
+
+  const token = await prisma.registrationToken.findFirst({
+    where: {
+      token: hashedToken,
+      isActive: true,
+    },
+  });
+
+  return token !== null;
+}
+
+/**
+ * Создать или обновить токен регистрации
+ * При создании нового токена все старые токены деактивируются
+ */
+export async function createOrUpdateRegistrationToken(hashedToken: string): Promise<RegistrationToken> {
+  // Проверяем, что модель доступна
+  if (!prisma.registrationToken) {
+    throw new Error('RegistrationToken model is not available. Please restart the development server after running "npx prisma generate"');
+  }
+
+  // Деактивируем все существующие токены
+  await prisma.registrationToken.updateMany({
+    where: { isActive: true },
+    data: { isActive: false },
+  });
+
+  // Создаем новый активный токен
+  const newToken = await prisma.registrationToken.create({
+    data: {
+      token: hashedToken,
+      isActive: true,
+    },
+  });
+
+  return {
+    id: newToken.id,
+    token: newToken.token,
+    isActive: newToken.isActive,
+    createdAt: newToken.createdAt.toISOString(),
+    updatedAt: newToken.updatedAt.toISOString(),
+  };
 }

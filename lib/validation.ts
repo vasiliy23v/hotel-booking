@@ -108,11 +108,19 @@ export function validatePhone(phone: string, required: boolean = false): { isVal
     return { isValid: true }; // Телефон не обязателен
   }
 
-  // Убираем все пробелы и дефисы
-  const cleanPhone = phone.replace(/[\s-]/g, '');
+  // Убираем все пробелы, дефисы и скобки
+  const cleanPhone = phone.replace(/[\s\-()]/g, '');
 
-  // Проверка формата: должен начинаться с + и содержать 10-15 цифр
-  const phoneRegex = /^\+?[1-9]\d{9,14}$/;
+  // Проверка формата: должен начинаться с +, затем код страны (любая длина, начинается с 1-9), затем номер (минимум 4 цифры)
+  // Общая длина: минимум 6 символов (+ + 1 + 4), максимум 20 символов
+  if (cleanPhone.length < 6 || cleanPhone.length > 20) {
+    return { 
+      isValid: false, 
+      error: 'Некорректный формат телефона. Используйте международный формат: +491234567890' 
+    };
+  }
+  
+  const phoneRegex = /^\+[1-9]\d+\d{4,}$/;
   if (!phoneRegex.test(cleanPhone)) {
     return { 
       isValid: false, 

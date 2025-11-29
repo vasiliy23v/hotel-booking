@@ -114,5 +114,25 @@ export interface Invite {
   usedAt?: string; // Дата использования
 }
 
+export interface Feedback {
+  id: string;
+  userName: string;
+  userEmail?: string;
+  userRole: string;
+  comment: string;
+  screenshot?: string;
+  userAgent?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface RegistrationToken {
+  id: string;
+  token: string; // Хэшированный токен
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 
 
