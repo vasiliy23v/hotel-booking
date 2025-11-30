@@ -33,7 +33,7 @@ export interface Room {
   number: string;
   hotelId: string;
   name?: string;
-  type: 'FZ' | 'DZ' | 'EZ' | 'APP' | 'COMMON';
+  type: 'FZ' | 'DZ' | 'EZ' | 'App' | 'COMMON';
   capacity: string;
   maxCapacity: number;
   beds: string[];

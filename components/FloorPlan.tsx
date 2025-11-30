@@ -2728,7 +2728,7 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                   <select
                     value={formData.type}
                     onChange={(e) => {
-                      const newType = e.target.value as 'FZ' | 'DZ' | 'EZ' | 'APP' | 'COMMON';
+                      const newType = e.target.value as 'FZ' | 'DZ' | 'EZ' | 'App' | 'COMMON';
                       const isCommon = newType === 'COMMON';
                       setFormData({ 
                         ...formData, 
@@ -2739,11 +2739,11 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                     }}
                   className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
                 >
-                  <option value="FZ">Семейная (FZ)</option>
-                  <option value="DZ">Двухместная (DZ)</option>
-                  <option value="EZ">Одноместная (EZ)</option>
-                  <option value="APP">Апартаменты (APP)</option>
-                  <option value="COMMON">Общее помещение</option>
+                  <option value="FZ">FZ</option>
+                  <option value="DZ">DZ</option>
+                  <option value="EZ">EZ</option>
+                  <option value="App">App</option>
+                  <option value="COMMON">COMMON</option>
                 </select>
               </div>
             </div>

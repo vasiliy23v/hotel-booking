@@ -100,7 +100,7 @@ enum RoomType {
   FZ
   DZ
   EZ
-  APP
+  App
   COMMON
 }
 
