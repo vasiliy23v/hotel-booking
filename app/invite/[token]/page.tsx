@@ -26,6 +26,23 @@ export default function InviteRegistrationPage() {
   const [userExists, setUserExists] = useState(false); // Режим: регистрация или сброс пароля
   const [phoneError, setPhoneError] = useState('');
   const [phoneTouched, setPhoneTouched] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordTouched, setPasswordTouched] = useState(false);
+
+  // Валидация пароля: только латинские символы, минимум 6 символов
+  const validatePassword = (pwd: string): string => {
+    if (!pwd) {
+      return 'Пароль обязателен';
+    }
+    if (pwd.length < 6) {
+      return 'Пароль должен содержать минимум 6 символов';
+    }
+    // Проверка на латинские символы, цифры и базовые спецсимволы
+    if (!/^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]*$/.test(pwd)) {
+      return 'Пароль может содержать только латинские буквы, цифры и специальные символы';
+    }
+    return '';
+  };
 
   // Проверка токена при загрузке страницы
   useEffect(() => {
@@ -91,8 +108,12 @@ export default function InviteRegistrationPage() {
     setError('');
 
     try {
-      if (!password) {
-        setError('Пароль обязателен');
+      // Валидация пароля
+      const passwordValidationError = validatePassword(password);
+      if (passwordValidationError) {
+        setPasswordTouched(true);
+        setPasswordError(passwordValidationError);
+        setError(passwordValidationError);
         setLoading(false);
         return;
       }
@@ -172,8 +193,12 @@ export default function InviteRegistrationPage() {
         return;
       }
 
-      if (password.length < 6) {
-        setError('Пароль должен содержать минимум 6 символов');
+      // Валидация пароля
+      const passwordValidationError = validatePassword(password);
+      if (passwordValidationError) {
+        setPasswordTouched(true);
+        setPasswordError(passwordValidationError);
+        setError(passwordValidationError);
         setLoading(false);
         return;
       }
@@ -410,12 +435,28 @@ export default function InviteRegistrationPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => {
-                    setPassword(e.target.value);
+                    const value = e.target.value;
+                    setPassword(value);
                     setError('');
+                    
+                    // Валидация в реальном времени
+                    if (passwordTouched || value.length > 0) {
+                      setPasswordError(validatePassword(value));
+                    }
+                  }}
+                  onBlur={() => {
+                    setPasswordTouched(true);
+                    setPasswordError(validatePassword(password));
                   }}
                   onKeyPress={(e) => e.key === 'Enter' && (userExists ? handleResetPassword() : handleRegister())}
                   placeholder="••••••••"
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
+                  className={`w-full px-4 py-3 pr-12 border-2 rounded-lg focus:outline-none bg-white text-gray-900 ${
+                    passwordError && passwordTouched
+                      ? 'border-red-500 focus:border-red-500'
+                      : passwordTouched && !passwordError && password
+                      ? 'border-green-500 focus:border-green-500'
+                      : 'border-gray-300 focus:border-gray-900'
+                  }`}
                 />
                 <button
                   type="button"
@@ -425,6 +466,23 @@ export default function InviteRegistrationPage() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {passwordError && passwordTouched && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {passwordError}
+                </p>
+              )}
+              {!passwordError && passwordTouched && password && (
+                <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  Пароль введен корректно
+                </p>
+              )}
+              {!passwordTouched && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Минимум 6 символов, только латинские буквы, цифры и специальные символы
+                </p>
+              )}
             </div>
 
             {/* Подтверждение пароля - только для сброса пароля */}
@@ -454,7 +512,16 @@ export default function InviteRegistrationPage() {
                   </button>
                 </div>
                 {password && confirmPassword && password !== confirmPassword && (
-                  <p className="text-xs text-red-500 mt-1">Пароли не совпадают</p>
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Пароли не совпадают
+                  </p>
+                )}
+                {password && confirmPassword && password === confirmPassword && passwordTouched && !passwordError && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    Пароли совпадают
+                  </p>
                 )}
               </div>
             )}
