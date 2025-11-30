@@ -26,7 +26,7 @@ export default function UserDetailView({
     name: '',
     email: '',
     phone: '',
-    role: 'guest' as 'manager' | 'guest'
+    role: 'guest' as 'developer' | 'manager' | 'guest'
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -306,11 +306,14 @@ export default function UserDetailView({
                   </label>
                   <select
                     value={editFormData.role}
-                    onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as 'manager' | 'guest' })}
+                    onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as 'developer' | 'manager' | 'guest' })}
                     className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
                   >
                     <option value="guest">Гость</option>
                     <option value="manager">Менеджер</option>
+                    {currentUser.role === 'developer' && (
+                      <option value="developer">Разработчик</option>
+                    )}
                   </select>
                 </div>
                 <div className="flex gap-2">
@@ -348,7 +351,7 @@ export default function UserDetailView({
                       ? 'bg-blue-100 text-blue-800' 
                       : 'bg-gray-100 text-gray-800'
                   }`}>
-                    {user.role === 'manager' ? 'Менеджер' : 'Гость'}
+                    {user.role === 'developer' ? 'Разработчик' : user.role === 'manager' ? 'Менеджер' : 'Гость'}
                   </span>
                 </div>
               </>

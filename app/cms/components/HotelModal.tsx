@@ -15,6 +15,7 @@ export default function HotelModal({ hotel, onSave, onClose }: HotelModalProps) 
     address: hotel?.address || '',
     description: hotel?.description || '',
     floors: hotel?.floors || 3,
+    hasEGFloor: hotel?.hasEGFloor !== undefined ? hotel.hasEGFloor : true,
     image: hotel?.image || '',
   });
   const [imagePreview, setImagePreview] = useState<string | null>(hotel?.image || null);
@@ -122,6 +123,22 @@ export default function HotelModal({ hotel, onSave, onClose }: HotelModalProps) 
               </select>
               <p className="text-xs text-gray-500 mt-1">
                 Выберите количество этажей в отеле. Это определит доступные этажи для размещения комнат.
+              </p>
+            </div>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.hasEGFloor}
+                  onChange={(e) => setFormData({ ...formData, hasEGFloor: e.target.checked })}
+                  className="w-4 h-4 text-gray-700 border-gray-300 rounded focus:ring-gray-500"
+                />
+                <span className="text-sm font-semibold">
+                  Есть этаж EG (первый этаж)
+                </span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1 ml-6">
+                Если отмечено, отель начинается с этажа EG. Если не отмечено, отель начинается с этажа 1OG.
               </p>
             </div>
             <div>

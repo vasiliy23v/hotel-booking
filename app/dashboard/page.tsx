@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Bed, Users, BarChart3, LogOut, Plus, Edit, Trash2, LayoutGrid, Filter, Calendar, Euro, X, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, DollarSign, Mail, Copy, RefreshCw, CheckCircle, AlertCircle, Clock, KeyRound, ArrowRight, Phone, BookOpen, List, Eye, EyeOff, Bell, MessageSquare, CreditCard } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -8,6 +8,11 @@ import type { User, Room, Hotel, Stairs, Statistics, CashMonitoring, Invite, Boo
 import FloorPlan from '@/components/FloorPlan';
 import Link from 'next/link';
 import FeedbackForm from '@/components/FeedbackForm';
+
+// Вспомогательная функция для проверки прав менеджера или разработчика
+const isManagerOrDeveloper = (user: User | null): boolean => {
+  return user?.role === 'manager' || user?.role === 'developer';
+};
 
 export default function Dashboard() {
   const router = useRouter();
@@ -21,7 +26,7 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false); // Тихая перезагрузка без скелетона
   const [error, setError] = useState<string | null>(null); // Состояние ошибки
   const [viewMode, setViewMode] = useState<'plan' | 'list'>('plan');
-  const [selectedFloor, setSelectedFloor] = useState<'EG' | '1OG' | '2OG'>('EG');
+  const [selectedFloor, setSelectedFloor] = useState<'EG' | '1OG' | '2OG' | '3OG'>('EG');
   const [stairs, setStairs] = useState<Stairs[]>([]);
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
@@ -55,6 +60,32 @@ export default function Dashboard() {
   // Ref для отслеживания предыдущего значения выбранного отеля
   const prevSelectedHotelRef = useRef<string | null>(null);
 
+  // Автоматически выбираем первый доступный этаж при изменении отеля
+  useEffect(() => {
+    if (selectedHotel && rooms.length > 0) {
+      const hotelRooms = rooms.filter(r => r.hotelId === selectedHotel);
+      if (hotelRooms.length > 0) {
+        const floorsSet = new Set(hotelRooms.map(r => r.floor));
+        const allFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = ['EG', '1OG', '2OG', '3OG'];
+        const available = allFloors.filter(f => floorsSet.has(f));
+        
+        let availableFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = [];
+        // Если есть EG - показываем EG, 1OG, 2OG (EG - первый этаж)
+        if (available.some(f => f === 'EG')) {
+          availableFloors = ['EG', '1OG', '2OG'].filter(f => available.some(a => a === f)) as ('EG' | '1OG' | '2OG')[];
+        } else {
+          // Если нет EG - показываем 1OG, 2OG, 3OG (1OG становится первым этажом)
+          availableFloors = ['1OG', '2OG', '3OG'].filter(f => available.some(a => a === f)) as ('1OG' | '2OG' | '3OG')[];
+        }
+        
+        if (availableFloors.length > 0 && !availableFloors.includes(selectedFloor)) {
+          setSelectedFloor(availableFloors[0]);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedHotel, rooms.length]);
+
   useEffect(() => {
     const userStr = localStorage.getItem('currentUser');
     if (!userStr) {
@@ -70,8 +101,8 @@ export default function Dashboard() {
       return;
     }
     
-    // Менеджеры автоматически перенаправляются на CMS
-    if (user.role === 'manager') {
+    // Менеджеры и разработчики автоматически перенаправляются на CMS
+    if (isManagerOrDeveloper(user)) {
       router.push('/cms/dashboard');
       return;
     }
@@ -185,7 +216,7 @@ export default function Dashboard() {
         if (savedViewMode === 'plan' || savedViewMode === 'list') {
           setViewMode(savedViewMode);
         }
-        if (savedFloor === 'EG' || savedFloor === '1OG' || savedFloor === '2OG') {
+        if (savedFloor === 'EG' || savedFloor === '1OG' || savedFloor === '2OG' || savedFloor === '3OG') {
           setSelectedFloor(savedFloor);
         }
         if (savedHotel) {
@@ -457,6 +488,37 @@ export default function Dashboard() {
   const availableRooms = hotelRooms.filter(r => !r.booking && !r.isCommon).length;
   const myBookingsCount = rooms.filter(r => r.booking?.bookedBy === currentUser.name).length;
 
+  // Определяем доступные этажи для отеля на основе настройки hasEGFloor
+  // Если hasEGFloor = true - показываем EG, 1OG, 2OG (EG - первый этаж)
+  // Если hasEGFloor = false - показываем 1OG, 2OG, 3OG (1OG становится первым этажом)
+  const getAvailableFloors = (() => {
+    if (!selectedHotel || !currentHotel) {
+      return ['EG', '1OG', '2OG', '3OG'] as ('EG' | '1OG' | '2OG' | '3OG')[];
+    }
+    
+    // Используем настройку отеля hasEGFloor
+    const hasEG = currentHotel.hasEGFloor !== false;
+    
+    if (hasEG) {
+      // Если есть EG, возвращаем EG, 1OG, 2OG
+      if (hotelRooms.length > 0) {
+        const floorsSet = new Set(hotelRooms.map(r => r.floor));
+        const available = ['EG', '1OG', '2OG'].filter(f => floorsSet.has(f));
+        return available.length > 0 ? available as ('EG' | '1OG' | '2OG')[] : ['EG', '1OG', '2OG'];
+      }
+      return ['EG', '1OG', '2OG'];
+    } else {
+      // Если нет EG, возвращаем 1OG, 2OG, 3OG
+      if (hotelRooms.length > 0) {
+        const floorsSet = new Set(hotelRooms.map(r => r.floor));
+        const available = ['1OG', '2OG', '3OG'].filter(f => floorsSet.has(f));
+        return available.length > 0 ? available as ('1OG' | '2OG' | '3OG')[] : ['1OG', '2OG', '3OG'];
+      }
+      return ['1OG', '2OG', '3OG'];
+    }
+  })();
+  
+
   // Вычисляем минимальную цену для каждого отеля
   const getHotelMinPrice = (hotelId: string): number => {
     const hotelRoomsList = rooms.filter(r => r.hotelId === hotelId && !r.isCommon);
@@ -503,7 +565,7 @@ export default function Dashboard() {
       
       switch (sortBy) {
         case 'floor':
-          const floorOrder: { [key: string]: number } = { 'EG': 0, '1OG': 1, '2OG': 2 };
+          const floorOrder: { [key: string]: number } = { 'EG': 0, '1OG': 1, '2OG': 2, '3OG': 3 };
           comparison = (floorOrder[a.floor] || 0) - (floorOrder[b.floor] || 0);
           break;
         case 'number':
@@ -554,7 +616,6 @@ export default function Dashboard() {
   const maxPrice = getMaxPrice();
   const hasActiveFilters = filterType !== 'all' || filterPriceMin > 0 || filterPriceMax < maxPrice || filterCapacity > 0 || filterAvailableOnly || sortBy !== 'floor' || sortDirection !== 'asc';
 
-  // Комнаты для текущего этажа
   const floorRooms = hotelRooms.filter(r => r.floor === selectedFloor);
 
   return (
@@ -652,11 +713,11 @@ export default function Dashboard() {
                   <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate cursor-pointer">Hotel Booking</h1>
                 </Link>
                 <span className={`hidden sm:inline text-xs px-2 py-0.5 rounded ${
-                  currentUser.role === 'manager' 
+                  isManagerOrDeveloper(currentUser)
                     ? 'bg-gray-700 text-white' 
                     : 'bg-gray-100 text-gray-700'
                 } font-semibold`}>
-                  {currentUser.role === 'manager' ? 'Менеджер' : 'Гость'}
+                  {currentUser.role === 'developer' ? 'Разработчик' : currentUser.role === 'manager' ? 'Менеджер' : 'Гость'}
                 </span>
               </div>
 
@@ -681,7 +742,7 @@ export default function Dashboard() {
 
 
                 {/* Кнопка CMS для менеджеров */}
-                {currentUser.role === 'manager' && (
+                {isManagerOrDeveloper(currentUser) && (
                   <Link
                     href="/cms/dashboard"
                     className="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2"
@@ -693,7 +754,7 @@ export default function Dashboard() {
                 )}
 
                 {/* Кнопка выхода для менеджеров (для гостей она в sidebar) */}
-                {currentUser.role === 'manager' && (
+                {isManagerOrDeveloper(currentUser) && (
                   <button
                     onClick={handleLogout}
                     className="bg-gray-900 hover:bg-gray-800 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2"
@@ -796,38 +857,21 @@ export default function Dashboard() {
             </div>
 
             {/* Выбор этажа для плана */}
-            {viewMode === 'plan' && currentHotel && (
+            {viewMode === 'plan' && currentHotel && getAvailableFloors.length > 0 && (
               <div className="mt-2 sm:mt-3 flex gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
-                <button
-                  onClick={() => setSelectedFloor('EG')}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
-                    selectedFloor === 'EG'
-                      ? 'bg-gray-900 text-white shadow-sm'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  EG
-                </button>
-                <button
-                  onClick={() => setSelectedFloor('1OG')}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
-                    selectedFloor === '1OG'
-                      ? 'bg-gray-900 text-white shadow-sm'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  1OG
-                </button>
-                <button
-                  onClick={() => setSelectedFloor('2OG')}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
-                    selectedFloor === '2OG'
-                      ? 'bg-gray-900 text-white shadow-sm'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  2OG
-                </button>
+                {getAvailableFloors.map((floor) => (
+                  <button
+                    key={floor}
+                    onClick={() => setSelectedFloor(floor)}
+                    className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
+                      selectedFloor === floor
+                        ? 'bg-gray-900 text-white shadow-sm'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {floor}
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -979,13 +1023,13 @@ export default function Dashboard() {
                 rooms={floorRooms}
                 floor={selectedFloor}
                 onRoomClick={handleRoomClick}
-                onRoomUpdate={currentUser.role === 'manager' ? handleRoomUpdate : undefined}
-                onRoomCreate={currentUser.role === 'manager' ? handleRoomCreate : undefined}
+                onRoomUpdate={isManagerOrDeveloper(currentUser) ? handleRoomUpdate : undefined}
+                onRoomCreate={isManagerOrDeveloper(currentUser) ? handleRoomCreate : undefined}
                 onCancelBooking={handleCancelBooking}
                 currentUser={currentUser.name}
-                isManager={currentUser.role === 'manager'}
+                isManager={isManagerOrDeveloper(currentUser)}
                 stairs={stairs.filter((s: Stairs) => s.hotelId === selectedHotel)}
-                onStairsUpdate={currentUser.role === 'manager' ? handleStairsUpdate : undefined}
+                onStairsUpdate={isManagerOrDeveloper(currentUser) ? handleStairsUpdate : undefined}
                 hotelId={selectedHotel}
               />
             </div>
@@ -997,7 +1041,7 @@ export default function Dashboard() {
                   Комнаты этажа {selectedFloor}
                 </h2>
                 
-                {currentUser.role === 'manager' && (
+                {isManagerOrDeveloper(currentUser) && (
                   <div className="flex gap-2 w-full sm:w-auto">
                     <button
                       onClick={() => setShowFilters(!showFilters)}
@@ -1147,7 +1191,7 @@ export default function Dashboard() {
                               Забронировать
                             </Link>
                           )}
-                          {room.booking && (room.booking.bookedBy === currentUser.name || currentUser.role === 'manager') && (
+                          {room.booking && (room.booking.bookedBy === currentUser.name || isManagerOrDeveloper(currentUser)) && (
                             <button
                               onClick={() => handleCancelBooking(room.id)}
                               className="px-3 py-1.5 bg-pink-900 hover:bg-pink-950 text-white rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap"
@@ -1155,7 +1199,7 @@ export default function Dashboard() {
                               Отменить бронь
                             </button>
                           )}
-                          {currentUser.role === 'manager' && (
+                          {isManagerOrDeveloper(currentUser) && (
                             <>
                               <button
                                 onClick={() => {
@@ -1197,7 +1241,7 @@ export default function Dashboard() {
                 </div>
                 
                 <div className="flex gap-2 w-full sm:w-auto flex-wrap">
-                  {currentUser.role === 'manager' && (
+                  {isManagerOrDeveloper(currentUser) && (
                     <>
                       <button
                         onClick={() => {
@@ -1238,7 +1282,7 @@ export default function Dashboard() {
               </div>
 
               {/* Панель фильтров (только для менеджера) */}
-              {showFilters && currentUser.role === 'manager' && (
+              {showFilters && isManagerOrDeveloper(currentUser) && (
                 <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     <div>
@@ -1309,7 +1353,7 @@ export default function Dashboard() {
                 {filteredAndSortedRooms.length === 0 ? (
                   <div className="text-center py-8 text-gray-500 text-sm">
                     Комнаты не найдены
-                    {currentUser.role === 'manager' && (
+                    {isManagerOrDeveloper(currentUser) && (
                       <button
                         onClick={() => {
                           setEditingRoom(null);
@@ -1391,7 +1435,7 @@ export default function Dashboard() {
                             {sortBy !== 'status' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
                         </th>
-                        {(currentUser.role === 'manager' || filteredAndSortedRooms.some(r => !r.isCommon && (!r.booking || r.booking.bookedBy === currentUser.name))) && (
+                        {(isManagerOrDeveloper(currentUser) || filteredAndSortedRooms.some(r => !r.isCommon && (!r.booking || r.booking.bookedBy === currentUser.name))) && (
                           <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Действия</th>
                         )}
                       </tr>
@@ -1425,7 +1469,7 @@ export default function Dashboard() {
                           <td className="px-3 py-2.5">
                             {room.booking ? (
                               <div className="text-xs">
-                                {currentUser.role === 'manager' && (
+                                {isManagerOrDeveloper(currentUser) && (
                                   <div className="font-semibold text-gray-700">{room.booking.bookedBy}</div>
                                 )}
                                 <div className="text-gray-500">
@@ -1436,7 +1480,7 @@ export default function Dashboard() {
                               <span className="text-xs text-green-600 font-semibold">Свободна</span>
                             )}
                           </td>
-                          {(currentUser.role === 'manager' || (!room.isCommon && (!room.booking || room.booking.bookedBy === currentUser.name))) && (
+                          {(isManagerOrDeveloper(currentUser) || (!room.isCommon && (!room.booking || room.booking.bookedBy === currentUser.name))) && (
                             <td className="px-3 py-2.5">
                               <div className="flex items-center gap-2">
                                 {!room.booking && !room.isCommon && (
@@ -1448,7 +1492,7 @@ export default function Dashboard() {
                                     Забронировать
                                   </Link>
                                 )}
-                                {room.booking && (room.booking.bookedBy === currentUser.name || currentUser.role === 'manager') && (
+                                {room.booking && (room.booking.bookedBy === currentUser.name || isManagerOrDeveloper(currentUser)) && (
                                   <button
                                     onClick={() => handleCancelBooking(room.id)}
                                     className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
@@ -1457,7 +1501,7 @@ export default function Dashboard() {
                                     Отменить
                                   </button>
                                 )}
-                                {currentUser.role === 'manager' && (
+                                {isManagerOrDeveloper(currentUser) && (
                                   <>
                                     <button
                                       onClick={() => {
@@ -1510,7 +1554,7 @@ export default function Dashboard() {
                 </div>
                 
                 <div className="flex gap-2 w-full sm:w-auto flex-wrap">
-                  {currentUser.role === 'manager' && (
+                  {isManagerOrDeveloper(currentUser) && (
                     <>
                       <button
                         onClick={() => {
@@ -1551,7 +1595,7 @@ export default function Dashboard() {
               </div>
 
               {/* Панель фильтров (только для менеджера) */}
-              {showFilters && currentUser.role === 'manager' && (
+              {showFilters && isManagerOrDeveloper(currentUser) && (
                 <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     <div>
@@ -1622,7 +1666,7 @@ export default function Dashboard() {
                 {filteredAndSortedRooms.length === 0 ? (
                   <div className="text-center py-8 text-gray-500 text-sm">
                     Комнаты не найдены
-                    {currentUser.role === 'manager' && (
+                    {isManagerOrDeveloper(currentUser) && (
                       <button
                         onClick={() => {
                           setEditingRoom(null);
@@ -1704,7 +1748,7 @@ export default function Dashboard() {
                             {sortBy !== 'status' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
                         </th>
-                        {(currentUser.role === 'manager' || filteredAndSortedRooms.some(r => !r.isCommon && (!r.booking || r.booking.bookedBy === currentUser.name))) && (
+                        {(isManagerOrDeveloper(currentUser) || filteredAndSortedRooms.some(r => !r.isCommon && (!r.booking || r.booking.bookedBy === currentUser.name))) && (
                           <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Действия</th>
                         )}
                       </tr>
@@ -1738,7 +1782,7 @@ export default function Dashboard() {
                           <td className="px-3 py-2.5">
                             {room.booking ? (
                               <div className="text-xs">
-                                {currentUser.role === 'manager' && (
+                                {isManagerOrDeveloper(currentUser) && (
                                   <div className="font-semibold text-gray-700">{room.booking.bookedBy}</div>
                                 )}
                                 <div className="text-gray-500">
@@ -1749,7 +1793,7 @@ export default function Dashboard() {
                               <span className="text-xs text-green-600 font-semibold">Свободна</span>
                             )}
                           </td>
-                          {(currentUser.role === 'manager' || (!room.isCommon && (!room.booking || room.booking.bookedBy === currentUser.name))) && (
+                          {(isManagerOrDeveloper(currentUser) || (!room.isCommon && (!room.booking || room.booking.bookedBy === currentUser.name))) && (
                             <td className="px-3 py-2.5">
                               <div className="flex items-center gap-2">
                                 {!room.booking && !room.isCommon && (
@@ -1761,7 +1805,7 @@ export default function Dashboard() {
                                     Забронировать
                                   </Link>
                                 )}
-                                {room.booking && (room.booking.bookedBy === currentUser.name || currentUser.role === 'manager') && (
+                                {room.booking && (room.booking.bookedBy === currentUser.name || isManagerOrDeveloper(currentUser)) && (
                                   <button
                                     onClick={() => handleCancelBooking(room.id)}
                                     className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
@@ -1770,7 +1814,7 @@ export default function Dashboard() {
                                     Отменить
                                   </button>
                                 )}
-                                {currentUser.role === 'manager' && (
+                                {isManagerOrDeveloper(currentUser) && (
                                   <>
                                     <button
                                       onClick={() => {
@@ -1814,6 +1858,7 @@ export default function Dashboard() {
           <RoomModal
             room={editingRoom}
             hotels={hotels}
+            rooms={rooms}
             onSave={handleSaveRoom}
             onClose={() => {
               setShowRoomModal(false);
@@ -1893,11 +1938,41 @@ export default function Dashboard() {
 interface RoomModalProps {
   room: Room | null;
   hotels: Hotel[];
+  rooms: Room[];
   onSave: (roomData: Partial<Room> & { number: string; hotelId: string; type: Room['type']; floor: Room['floor'] }) => void;
   onClose: () => void;
 }
 
-function RoomModal({ room, hotels, onSave, onClose }: RoomModalProps) {
+function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
+  // Определяем доступные этажи для выбранного отеля на основе настройки hasEGFloor
+  // Если hasEGFloor = true - показываем EG, 1OG, 2OG (EG - первый этаж)
+  // Если hasEGFloor = false - показываем 1OG, 2OG, 3OG (1OG становится первым этажом)
+  const getAvailableFloorsForHotel = (hotelId: string): ('EG' | '1OG' | '2OG' | '3OG')[] => {
+    const hotel = hotels.find(h => h.id === hotelId);
+    const hotelRooms = rooms.filter(r => r.hotelId === hotelId);
+    
+    // Используем настройку отеля hasEGFloor, если она есть
+    const hasEG = hotel?.hasEGFloor !== false;
+    
+    if (hasEG) {
+      // Если есть EG, возвращаем EG, 1OG, 2OG
+      if (hotelRooms.length > 0) {
+        const floorsSet = new Set(hotelRooms.map(r => r.floor));
+        const available = ['EG', '1OG', '2OG'].filter(f => floorsSet.has(f));
+        return available.length > 0 ? available as ('EG' | '1OG' | '2OG')[] : ['EG', '1OG', '2OG'];
+      }
+      return ['EG', '1OG', '2OG'];
+    } else {
+      // Если нет EG, возвращаем 1OG, 2OG, 3OG
+      if (hotelRooms.length > 0) {
+        const floorsSet = new Set(hotelRooms.map(r => r.floor));
+        const available = ['1OG', '2OG', '3OG'].filter(f => floorsSet.has(f));
+        return available.length > 0 ? available as ('1OG' | '2OG' | '3OG')[] : ['1OG', '2OG', '3OG'];
+      }
+      return ['1OG', '2OG', '3OG'];
+    }
+  };
+
   const [formData, setFormData] = useState({
     number: room?.number || '',
     name: room?.name || '',
@@ -1905,7 +1980,11 @@ function RoomModal({ room, hotels, onSave, onClose }: RoomModalProps) {
     capacity: room?.capacity || '2 чел.',
     maxCapacity: room?.maxCapacity || 2,
     beds: room?.beds?.join(', ') || '',
-    floor: room?.floor || 'EG',
+    floor: room?.floor || (() => {
+      const hotelId = room?.hotelId || hotels[0]?.id || '';
+      const availableFloors = getAvailableFloorsForHotel(hotelId);
+      return availableFloors.length > 0 ? availableFloors[0] : '1OG';
+    })(),
     price: room?.price || 0,
     hotelId: room?.hotelId || hotels[0]?.id || '',
     description: room?.description || '',
@@ -1980,9 +2059,18 @@ function RoomModal({ room, hotels, onSave, onClose }: RoomModalProps) {
                   onChange={(e) => setFormData({ ...formData, floor: e.target.value as Room['floor'] })}
                   className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
                 >
-                  <option value="EG">Первый этаж (EG)</option>
-                  <option value="1OG">Второй этаж (1OG)</option>
-                  <option value="2OG">Третий этаж (2OG)</option>
+                  {(() => {
+                    const availableFloors = getAvailableFloorsForHotel(formData.hotelId);
+                    const floorLabels: Record<string, string> = {
+                      'EG': 'EG (Первый этаж)',
+                      '1OG': '1OG',
+                      '2OG': '2OG',
+                      '3OG': '3OG'
+                    };
+                    return availableFloors.map(floor => (
+                      <option key={floor} value={floor}>{floorLabels[floor] || floor}</option>
+                    ));
+                  })()}
                 </select>
               </div>
             </div>
@@ -2168,9 +2256,10 @@ function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
                 className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
                 required
               >
-                <option value={1}>1 этаж (EG)</option>
-                <option value={2}>2 этажа (EG, 1OG)</option>
-                <option value={3}>3 этажа (EG, 1OG, 2OG)</option>
+                <option value={1}>1 этаж</option>
+                <option value={2}>2 этажа</option>
+                <option value={3}>3 этажа</option>
+                <option value={4}>4 этажа</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">
                 Выберите количество этажей в отеле. Это определит доступные этажи для размещения комнат.
@@ -2986,11 +3075,11 @@ function UsersView({
                     </td>
                     <td className="px-3 py-2.5">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
-                        user.role === 'manager' 
+                        isManagerOrDeveloper(user) 
                           ? 'bg-blue-100 text-blue-800' 
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {user.role === 'manager' ? 'Менеджер' : 'Гость'}
+                        {user.role === 'developer' ? 'Разработчик' : user.role === 'manager' ? 'Менеджер' : 'Гость'}
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
@@ -3463,7 +3552,7 @@ function BookingsView({
   onCancelBooking: (bookingId: string) => void;
 }) {
   // Фильтруем бронирования: менеджер видит все, гость - только свои
-  let filteredBookings = currentUser.role === 'manager' 
+  let filteredBookings = isManagerOrDeveloper(currentUser) 
     ? bookings 
     : bookings.filter(b => b.bookedBy === currentUser.name);
 
@@ -3536,7 +3625,7 @@ function BookingsView({
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
             <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
-            {currentUser.role === 'manager' ? 'Бронирования' : 'Мои бронирования'}
+            {isManagerOrDeveloper(currentUser) ? 'Бронирования' : 'Мои бронирования'}
           </h2>
           
           <div className="flex gap-2 w-full sm:w-auto">
@@ -3567,7 +3656,7 @@ function BookingsView({
         {showBookingsFilters && (
           <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              {currentUser.role === 'manager' && (
+              {isManagerOrDeveloper(currentUser) && (
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">Забронировано</label>
                   <input
@@ -3672,7 +3761,7 @@ function BookingsView({
                     (1000 * 60 * 60 * 24)
                   );
                   const room = rooms.find(r => r.id === booking.roomId);
-                  const canCancel = currentUser.role === 'manager' || booking.bookedBy === currentUser.name;
+                  const canCancel = isManagerOrDeveloper(currentUser) || booking.bookedBy === currentUser.name;
 
                   return (
                     <tr

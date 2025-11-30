@@ -14,18 +14,22 @@ import { normalizePhone } from './phone';
 /**
  * Преобразует enum FloorType из Prisma в формат приложения
  */
-function transformFloor(floor: string): 'EG' | '1OG' | '2OG' {
+function transformFloor(floor: string): 'EG' | '1OG' | '2OG' | '3OG' {
+  if (floor === 'EG') return 'EG';
   if (floor === 'oneOG') return '1OG';
   if (floor === 'twoOG') return '2OG';
-  return floor as 'EG' | '1OG' | '2OG';
+  if (floor === 'threeOG') return '3OG';
+  return floor as 'EG' | '1OG' | '2OG' | '3OG';
 }
 
 /**
  * Преобразует формат приложения в enum FloorType для Prisma
  */
-function transformFloorToPrisma(floor: 'EG' | '1OG' | '2OG'): 'EG' | 'oneOG' | 'twoOG' {
+function transformFloorToPrisma(floor: 'EG' | '1OG' | '2OG' | '3OG'): 'EG' | 'oneOG' | 'twoOG' | 'threeOG' {
+  if (floor === 'EG') return 'EG';
   if (floor === '1OG') return 'oneOG';
   if (floor === '2OG') return 'twoOG';
+  if (floor === '3OG') return 'threeOG';
   return 'EG';
 }
 
@@ -334,6 +338,7 @@ export async function getHotels(): Promise<Hotel[]> {
     address: h.address,
     description: h.description || undefined,
     floors: h.floors || undefined,
+    hasEGFloor: h.hasEGFloor,
     image: h.image || undefined,
   }));
 }
@@ -354,6 +359,7 @@ export async function getHotelById(id: string): Promise<Hotel | null> {
     address: hotel.address,
     description: hotel.description || undefined,
     floors: hotel.floors || undefined,
+    hasEGFloor: hotel.hasEGFloor,
     image: hotel.image || undefined,
   };
 }
@@ -370,6 +376,7 @@ export async function createHotel(hotel: Omit<Hotel, 'id'> & { id?: string }): P
       address: hotel.address,
       description: hotel.description || null,
       floors: hotel.floors || null,
+      hasEGFloor: hotel.hasEGFloor !== undefined ? hotel.hasEGFloor : true,
       image: hotel.image || null,
     },
   });
@@ -380,6 +387,7 @@ export async function createHotel(hotel: Omit<Hotel, 'id'> & { id?: string }): P
     address: newHotel.address,
     description: newHotel.description || undefined,
     floors: newHotel.floors || undefined,
+    hasEGFloor: newHotel.hasEGFloor,
     image: newHotel.image || undefined,
   };
 }
@@ -387,13 +395,103 @@ export async function createHotel(hotel: Omit<Hotel, 'id'> & { id?: string }): P
 /**
  * Обновить отель
  */
+/**
+ * Миграция этажей при изменении hasEGFloor
+ * При отключении EG: EG -> 1OG, 1OG -> 2OG, 2OG -> 3OG
+ * При включении EG: 1OG -> EG, 2OG -> 1OG, 3OG -> 2OG
+ */
+async function migrateHotelFloors(hotelId: string, newHasEGFloor: boolean): Promise<void> {
+  // Получаем текущий отель
+  const hotel = await prisma.hotel.findUnique({
+    where: { id: hotelId },
+    include: { rooms: true, stairs: true },
+  });
+  
+  if (!hotel) {
+    throw new Error('Отель не найден');
+  }
+  
+  const oldHasEGFloor = hotel.hasEGFloor;
+  
+  // Если значение не изменилось, миграция не нужна
+  if (oldHasEGFloor === newHasEGFloor) {
+    return;
+  }
+  
+  // Определяем маппинг этажей
+  const floorMapping: Record<string, 'EG' | 'oneOG' | 'twoOG' | 'threeOG'> = {};
+  
+  if (!oldHasEGFloor && newHasEGFloor) {
+    // Включаем EG: 1OG -> EG, 2OG -> 1OG, 3OG -> 2OG
+    floorMapping['oneOG'] = 'EG';
+    floorMapping['twoOG'] = 'oneOG';
+    floorMapping['threeOG'] = 'twoOG';
+  } else if (oldHasEGFloor && !newHasEGFloor) {
+    // Отключаем EG: EG -> 1OG, 1OG -> 2OG, 2OG -> 3OG
+    floorMapping['EG'] = 'oneOG';
+    floorMapping['oneOG'] = 'twoOG';
+    floorMapping['twoOG'] = 'threeOG';
+  }
+  
+  // Мигрируем комнаты
+  for (const room of hotel.rooms) {
+    const newFloor = floorMapping[room.floor];
+    if (newFloor) {
+      await prisma.room.update({
+        where: { id: room.id },
+        data: { floor: newFloor },
+      });
+    }
+  }
+  
+  // Мигрируем ступени
+  for (const stair of hotel.stairs) {
+    const newFloor = floorMapping[stair.floor];
+    const newTargetFloor = stair.targetFloor ? floorMapping[stair.targetFloor] : undefined;
+    
+    const updateData: any = {};
+    if (newFloor) {
+      updateData.floor = newFloor;
+    }
+    if (newTargetFloor) {
+      updateData.targetFloor = newTargetFloor;
+    }
+    
+    if (Object.keys(updateData).length > 0) {
+      await prisma.stairs.update({
+        where: { id: stair.id },
+        data: updateData,
+      });
+    }
+  }
+}
+
 export async function updateHotel(id: string, updates: Partial<Hotel>): Promise<Hotel> {
+  // Получаем текущий отель для проверки изменения hasEGFloor
+  const currentHotel = await prisma.hotel.findUnique({
+    where: { id },
+  });
+  
+  if (!currentHotel) {
+    throw new Error('Отель не найден');
+  }
+  
+  // Проверяем, изменился ли hasEGFloor
+  const hasEGFloorChanged = updates.hasEGFloor !== undefined && 
+                            updates.hasEGFloor !== currentHotel.hasEGFloor;
+  
+  // Если hasEGFloor изменился, сначала выполняем миграцию
+  if (hasEGFloorChanged) {
+    await migrateHotelFloors(id, updates.hasEGFloor!);
+  }
+  
   const updateData: any = {};
   
   if (updates.name !== undefined) updateData.name = updates.name;
   if (updates.address !== undefined) updateData.address = updates.address;
   if (updates.description !== undefined) updateData.description = updates.description;
   if (updates.floors !== undefined) updateData.floors = updates.floors;
+  if (updates.hasEGFloor !== undefined) updateData.hasEGFloor = updates.hasEGFloor;
   if (updates.image !== undefined) updateData.image = updates.image;
   
   const updatedHotel = await prisma.hotel.update({
@@ -407,6 +505,7 @@ export async function updateHotel(id: string, updates: Partial<Hotel>): Promise<
     address: updatedHotel.address,
     description: updatedHotel.description || undefined,
     floors: updatedHotel.floors || undefined,
+    hasEGFloor: updatedHotel.hasEGFloor,
     image: updatedHotel.image || undefined,
   };
 }

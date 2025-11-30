@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Edit, Trash2, Building2, Save, X, LayoutGrid } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -23,16 +23,51 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
     address: '',
     description: '',
     floors: 3,
+    hasEGFloor: true,
     image: '',
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [stairs, setStairs] = useState<Stairs[]>([]);
-  const [selectedFloor, setSelectedFloor] = useState<'EG' | '1OG' | '2OG'>('EG');
+  const [selectedFloor, setSelectedFloor] = useState<'EG' | '1OG' | '2OG' | '3OG'>('1OG');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
+
+  // Определяем доступные этажи на основе настройки отеля hasEGFloor
+  // Если hasEGFloor = true - показываем EG, 1OG, 2OG (EG - первый этаж)
+  // Если hasEGFloor = false - показываем 1OG, 2OG, 3OG (1OG становится первым этажом)
+  const getAvailableFloors = useMemo((): ('EG' | '1OG' | '2OG' | '3OG')[] => {
+    // Используем настройку отеля, если она есть, иначе определяем по комнатам
+    const hasEG = hotel?.hasEGFloor !== undefined ? hotel.hasEGFloor : 
+                  (rooms.length > 0 && rooms.some(r => r.floor === 'EG'));
+    
+    if (hasEG) {
+      // Если есть EG, возвращаем EG, 1OG, 2OG
+      const floorsSet = rooms.length > 0 ? new Set(rooms.map(r => r.floor)) : null;
+      if (floorsSet) {
+        const available = ['EG', '1OG', '2OG'].filter(f => floorsSet.has(f));
+        return available.length > 0 ? available as ('EG' | '1OG' | '2OG')[] : ['EG', '1OG', '2OG'];
+      }
+      return ['EG', '1OG', '2OG'];
+    } else {
+      // Если нет EG, возвращаем 1OG, 2OG, 3OG
+      const floorsSet = rooms.length > 0 ? new Set(rooms.map(r => r.floor)) : null;
+      if (floorsSet) {
+        const available = ['1OG', '2OG', '3OG'].filter(f => floorsSet.has(f));
+        return available.length > 0 ? available as ('1OG' | '2OG' | '3OG')[] : ['1OG', '2OG', '3OG'];
+      }
+      return ['1OG', '2OG', '3OG'];
+    }
+  }, [hotel?.hasEGFloor, rooms]);
+
+  // Автоматически выбираем первый доступный этаж, если текущий не доступен
+  useEffect(() => {
+    if (getAvailableFloors.length > 0 && !getAvailableFloors.includes(selectedFloor)) {
+      setSelectedFloor(getAvailableFloors[0]);
+    }
+  }, [getAvailableFloors, selectedFloor]);
 
   useEffect(() => {
     loadHotel();
@@ -57,6 +92,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
           address: foundHotel.address || '',
           description: foundHotel.description || '',
           floors: foundHotel.floors || 3,
+          hasEGFloor: foundHotel.hasEGFloor !== undefined ? foundHotel.hasEGFloor : true,
           image: foundHotel.image || '',
         });
         setImagePreview(foundHotel.image || null);
@@ -151,14 +187,37 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
   const handleSave = async () => {
     if (!hotel) return;
 
+    // Проверяем, изменился ли hasEGFloor
+    const hasEGFloorChanged = formData.hasEGFloor !== (hotel.hasEGFloor !== false);
+    
+    if (hasEGFloorChanged) {
+      const action = formData.hasEGFloor 
+        ? 'включить этаж EG (комнаты с 1OG, 2OG, 3OG переедут на EG, 1OG, 2OG)'
+        : 'отключить этаж EG (комнаты с EG, 1OG, 2OG переедут на 1OG, 2OG, 3OG)';
+      
+      const confirmed = window.confirm(
+        `ВНИМАНИЕ! Вы собираетесь ${action}.\n\n` +
+        `Это автоматически переместит все комнаты и ступени на новые этажи.\n\n` +
+        `Продолжить?`
+      );
+      
+      if (!confirmed) {
+        return;
+      }
+    }
+
     try {
       await api.updateHotel(hotel.id, formData);
       setEditing(false);
       await loadHotel();
       onHotelUpdate();
+      
+      if (hasEGFloorChanged) {
+        alert('Этажи успешно мигрированы! Все комнаты и ступени перемещены на новые этажи.');
+      }
     } catch (error) {
       console.error('Error saving hotel:', error);
-      alert('Ошибка при сохранении отеля');
+      alert('Ошибка при сохранении отеля: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     }
   };
 
@@ -239,6 +298,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
         address: hotel.address || '',
         description: hotel.description || '',
         floors: hotel.floors || 3,
+        hasEGFloor: hotel.hasEGFloor !== undefined ? hotel.hasEGFloor : true,
         image: hotel.image || '',
       });
       setImagePreview(hotel.image || null);
@@ -423,9 +483,10 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
                 required
               >
-                <option value={1}>1 этаж (EG)</option>
-                <option value={2}>2 этажа (EG, 1OG)</option>
-                <option value={3}>3 этажа (EG, 1OG, 2OG)</option>
+                <option value={1}>1 этаж</option>
+                <option value={2}>2 этажа</option>
+                <option value={3}>3 этажа</option>
+                <option value={4}>4 этажа</option>
               </select>
             ) : (
               <p className="text-base sm:text-lg text-gray-700 font-semibold">
@@ -435,6 +496,34 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
             {editing && (
               <p className="text-xs text-gray-500 mt-1">
                 Выберите количество этажей в отеле. Это определит доступные этажи для размещения комнат.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Этаж EG (первый этаж)
+            </label>
+            {editing ? (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.hasEGFloor}
+                  onChange={(e) => setFormData({ ...formData, hasEGFloor: e.target.checked })}
+                  className="w-4 h-4 text-gray-700 border-gray-300 rounded focus:ring-gray-500"
+                />
+                <span className="text-sm">
+                  Есть этаж EG (первый этаж)
+                </span>
+              </label>
+            ) : (
+              <p className="text-base sm:text-lg text-gray-700 font-semibold">
+                {hotel.hasEGFloor !== false ? 'Есть этаж EG' : 'Нет этажа EG (начинается с 1OG)'}
+              </p>
+            )}
+            {editing && (
+              <p className="text-xs text-gray-500 mt-1">
+                Если отмечено, отель начинается с этажа EG. Если не отмечено, отель начинается с этажа 1OG.
               </p>
             )}
           </div>
@@ -452,44 +541,23 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
 
         <div className="space-y-4">
           {/* Выбор этажа */}
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            {(hotel.floors || 0) >= 1 && (
-              <button
-                onClick={() => setSelectedFloor('EG')}
-                className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
-                  selectedFloor === 'EG'
-                    ? 'bg-gray-900 text-white shadow-sm'
-                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                EG
-              </button>
-            )}
-            {(hotel.floors || 0) >= 2 && (
-              <button
-                onClick={() => setSelectedFloor('1OG')}
-                className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
-                  selectedFloor === '1OG'
-                    ? 'bg-gray-900 text-white shadow-sm'
-                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                1OG
-              </button>
-            )}
-            {(hotel.floors || 0) >= 3 && (
-              <button
-                onClick={() => setSelectedFloor('2OG')}
-                className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
-                  selectedFloor === '2OG'
-                    ? 'bg-gray-900 text-white shadow-sm'
-                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                2OG
-              </button>
-            )}
-          </div>
+          {getAvailableFloors.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+              {getAvailableFloors.map((floor) => (
+                <button
+                  key={floor}
+                  onClick={() => setSelectedFloor(floor)}
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+                    selectedFloor === floor
+                      ? 'bg-gray-900 text-white shadow-sm'
+                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {floor}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* FloorPlan */}
           {currentUser && (

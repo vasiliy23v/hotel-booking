@@ -37,7 +37,7 @@ export interface Room {
   capacity: string;
   maxCapacity: number;
   beds: string[];
-  floor: 'EG' | '1OG' | '2OG';
+  floor: 'EG' | '1OG' | '2OG' | '3OG';
   price: number;
   booking?: BookingInfo;
   position: { x: number; y: number };
@@ -53,12 +53,12 @@ export interface Room {
 export interface Stairs {
   id: string;
   hotelId: string;
-  floor: 'EG' | '1OG' | '2OG';
+  floor: 'EG' | '1OG' | '2OG' | '3OG';
   position: { x: number; y: number };
   width: number;
   height: number;
   direction: 'up' | 'down' | 'both';
-  targetFloor?: 'EG' | '1OG' | '2OG';
+  targetFloor?: 'EG' | '1OG' | '2OG' | '3OG';
 }
 
 export interface Hotel {
@@ -67,6 +67,7 @@ export interface Hotel {
   address: string;
   description?: string;
   floors?: number; // Количество этажей
+  hasEGFloor?: boolean; // Есть ли этаж EG (первый этаж)
   image?: string; // Путь к изображению отеля
 }
 
@@ -76,7 +77,7 @@ export interface User {
   name: string;
   password?: string;
   phone?: string; // Опциональный телефон
-  role: 'manager' | 'guest';
+  role: 'developer' | 'manager' | 'guest';
   isProfileComplete?: boolean; // Флаг заполненности профиля
   createdAt?: string; // Дата регистрации
 }

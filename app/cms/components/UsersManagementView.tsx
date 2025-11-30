@@ -31,7 +31,7 @@ export default function UsersManagementView({
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPhone, setNewUserPhone] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
-  const [newUserRole, setNewUserRole] = useState<'manager' | 'guest'>('guest');
+  const [newUserRole, setNewUserRole] = useState<'developer' | 'manager' | 'guest'>('guest');
   const [expiresInDays, setExpiresInDays] = useState(7);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [newInviteToken, setNewInviteToken] = useState<string | null>(null);
@@ -653,7 +653,7 @@ export default function UsersManagementView({
                                 ? 'bg-blue-100 text-blue-800' 
                                 : 'bg-gray-100 text-gray-800'
                             }`}>
-                              {user.role === 'manager' ? 'Менеджер' : 'Гость'}
+                              {user.role === 'developer' ? 'Разработчик' : user.role === 'manager' ? 'Менеджер' : 'Гость'}
                             </span>
                           </td>
                           <td className="px-3 py-2.5 text-sm text-gray-700">
@@ -964,11 +964,14 @@ export default function UsersManagementView({
                     </label>
                     <select
                       value={newUserRole}
-                      onChange={(e) => setNewUserRole(e.target.value as 'manager' | 'guest')}
+                      onChange={(e) => setNewUserRole(e.target.value as 'developer' | 'manager' | 'guest')}
                       className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
                     >
                       <option value="guest">Гость</option>
                       <option value="manager">Менеджер</option>
+                      {currentUser.role === 'developer' && (
+                        <option value="developer">Разработчик</option>
+                      )}
                     </select>
                   </div>
 

@@ -11,7 +11,7 @@ import { api } from '@/lib/api';
 
 interface FloorPlanProps {
   rooms: Room[];
-  floor: 'EG' | '1OG' | '2OG';
+  floor: 'EG' | '1OG' | '2OG' | '3OG';
   onRoomClick: (room: Room) => void;
   onRoomUpdate?: (room: Room) => void;
   onRoomCreate?: (room: Room) => void;
@@ -750,9 +750,10 @@ export default function FloorPlan({
 
     const stairsHotelId = hotelId || floorRooms[0]?.hotelId || '';
 
-    let targetFloor: 'EG' | '1OG' | '2OG' = floor;
+    let targetFloor: 'EG' | '1OG' | '2OG' | '3OG' = floor;
     if (floor === 'EG') targetFloor = '1OG';
     else if (floor === '1OG') targetFloor = '2OG';
+    else if (floor === '2OG') targetFloor = '3OG';
     else targetFloor = '1OG';
 
     const newStairs: Stairs = {
@@ -1131,7 +1132,7 @@ export default function FloorPlan({
     console.log('handleDuplicateMultipleStairs: modal should be shown');
   };
 
-  const handlePasteToFloor = async (targetFloor: 'EG' | '1OG' | '2OG') => {
+  const handlePasteToFloor = async (targetFloor: 'EG' | '1OG' | '2OG' | '3OG') => {
     if (copiedRooms.length === 0 || isLoading) {
       console.warn('handlePasteToFloor: copiedRooms is empty or loading');
       return;
@@ -1144,7 +1145,7 @@ export default function FloorPlan({
     }
     
     setIsLoading(true);
-    setLoadingMessage(`Копирование ${copiedRooms.length} ${copiedRooms.length === 1 ? 'комнаты' : 'комнат'} на ${targetFloor === 'EG' ? 'первый' : targetFloor === '1OG' ? 'второй' : 'третий'} этаж...`);
+    setLoadingMessage(`Копирование ${copiedRooms.length} ${copiedRooms.length === 1 ? 'комнаты' : 'комнат'} на ${targetFloor === 'EG' ? 'первый' : targetFloor === '1OG' ? 'второй' : targetFloor === '2OG' ? 'третий' : 'четвертый'} этаж...`);
     
     console.log('handlePasteToFloor: copying', copiedRooms.length, 'rooms to floor', targetFloor);
     
@@ -1214,7 +1215,7 @@ export default function FloorPlan({
       
       // Показываем уведомление об успешном копировании
       if (savedRooms.length === duplicatedRooms.length) {
-        alert(`Успешно скопировано ${savedRooms.length} ${savedRooms.length === 1 ? 'комната' : savedRooms.length < 5 ? 'комнаты' : 'комнат'} на ${targetFloor === 'EG' ? 'первый' : targetFloor === '1OG' ? 'второй' : 'третий'} этаж. Переключитесь на этот этаж, чтобы увидеть скопированные комнаты.`);
+        alert(`Успешно скопировано ${savedRooms.length} ${savedRooms.length === 1 ? 'комната' : savedRooms.length < 5 ? 'комнаты' : 'комнат'} на ${targetFloor === 'EG' ? 'первый' : targetFloor === '1OG' ? 'второй' : targetFloor === '2OG' ? 'третий' : 'четвертый'} этаж. Переключитесь на этот этаж, чтобы увидеть скопированные комнаты.`);
       }
     } finally {
       setIsLoading(false);
@@ -1222,7 +1223,7 @@ export default function FloorPlan({
     }
   };
 
-  const handlePasteStairsToFloor = (targetFloor: 'EG' | '1OG' | '2OG') => {
+  const handlePasteStairsToFloor = (targetFloor: 'EG' | '1OG' | '2OG' | '3OG') => {
     if (copiedStairs.length === 0) {
       console.warn('handlePasteStairsToFloor: copiedStairs is empty');
       return;
@@ -1233,15 +1234,16 @@ export default function FloorPlan({
     // Копируем ступени на выбранный этаж с сохранением точных позиций и размеров
     const duplicatedStairs: Stairs[] = copiedStairs.map((stair) => {
       // Определяем целевой этаж для ступеней
-      let newTargetFloor: 'EG' | '1OG' | '2OG' = targetFloor;
+      let newTargetFloor: 'EG' | '1OG' | '2OG' | '3OG' = targetFloor;
       if (stair.targetFloor) {
         // Если у ступеней был целевой этаж, вычисляем новый целевой этаж относительно нового этажа
-        const currentFloorIndex = ['EG', '1OG', '2OG'].indexOf(stair.floor);
-        const targetFloorIndex = ['EG', '1OG', '2OG'].indexOf(stair.targetFloor);
+        const allFloors = ['EG', '1OG', '2OG', '3OG'];
+        const currentFloorIndex = allFloors.indexOf(stair.floor);
+        const targetFloorIndex = allFloors.indexOf(stair.targetFloor);
         const floorOffset = targetFloorIndex - currentFloorIndex;
-        const newFloorIndex = ['EG', '1OG', '2OG'].indexOf(targetFloor);
-        const newTargetIndex = (newFloorIndex + floorOffset + 3) % 3;
-        newTargetFloor = ['EG', '1OG', '2OG'][newTargetIndex] as 'EG' | '1OG' | '2OG';
+        const newFloorIndex = allFloors.indexOf(targetFloor);
+        const newTargetIndex = Math.max(0, Math.min(allFloors.length - 1, newFloorIndex + floorOffset));
+        newTargetFloor = allFloors[newTargetIndex] as 'EG' | '1OG' | '2OG' | '3OG';
       }
       
       return {
@@ -1278,7 +1280,7 @@ export default function FloorPlan({
     setCopiedStairs([]);
     
     // Показываем уведомление об успешном копировании
-    alert(`Успешно скопировано ${duplicatedStairs.length} ${duplicatedStairs.length === 1 ? 'ступень' : duplicatedStairs.length < 5 ? 'ступени' : 'ступеней'} на ${targetFloor === 'EG' ? 'первый' : targetFloor === '1OG' ? 'второй' : 'третий'} этаж. Переключитесь на этот этаж, чтобы увидеть скопированные ступени.`);
+    alert(`Успешно скопировано ${duplicatedStairs.length} ${duplicatedStairs.length === 1 ? 'ступень' : duplicatedStairs.length < 5 ? 'ступени' : 'ступеней'} на ${targetFloor === 'EG' ? 'первый' : targetFloor === '1OG' ? 'второй' : targetFloor === '2OG' ? 'третий' : 'четвертый'} этаж. Переключитесь на этот этаж, чтобы увидеть скопированные ступени.`);
   };
 
   // Функция для глубокого сравнения комнат
@@ -1442,12 +1444,14 @@ export default function FloorPlan({
         console.log('handleFinishEditing: stairs by floor:', {
           EG: finalAllStairs.filter(s => s.floor === 'EG').length,
           '1OG': finalAllStairs.filter(s => s.floor === '1OG').length,
-          '2OG': finalAllStairs.filter(s => s.floor === '2OG').length
+          '2OG': finalAllStairs.filter(s => s.floor === '2OG').length,
+          '3OG': finalAllStairs.filter(s => s.floor === '3OG').length
         });
         console.log('handleFinishEditing: originalStairs by floor:', {
           EG: originalStairs.filter(s => s.floor === 'EG').length,
           '1OG': originalStairs.filter(s => s.floor === '1OG').length,
-          '2OG': originalStairs.filter(s => s.floor === '2OG').length
+          '2OG': originalStairs.filter(s => s.floor === '2OG').length,
+          '3OG': originalStairs.filter(s => s.floor === '3OG').length
         });
         
         // Финальная проверка: убеждаемся, что мы передаем ВСЕ ступени отеля
@@ -1501,7 +1505,7 @@ export default function FloorPlan({
       
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-bold">
-          {floor === 'EG' ? 'Первый этаж' : floor === '1OG' ? 'Второй этаж' : 'Третий этаж'}
+          {floor === 'EG' ? 'Первый этаж (EG)' : floor === '1OG' ? 'Второй этаж (1OG)' : floor === '2OG' ? 'Третий этаж (2OG)' : 'Четвертый этаж (3OG)'}
         </h3>
         {isManager && (
           <div className="flex gap-2 flex-wrap">
@@ -2597,6 +2601,23 @@ export default function FloorPlan({
                     Третий этаж (2OG)
                   </button>
                 )}
+                {floor !== '3OG' && (
+                  <button
+                    onClick={() => {
+                      if (!isLoading) {
+                        if (copyingType === 'rooms') {
+                          handlePasteToFloor('3OG');
+                        } else {
+                          handlePasteStairsToFloor('3OG');
+                        }
+                      }
+                    }}
+                    disabled={isLoading}
+                    className="px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Четвертый этаж (3OG)
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setShowFloorSelectModal(false);
@@ -2890,7 +2911,7 @@ function StairsEditModal({ stairs, hotelId, floor, onSave, onClose }: any) {
     const updatedStairs: Stairs = {
       ...stairs,
       direction: formData.direction as 'up' | 'down' | 'both',
-      targetFloor: formData.targetFloor as 'EG' | '1OG' | '2OG',
+      targetFloor: formData.targetFloor as 'EG' | '1OG' | '2OG' | '3OG',
       width: formData.width,
       height: formData.height,
       position: { x: formData.x, y: formData.y }

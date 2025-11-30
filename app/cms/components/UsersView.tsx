@@ -173,7 +173,7 @@ export default function UsersView({
                           ? 'bg-blue-100 text-blue-800' 
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {user.role === 'manager' ? 'Менеджер' : 'Гость'}
+                        {user.role === 'developer' ? 'Разработчик' : user.role === 'manager' ? 'Менеджер' : 'Гость'}
                       </span>
                     </td>
                     <td className="px-3 py-2.5">

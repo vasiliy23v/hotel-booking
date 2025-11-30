@@ -625,7 +625,7 @@ export default function BookingsView() {
                   </th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Гости</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Сумма</th>
-                  {currentUser?.role === 'manager' && (
+                  {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && (
                     <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Статус оплаты</th>
                   )}
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Примечания</th>
@@ -751,7 +751,7 @@ export default function BookingsView() {
                         )}
                       </td>
                       
-                      {currentUser?.role === 'manager' && (
+                      {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && (
                         <td className="px-3 py-2.5">
                           {isFullyPaid ? (
                             <div className="flex items-center gap-1.5">
