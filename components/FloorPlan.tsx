@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { 
   Bed, Users, DoorOpen, Lock, CheckCircle, Edit2, Plus, X, Trash2, 
-  ArrowUpDown, Copy, ShowerHead, Bath, Grid3x3, Loader2
+  ArrowUpDown, Copy, ShowerHead, Toilet, Grid3x3, Loader2, Calendar
 } from 'lucide-react';
 import type { Room, Stairs } from '@/types';
+import { api } from '@/lib/api';
 
 interface FloorPlanProps {
   rooms: Room[];
@@ -60,6 +61,11 @@ export default function FloorPlan({
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [dateFilterEnabled, setDateFilterEnabled] = useState(false);
+  const [checkInDate, setCheckInDate] = useState('');
+  const [checkOutDate, setCheckOutDate] = useState('');
+  const [roomsAvailability, setRoomsAvailability] = useState<Record<string, boolean>>({});
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
   const SNAP_SIZE = 10;
   const GRID_SIZE = 10; // Размер сетки для отображения
   // Храним начальные позиции выбранных комнат при начале перетаскивания
@@ -251,8 +257,41 @@ export default function FloorPlan({
   const displayRooms = editMode ? localRooms : rooms;
   const displayStairs = editMode ? localStairs : stairs;
 
-  const floorRooms = displayRooms.filter(r => r.floor === floor).sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+  const floorRooms = useMemo(() => {
+    return displayRooms.filter(r => r.floor === floor).sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+  }, [displayRooms, floor]);
+  
   const floorStairs = displayStairs.filter(s => s.floor === floor);
+
+  // Проверка доступности комнат по выбранным датам
+  useEffect(() => {
+    if (!dateFilterEnabled || !checkInDate || !checkOutDate) {
+      setRoomsAvailability({});
+      return;
+    }
+
+    const checkAvailability = async () => {
+      const nonCommonRooms = floorRooms.filter(r => !r.isCommon);
+      if (nonCommonRooms.length === 0) {
+        setRoomsAvailability({});
+        return;
+      }
+
+      setLoadingAvailability(true);
+      try {
+        const roomIds = nonCommonRooms.map(r => r.id);
+        const availability = await api.checkRoomsAvailability(roomIds, checkInDate, checkOutDate);
+        setRoomsAvailability(availability);
+      } catch (error) {
+        console.error('Error checking rooms availability:', error);
+        setRoomsAvailability({});
+      } finally {
+        setLoadingAvailability(false);
+      }
+    };
+
+    checkAvailability();
+  }, [dateFilterEnabled, checkInDate, checkOutDate, floorRooms]);
 
   // Вычисляем размеры контейнера на основе позиций комнат и ступеней
   const calculateContainerSize = () => {
@@ -300,14 +339,45 @@ export default function FloorPlan({
 
   const getRoomColor = (room: Room) => {
     if (room.isCommon) return 'bg-gray-200 border-gray-400';
+    
+    // Если включен фильтр по датам, используем информацию о доступности
+    if (dateFilterEnabled && checkInDate && checkOutDate) {
+      const isAvailable = roomsAvailability[room.id];
+      if (isAvailable === false) {
+        // Комната занята в выбранные даты
+        return 'bg-red-100 border-red-400 hover:bg-red-200';
+      } else if (isAvailable === true) {
+        // Комната свободна в выбранные даты
+        return 'bg-emerald-100 border-emerald-400 hover:bg-emerald-200';
+      }
+      // Если информация еще загружается, показываем нейтральный цвет
+      return 'bg-yellow-100 border-yellow-400 hover:bg-yellow-200';
+    }
+    
+    // Без фильтра по датам - используем текущее бронирование
     if (!room.booking) return 'bg-emerald-100 border-emerald-400 hover:bg-emerald-200';
-    const isMyBooking = room.booking.bookedBy === currentUser;
-    if (isMyBooking || isManager) return 'bg-gray-100 border-gray-400 hover:bg-gray-200';
-    return 'bg-gray-100 border-gray-400';
+    // Забронированные комнаты всегда красные для всех
+    return 'bg-red-100 border-red-400 hover:bg-red-200';
   };
 
   const getRoomIcon = (room: Room) => {
     if (room.isCommon) return <Lock className="w-4 h-4 text-gray-600" />;
+    
+    // Если включен фильтр по датам, используем информацию о доступности
+    if (dateFilterEnabled && checkInDate && checkOutDate) {
+      const isAvailable = roomsAvailability[room.id];
+      if (isAvailable === false) {
+        // Комната занята в выбранные даты
+        return <Lock className="w-4 h-4 text-red-600" />;
+      } else if (isAvailable === true) {
+        // Комната свободна в выбранные даты
+        return <DoorOpen className="w-4 h-4 text-emerald-600" />;
+      }
+      // Если информация еще загружается, показываем нейтральный цвет
+      return <Loader2 className="w-4 h-4 text-yellow-600 animate-spin" />;
+    }
+    
+    // Без фильтра по датам - используем текущее бронирование
     if (!room.booking) return <DoorOpen className="w-4 h-4 text-emerald-600" />;
     const isMyBooking = room.booking.bookedBy === currentUser;
     if (isMyBooking) return <CheckCircle className="w-4 h-4 text-gray-700" />;
@@ -571,12 +641,22 @@ export default function FloorPlan({
       return;
     }
     if (!room.isCommon) {
-      // Если комната забронирована и пользователь имеет право отменить, показываем подтверждение
-      if (room.booking && onCancelBooking && (room.booking.bookedBy === currentUser || isManager)) {
-        if (confirm('Отменить бронирование этой комнаты?')) {
-          onCancelBooking(room.id);
+      // Если комната забронирована
+      if (room.booking) {
+        // Менеджер может отменить любое бронирование
+        if (isManager && onCancelBooking) {
+          if (confirm('Отменить бронирование этой комнаты?')) {
+            onCancelBooking(room.id);
+          }
+        } 
+        // Обычный пользователь может отменить только своё бронирование
+        else if (onCancelBooking && room.booking.bookedBy === currentUser) {
+          if (confirm('Отменить бронирование этой комнаты?')) {
+            onCancelBooking(room.id);
+          }
         }
       } else {
+        // Комната свободна - можно забронировать (и менеджер, и обычный пользователь)
         onRoomClick(room);
       }
     }
@@ -1501,6 +1581,83 @@ export default function FloorPlan({
         </div>
       )}
 
+      {/* Фильтр по датам */}
+      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-blue-700" />
+            <label className="text-sm font-semibold text-blue-900 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={dateFilterEnabled}
+                onChange={(e) => {
+                  setDateFilterEnabled(e.target.checked);
+                  if (!e.target.checked) {
+                    setCheckInDate('');
+                    setCheckOutDate('');
+                    setRoomsAvailability({});
+                  }
+                }}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              Фильтр по датам
+            </label>
+          </div>
+          
+          {dateFilterEnabled && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-1">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                  Заезд:
+                </label>
+                <input
+                  type="date"
+                  value={checkInDate}
+                  onChange={(e) => {
+                    setCheckInDate(e.target.value);
+                    if (e.target.value && checkOutDate && e.target.value >= checkOutDate) {
+                      // Если дата заезда больше или равна дате выезда, сбрасываем дату выезда
+                      setCheckOutDate('');
+                    }
+                  }}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="px-3 py-2 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
+                />
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                  Выезд:
+                </label>
+                <input
+                  type="date"
+                  value={checkOutDate}
+                  onChange={(e) => setCheckOutDate(e.target.value)}
+                  min={checkInDate || new Date().toISOString().split('T')[0]}
+                  className="px-3 py-2 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
+                />
+              </div>
+
+              {loadingAvailability && (
+                <div className="flex items-center gap-2 text-sm text-blue-700">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Проверка доступности...</span>
+                </div>
+              )}
+
+              {dateFilterEnabled && checkInDate && checkOutDate && !loadingAvailability && (
+                <div className="text-xs text-gray-600 mt-1 sm:mt-0">
+                  <span className="inline-block w-3 h-3 bg-emerald-100 border border-emerald-400 rounded mr-1"></span>
+                  Свободно
+                  <span className="inline-block w-3 h-3 bg-red-100 border border-red-400 rounded mr-1 ml-3"></span>
+                  Занято
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div
         className={`relative border-2 border-gray-300 rounded-lg bg-gray-50 overflow-auto ${isLoading ? 'pointer-events-none' : ''}`}
         style={{
@@ -1673,36 +1830,49 @@ export default function FloorPlan({
                 
                 {/* Компактная информация для маленьких комнат */}
                 {!room.isCommon && (scaledWidth < 100 || scaledHeight < 80) ? (
-                  // Компактный режим для маленьких комнат
-                  <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-700">
-                    {room.capacity && (
-                      <div className="flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        <span>{room.capacity}</span>
+                  <>
+                    {/* Компактный режим для маленьких комнат */}
+                    <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-700">
+                      {room.capacity && (
+                        <div className="flex items-center gap-1">
+                          <Users className="w-4 h-4" />
+                          <span>{room.capacity}</span>
+                        </div>
+                      )}
+                      {room.beds && room.beds.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Bed className="w-4 h-4" />
+                          <span className="text-[10px]">{formatBeds(room.beds)}</span>
+                        </div>
+                      )}
+                      {room.hasShower && (
+                        <div className="flex items-center gap-1" title="Душ">
+                          <ShowerHead className="w-3 h-3 text-blue-600" />
+                        </div>
+                      )}
+                      {room.hasToilet && (
+                        <div className="flex items-center gap-1" title="Туалет">
+                          <Toilet className="w-3 h-3 text-blue-600" />
+                        </div>
+                      )}
+                      {room.price > 0 && (
+                        <div className="font-semibold ml-auto">
+                          {Math.round(room.price)}€
+                        </div>
+                      )}
+                    </div>
+                    {/* Информация о бронировании для менеджера в компактном режиме */}
+                    {isManager && room.booking && (
+                      <div className="mt-1 text-[9px] text-gray-700 border-t border-gray-300 pt-1">
+                        <div className="font-semibold truncate" title={room.booking.bookedBy}>
+                          {room.booking.bookedBy}
+                        </div>
+                        <div className="text-gray-600">
+                          {new Date(room.booking.checkIn).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })} - {new Date(room.booking.checkOut).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+                        </div>
                       </div>
                     )}
-                    {room.beds && room.beds.length > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Bed className="w-4 h-4" />
-                        <span className="text-[10px]">{formatBeds(room.beds)}</span>
-                      </div>
-                    )}
-                    {room.hasShower && (
-                      <div className="flex items-center gap-1" title="Душ">
-                        <ShowerHead className="w-3 h-3 text-blue-600" />
-                      </div>
-                    )}
-                    {room.hasToilet && (
-                      <div className="flex items-center gap-1" title="Туалет">
-                        <Bath className="w-3 h-3 text-blue-600" />
-                      </div>
-                    )}
-                    {room.price > 0 && (
-                      <div className="font-semibold ml-auto">
-                        {Math.round(room.price)}€
-                      </div>
-                    )}
-                  </div>
+                  </>
                 ) : (
                   // Полный режим для больших комнат
                   <>
@@ -1745,7 +1915,7 @@ export default function FloorPlan({
                             )}
                             {room.hasToilet && (
                               <div className="flex items-center gap-1" title="Туалет">
-                                <Bath className="w-4 h-4 text-blue-600" />
+                                <Toilet className="w-4 h-4 text-blue-600" />
                               </div>
                             )}
                           </div>
@@ -1757,6 +1927,18 @@ export default function FloorPlan({
                     {!room.isCommon && room.price > 0 && (
                       <div className="text-xs font-semibold text-gray-700 leading-tight mt-1">
                         {Math.round(room.price)}€
+                      </div>
+                    )}
+                    
+                    {/* Информация о бронировании для менеджера */}
+                    {isManager && room.booking && (
+                      <div className="mt-2 pt-2 border-t border-gray-300 text-[10px] text-gray-700">
+                        <div className="font-semibold truncate" title={room.booking.bookedBy}>
+                          {room.booking.bookedBy}
+                        </div>
+                        <div className="text-gray-600">
+                          {new Date(room.booking.checkIn).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })} - {new Date(room.booking.checkOut).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+                        </div>
                       </div>
                     )}
                   </>
@@ -2625,7 +2807,7 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                       className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
                     <label htmlFor="hasToilet" className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
-                      <Bath className="w-5 h-5 text-blue-600" />
+                      <Toilet className="w-5 h-5 text-blue-600" />
                       <span>Туалет</span>
                     </label>
                   </div>

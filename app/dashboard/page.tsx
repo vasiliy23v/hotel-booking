@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Bed, Users, BarChart3, LogOut, Plus, Edit, Trash2, LayoutGrid, Filter, Calendar, Euro, X, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, DollarSign, Mail, Copy, RefreshCw, CheckCircle, AlertCircle, Clock, KeyRound, ArrowRight, Phone, BookOpen, List, Eye, EyeOff, Bell, MessageSquare } from 'lucide-react';
+import { Building2, Bed, Users, BarChart3, LogOut, Plus, Edit, Trash2, LayoutGrid, Filter, Calendar, Euro, X, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, DollarSign, Mail, Copy, RefreshCw, CheckCircle, AlertCircle, Clock, KeyRound, ArrowRight, Phone, BookOpen, List, Eye, EyeOff, Bell, MessageSquare, CreditCard } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User, Room, Hotel, Stairs, Statistics, CashMonitoring, Invite, BookingInfo } from '@/types';
 import FloorPlan from '@/components/FloorPlan';
@@ -358,7 +358,9 @@ export default function Dashboard() {
   };
 
   const handleRoomClick = (room: Room) => {
-    if (!room.booking && !room.isCommon) {
+    if (!room.isCommon && !room.booking) {
+      // Бронировать можно только свободные комнаты
+      // Менеджер сначала должен отменить существующее бронирование
       router.push(`/booking/${room.id}`);
     }
   };
@@ -1111,7 +1113,7 @@ export default function Dashboard() {
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 sm:gap-3">
-                            <div className="text-lg sm:text-xl font-bold text-gray-900">#{room.number}</div>
+                            <div className="text-lg sm:text-xl font-bold text-gray-900">{room.number}</div>
                             {room.name && (
                               <div className="text-sm font-semibold text-gray-700 truncate">{room.name}</div>
                             )}
@@ -1407,7 +1409,7 @@ export default function Dashboard() {
                           }`}
                         >
                           <td className="px-3 py-2.5">
-                            <div className="font-semibold text-gray-900">#{room.number}</div>
+                            <div className="font-semibold text-gray-900">{room.number}</div>
                             {room.name && (
                               <div className="text-xs text-gray-600 mt-0.5">{room.name}</div>
                             )}
@@ -1720,7 +1722,7 @@ export default function Dashboard() {
                           }`}
                         >
                           <td className="px-3 py-2.5">
-                            <div className="font-semibold text-gray-900">#{room.number}</div>
+                            <div className="font-semibold text-gray-900">{room.number}</div>
                             {room.name && (
                               <div className="text-xs text-gray-600 mt-0.5">{room.name}</div>
                             )}
@@ -2252,8 +2254,31 @@ function StatisticsView({ selectedHotel, hotels }: { selectedHotel: string; hote
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterHotelId]);
 
+  if (!statistics && !loading) return null;
+
+  // Скелетон для загрузки
   if (loading) {
-    return <div className="text-center py-12">Загрузка...</div>;
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200">
+          <div className="mb-4 sm:mb-6">
+            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-5 h-5 bg-gray-300 rounded animate-pulse"></div>
+                  <div className="h-4 w-24 bg-gray-300 rounded animate-pulse"></div>
+                </div>
+                <div className="h-8 w-16 bg-gray-300 rounded animate-pulse mt-2"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!statistics) return null;
@@ -2261,29 +2286,14 @@ function StatisticsView({ selectedHotel, hotels }: { selectedHotel: string; hote
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
+        <div className="mb-4 sm:mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6" />
             Статистика
           </h2>
-          <div className="w-full sm:w-auto">
-            <label className="block text-xs font-semibold text-gray-700 mb-2">Фильтр по отелю</label>
-            <select
-              value={filterHotelId}
-              onChange={(e) => setFilterHotelId(e.target.value)}
-              className="w-full sm:w-64 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900 text-sm"
-            >
-              <option value="">Все отели</option>
-              {hotels.map((hotel) => (
-                <option key={hotel.id} value={hotel.id}>
-                  {hotel.name}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
             <div className="flex items-center gap-2 mb-2">
               <Building2 className="w-5 h-5 text-gray-700" />
@@ -2314,6 +2324,14 @@ function StatisticsView({ selectedHotel, hotels }: { selectedHotel: string; hote
               <span className="text-sm text-white font-semibold">Доход</span>
             </div>
             <div className="text-3xl font-bold text-white">{statistics.revenue}€</div>
+          </div>
+
+          <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+            <div className="flex items-center gap-2 mb-2">
+              <CreditCard className="w-5 h-5 text-orange-700" />
+              <span className="text-sm text-orange-700 font-semibold">К оплате</span>
+            </div>
+            <div className="text-3xl font-bold text-orange-700">{statistics.amountToPay?.toFixed(2) || '0.00'}€</div>
           </div>
         </div>
       </div>

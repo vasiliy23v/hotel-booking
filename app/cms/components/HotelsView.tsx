@@ -27,9 +27,25 @@ export default function HotelsView({
     try {
       setLoading(true);
       const data = await api.getHotels();
-      setHotels(data);
-      if (data.length > 0 && !selectedHotel) {
-        onSelectHotel(data[0].id);
+      
+      // Сортируем отели: "Drei Bären" (или содержащие "Drei" или "Bären") сначала
+      const sortedHotels = [...data].sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const isDreiBaren = (name: string) => 
+          name.includes('drei') || name.includes('bären') || name.includes('baren');
+        
+        const aIsDreiBaren = isDreiBaren(aName);
+        const bIsDreiBaren = isDreiBaren(bName);
+        
+        if (aIsDreiBaren && !bIsDreiBaren) return -1;
+        if (!aIsDreiBaren && bIsDreiBaren) return 1;
+        return 0;
+      });
+      
+      setHotels(sortedHotels);
+      if (sortedHotels.length > 0 && !selectedHotel) {
+        onSelectHotel(sortedHotels[0].id);
       }
     } catch (error) {
       console.error('Error loading hotels:', error);
@@ -207,7 +223,7 @@ export default function HotelsView({
                   ⚠️ Внимание! Это действие необратимо.
                 </p>
                 <p className="text-sm text-red-700">
-                  При удалении отеля <strong>"{hotelToDelete.name}"</strong> будут безвозвратно удалены:
+                  При удалении отеля <strong>&quot;{hotelToDelete.name}&quot;</strong> будут безвозвратно удалены:
                 </p>
                 <ul className="text-sm text-red-700 mt-2 list-disc list-inside space-y-1">
                   <li>Все комнаты отеля</li>

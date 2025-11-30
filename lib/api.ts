@@ -162,6 +162,13 @@ export class ApiClient {
     return this.request<{ unconfirmed: number; unpaid: number }>('/bookings/stats');
   }
 
+  async checkRoomsAvailability(roomIds: string[], checkIn: string, checkOut: string) {
+    return this.request<Record<string, boolean>>('/rooms/availability', {
+      method: 'POST',
+      body: JSON.stringify({ roomIds, checkIn, checkOut }),
+    });
+  }
+
 
   async getCashMonitoring(hotelId?: string) {
     const query = hotelId ? `?hotelId=${hotelId}` : '';

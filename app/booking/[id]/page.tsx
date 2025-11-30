@@ -22,8 +22,8 @@ export default function BookingPage() {
   const [checkOut, setCheckOut] = useState('');
   const [guests, setGuests] = useState<Guest[]>([]);
   const [notes, setNotes] = useState('');
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [selectedUserForBooking, setSelectedUserForBooking] = useState<string>('');
+  const [manualUserName, setManualUserName] = useState('');
+  const [manualUserPhone, setManualUserPhone] = useState('');
 
   useEffect(() => {
     const userStr = localStorage.getItem('currentUser');
@@ -34,26 +34,23 @@ export default function BookingPage() {
 
     const user = JSON.parse(userStr);
     
-    // Менеджеры перенаправляются на CMS
-    if (user.role === 'manager') {
-      router.push('/cms/dashboard');
-      return;
-    }
-
     setCurrentUser(user);
+    
     setEmail(user.email || '');
     setPhone(user.phone || '');
-
-    loadRoom();
+    
+    loadRoom(user);
   }, [router, roomId]);
 
-  const loadRoom = async () => {
+  const loadRoom = async (user?: User) => {
     try {
       setLoading(true);
       const roomData = await api.getRoom(roomId);
       setRoom(roomData);
 
-      if (roomData.booking) {
+      // Обычные пользователи не могут бронировать уже забронированные комнаты
+      // Менеджер может бронировать любую комнату
+      if (roomData.booking && user?.role !== 'manager') {
         router.push('/dashboard');
       }
     } catch (error) {
@@ -64,14 +61,6 @@ export default function BookingPage() {
     }
   };
 
-  const loadUsers = async () => {
-    try {
-      const users = await api.getUsers();
-      setAllUsers(users);
-    } catch (error) {
-      console.error('Error loading users:', error);
-    }
-  };
 
   const addGuest = () => {
     if (guests.length < (room?.maxCapacity || 4)) {
@@ -126,6 +115,14 @@ export default function BookingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Проверка для менеджера - всегда требуется ввод имени и телефона вручную
+    if (currentUser?.role === 'manager') {
+      if (!manualUserName.trim() || !manualUserPhone.trim()) {
+        alert('Пожалуйста, введите имя и телефон пользователя');
+        return;
+      }
+    }
+    
     if (!email || !phone || !checkIn || !checkOut) {
       alert('Пожалуйста, заполните все обязательные поля');
       return;
@@ -146,68 +143,50 @@ export default function BookingPage() {
     setSubmitting(true);
 
     try {
-      // Если менеджер выбрал пользователя, используем его имя
-      // Менеджер может бронировать на себя или на другого пользователя
-      const bookedByName = currentUser!.role === 'manager' && selectedUserForBooking 
-        ? selectedUserForBooking 
-        : currentUser!.name;
-
-      // Для менеджера: если он выбрал другого пользователя, используем его email/phone
-      let bookingEmail = email;
-      let bookingPhone = phone;
+      // Определяем имя того, кто бронирует
+      let bookedByName: string;
+      let bookingEmail: string;
+      let bookingPhone: string;
       
-      if (currentUser!.role === 'manager' && selectedUserForBooking) {
-        const selectedUser = allUsers.find(u => u.name === selectedUserForBooking);
-        if (selectedUser) {
-          bookingEmail = selectedUser.email || email;
-          bookingPhone = selectedUser.phone || phone;
+      if (currentUser!.role === 'manager') {
+        // Менеджер всегда вводит имя и телефон вручную
+        if (!manualUserName.trim() || !manualUserPhone.trim()) {
+          alert('Пожалуйста, введите имя и телефон пользователя');
+          setSubmitting(false);
+          return;
         }
+        bookedByName = manualUserName.trim();
+        bookingEmail = email;
+        bookingPhone = manualUserPhone.trim();
+      } else {
+        // Обычный пользователь
+        bookedByName = currentUser!.name;
+        bookingEmail = email;
+        bookingPhone = phone;
       }
 
       // Очищаем телефон от пробелов
       const cleanPhone = bookingPhone.replace(/\s/g, '');
 
-      // Если менеджер бронирует для себя и нет гостей, добавляем его в гости
+      // Добавляем основного пользователя в гости, если его там нет
       let finalGuests = validGuests;
-      if (currentUser!.role === 'manager' && !selectedUserForBooking) {
-        // Менеджер бронирует для себя
-        if (validGuests.length === 0) {
-          // Если нет гостей, добавляем менеджера как гостя
-          finalGuests = [{ 
-            name: currentUser!.name, 
-            email: currentUser!.email || email, 
-            phone: currentUser!.phone || cleanPhone 
-          }];
-        } else {
-          // Проверяем, есть ли менеджер в списке гостей
-          const managerInGuests = validGuests.some(g => g.name === currentUser!.name);
-          if (!managerInGuests) {
-            // Если менеджера нет в списке, добавляем его
-            finalGuests = [{ 
-              name: currentUser!.name, 
-              email: currentUser!.email || email, 
-              phone: currentUser!.phone || cleanPhone 
-            }, ...validGuests];
-          }
-        }
-      } else if (currentUser!.role === 'manager' && selectedUserForBooking) {
-        // Менеджер бронирует для другого пользователя
-        const selectedUser = allUsers.find(u => u.name === selectedUserForBooking);
-        if (validGuests.length === 0 && selectedUser) {
-          // Если нет гостей, добавляем выбранного пользователя как гостя
-          finalGuests = [{ 
-            name: selectedUser.name, 
-            email: selectedUser.email || email, 
-            phone: selectedUser.phone || cleanPhone 
-          }];
-        }
-      } else if (currentUser!.role === 'guest' && validGuests.length === 0) {
-        // Обычный гость бронирует для себя - добавляем его в гости
+      const mainUserName = bookedByName;
+      const mainUserInGuests = validGuests.some(g => g.name === mainUserName);
+      
+      if (!mainUserInGuests && validGuests.length === 0) {
+        // Если нет гостей, добавляем основного пользователя как гостя
         finalGuests = [{ 
-          name: currentUser!.name, 
-          email: currentUser!.email || email, 
-          phone: currentUser!.phone || cleanPhone 
+          name: mainUserName, 
+          email: bookingEmail, 
+          phone: cleanPhone 
         }];
+      } else if (!mainUserInGuests && currentUser!.role === 'guest') {
+        // Для обычного пользователя добавляем его в начало списка гостей
+        finalGuests = [{ 
+          name: mainUserName, 
+          email: bookingEmail, 
+          phone: cleanPhone 
+        }, ...validGuests];
       }
 
       const booking: BookingInfo = {
@@ -323,61 +302,41 @@ export default function BookingPage() {
               </div>
             </div>
 
-            {/* Выбор пользователя для менеджера */}
+            {/* Ввод данных пользователя для менеджера */}
             {currentUser.role === 'manager' && (
               <div>
                 <label className="block text-sm font-semibold mb-2">
                   <Users className="w-4 h-4 inline mr-1" />
-                  Бронировать для пользователя
+                  Данные пользователя
                 </label>
-                <div className="flex gap-2">
-                  <select
-                    value={selectedUserForBooking}
-                    onChange={(e) => {
-                      setSelectedUserForBooking(e.target.value);
-                      const selectedUser = allUsers.find(u => u.name === e.target.value);
-                      if (selectedUser) {
-                        setEmail(selectedUser.email || '');
-                        setPhone(selectedUser.phone || '');
-                      } else {
-                        // Если выбрано "для себя", используем данные менеджера
-                        setEmail(currentUser.email || '');
-                        setPhone(currentUser.phone || '');
-                      }
-                    }}
-                    className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                  >
-                    <option value="">Бронировать для себя</option>
-                    {allUsers.filter(u => u.role === 'guest').map((user) => (
-                      <option key={user.id || user.name} value={user.name}>
-                        {user.name} {user.email ? `(${user.email})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedUserForBooking && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const selectedUser = allUsers.find(u => u.name === selectedUserForBooking);
-                        if (selectedUser && !guests.find(g => g.name === selectedUser.name)) {
-                          setGuests([...guests, { 
-                            name: selectedUser.name, 
-                            email: selectedUser.email || '', 
-                            phone: selectedUser.phone || '' 
-                          }]);
-                        }
-                      }}
-                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold whitespace-nowrap"
-                      title="Добавить выбранного пользователя в список гостей"
-                    >
-                      <Plus className="w-4 h-4 inline mr-1" />
-                      Добавить в гости
-                    </button>
-                  )}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">
+                      Имя пользователя <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={manualUserName}
+                      onChange={(e) => setManualUserName(e.target.value)}
+                      placeholder="Введите имя"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">
+                      Телефон пользователя <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={manualUserPhone}
+                      onChange={(e) => setManualUserPhone(e.target.value)}
+                      placeholder="+491234567890"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                      required
+                    />
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Вы можете забронировать для себя или для другого пользователя. Выбранный пользователь не обязательно должен быть в списке гостей.
-                </p>
               </div>
             )}
 

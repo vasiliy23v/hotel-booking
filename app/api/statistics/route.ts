@@ -14,9 +14,14 @@ export async function GET(request: NextRequest) {
     // getRooms уже загружает активные бронирования для каждой комнаты
     const roomsWithBookings = rooms;
     
-    const totalRooms = roomsWithBookings.length;
-    const availableRooms = roomsWithBookings.filter((r: Room) => !r.booking && !r.isCommon).length;
-    const bookedRooms = roomsWithBookings.filter((r: Room) => r.booking).length;
+    // Исключаем общие комнаты из статистики
+    const nonCommonRooms = roomsWithBookings.filter((r: Room) => !r.isCommon);
+    
+    const totalRooms = nonCommonRooms.length;
+    // Свободные комнаты - те, у которых нет бронирования (и не общие)
+    const availableRooms = nonCommonRooms.filter((r: Room) => !r.booking).length;
+    // Забронированные комнаты - те, у которых есть бронирование (независимо от количества гостей)
+    const bookedRooms = nonCommonRooms.filter((r: Room) => r.booking).length;
     const commonRooms = roomsWithBookings.filter((r: Room) => r.isCommon).length;
     
     // Собираем всех гостей из активных бронирований
@@ -55,6 +60,25 @@ export async function GET(request: NextRequest) {
         }
       }, 0);
     
+    // Подсчитываем сумму к оплате (неоплаченные бронирования)
+    const amountToPay = roomsWithBookings
+      .filter((r: Room) => r.booking && !r.booking.isPaid && r.price)
+      .reduce((sum: number, r: Room) => {
+        try {
+          const checkIn = new Date(r.booking!.checkIn);
+          const checkOut = new Date(r.booking!.checkOut);
+          const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+          const expectedAmount = Number(r.price) * nights;
+          // Если уже была частичная оплата, вычитаем её
+          const alreadyPaid = r.booking!.amount || 0;
+          const remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
+          return sum + remainingAmount;
+        } catch (e) {
+          console.error('Error calculating amount to pay for room:', r.id, e);
+          return sum;
+        }
+      }, 0);
+    
     const roomsByType = {
       FZ: roomsWithBookings.filter((r: Room) => r.type === 'FZ').length,
       DZ: roomsWithBookings.filter((r: Room) => r.type === 'DZ').length,
@@ -76,6 +100,7 @@ export async function GET(request: NextRequest) {
       totalGuests,
       activeBookings,
       revenue,
+      amountToPay,
       roomsByType,
       roomsByFloor
     });

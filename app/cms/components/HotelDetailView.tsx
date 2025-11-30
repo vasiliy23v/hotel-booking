@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, Edit, Trash2, Building2, Save, X, LayoutGrid } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Hotel, Room, Stairs, User } from '@/types';
@@ -13,6 +14,7 @@ interface HotelDetailViewProps {
 }
 
 export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: HotelDetailViewProps) {
+  const router = useRouter();
   const [hotel, setHotel] = useState<Hotel | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -121,8 +123,12 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
     }
   };
 
-  const handleRoomClick = (_room: Room) => {
-    // В CMS просто игнорируем клик или можно добавить модальное окно
+  const handleRoomClick = (room: Room) => {
+    // Бронировать можно только свободные комнаты
+    // Менеджер сначала должен отменить существующее бронирование
+    if (!room.isCommon && !room.booking) {
+      router.push(`/booking/${room.id}`);
+    }
   };
 
   const handleCancelBooking = async (roomId: string) => {

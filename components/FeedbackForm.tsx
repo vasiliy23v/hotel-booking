@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Upload, Image as ImageIcon, Send, Loader2 } from 'lucide-react';
 import type { User } from '@/types';
 
@@ -15,11 +15,9 @@ export default function FeedbackForm({ currentUser, onClose }: FeedbackFormProps
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
-  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processImageFile = (file: File) => {
     // Проверка типа файла
     if (!file.type.startsWith('image/')) {
       alert('Пожалуйста, выберите изображение');
@@ -41,6 +39,46 @@ export default function FeedbackForm({ currentUser, onClose }: FeedbackFormProps
     };
     reader.readAsDataURL(file);
   };
+
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processImageFile(file);
+  };
+
+  const handlePaste = (e: ClipboardEvent) => {
+    // Проверяем, что в буфере обмена есть изображение
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      // Проверяем, является ли элемент изображением
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        
+        const file = item.getAsFile();
+        if (file) {
+          processImageFile(file);
+        }
+        break;
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Добавляем обработчик события paste
+    const handlePasteEvent = (e: ClipboardEvent) => handlePaste(e);
+    
+    // Добавляем обработчик на весь документ, чтобы можно было вставлять в любое время
+    document.addEventListener('paste', handlePasteEvent);
+    
+    return () => {
+      // Удаляем обработчик при размонтировании компонента
+      document.removeEventListener('paste', handlePasteEvent);
+    };
+  }, []);
 
   const handleRemoveScreenshot = () => {
     setScreenshot(null);
@@ -102,7 +140,7 @@ export default function FeedbackForm({ currentUser, onClose }: FeedbackFormProps
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+        <form ref={formRef} onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           <div>
             <label className="block text-sm font-semibold mb-2 text-gray-700">
               Опишите проблему или оставьте отзыв <span className="text-red-500">*</span>
@@ -126,9 +164,9 @@ export default function FeedbackForm({ currentUser, onClose }: FeedbackFormProps
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                   <ImageIcon className="w-8 h-8 mb-2 text-gray-400" />
                   <p className="mb-2 text-sm text-gray-500">
-                    <span className="font-semibold">Нажмите для загрузки</span> или перетащите файл
+                    <span className="font-semibold">Нажмите для загрузки</span>, перетащите файл или <span className="font-semibold">вставьте из буфера обмена</span>
                   </p>
-                  <p className="text-xs text-gray-500">PNG, JPG, GIF до 5MB</p>
+                  <p className="text-xs text-gray-500">PNG, JPG, GIF до 5MB (Ctrl+V / Cmd+V для вставки)</p>
                 </div>
                 <input
                   type="file"

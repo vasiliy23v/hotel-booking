@@ -86,6 +86,7 @@ export interface Statistics {
   availableRooms: number;
   bookedRooms: number;
   revenue: number;
+  amountToPay: number; // Сумма к оплате (неоплаченные бронирования)
 }
 
 export interface CashMonitoring {
