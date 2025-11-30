@@ -65,21 +65,20 @@ export default function Dashboard() {
     if (selectedHotel && rooms.length > 0) {
       const hotelRooms = rooms.filter(r => r.hotelId === selectedHotel);
       if (hotelRooms.length > 0) {
+        // Показываем все этажи, на которых есть комнаты
         const floorsSet = new Set(hotelRooms.map(r => r.floor));
         const allFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = ['EG', '1OG', '2OG', '3OG'];
         const available = allFloors.filter(f => floorsSet.has(f));
         
-        let availableFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = [];
-        // Если есть EG - показываем EG, 1OG, 2OG (EG - первый этаж)
-        if (available.some(f => f === 'EG')) {
-          availableFloors = ['EG', '1OG', '2OG'].filter(f => available.some(a => a === f)) as ('EG' | '1OG' | '2OG')[];
-        } else {
-          // Если нет EG - показываем 1OG, 2OG, 3OG (1OG становится первым этажом)
-          availableFloors = ['1OG', '2OG', '3OG'].filter(f => available.some(a => a === f)) as ('1OG' | '2OG' | '3OG')[];
-        }
+        // Сортируем этажи в правильном порядке
+        const sortedFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = [];
+        if (available.includes('EG')) sortedFloors.push('EG');
+        if (available.includes('1OG')) sortedFloors.push('1OG');
+        if (available.includes('2OG')) sortedFloors.push('2OG');
+        if (available.includes('3OG')) sortedFloors.push('3OG');
         
-        if (availableFloors.length > 0 && !availableFloors.includes(selectedFloor)) {
-          setSelectedFloor(availableFloors[0]);
+        if (sortedFloors.length > 0 && !sortedFloors.includes(selectedFloor)) {
+          setSelectedFloor(sortedFloors[0]);
         }
       }
     }
@@ -488,34 +487,31 @@ export default function Dashboard() {
   const availableRooms = hotelRooms.filter(r => !r.booking && !r.isCommon).length;
   const myBookingsCount = rooms.filter(r => r.booking?.bookedBy === currentUser.name).length;
 
-  // Определяем доступные этажи для отеля на основе настройки hasEGFloor
-  // Если hasEGFloor = true - показываем EG, 1OG, 2OG (EG - первый этаж)
-  // Если hasEGFloor = false - показываем 1OG, 2OG, 3OG (1OG становится первым этажом)
-  const getAvailableFloors = (() => {
-    if (!selectedHotel || !currentHotel) {
-      return ['EG', '1OG', '2OG', '3OG'] as ('EG' | '1OG' | '2OG' | '3OG')[];
+  // Определяем доступные этажи для отеля
+  // Показываем ВСЕ этажи, на которых есть комнаты, независимо от настройки hasEGFloor
+  // Настройка hasEGFloor влияет только на выбор этажа при создании новых комнат
+  const getAvailableFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = (() => {
+    if (!selectedHotel) {
+      return ['EG', '1OG', '2OG', '3OG'];
     }
     
-    // Используем настройку отеля hasEGFloor
-    const hasEG = currentHotel.hasEGFloor !== false;
-    
-    if (hasEG) {
-      // Если есть EG, возвращаем EG, 1OG, 2OG
-      if (hotelRooms.length > 0) {
-        const floorsSet = new Set(hotelRooms.map(r => r.floor));
-        const available = ['EG', '1OG', '2OG'].filter(f => floorsSet.has(f));
-        return available.length > 0 ? available as ('EG' | '1OG' | '2OG')[] : ['EG', '1OG', '2OG'];
-      }
-      return ['EG', '1OG', '2OG'];
-    } else {
-      // Если нет EG, возвращаем 1OG, 2OG, 3OG
-      if (hotelRooms.length > 0) {
-        const floorsSet = new Set(hotelRooms.map(r => r.floor));
-        const available = ['1OG', '2OG', '3OG'].filter(f => floorsSet.has(f));
-        return available.length > 0 ? available as ('1OG' | '2OG' | '3OG')[] : ['1OG', '2OG', '3OG'];
-      }
-      return ['1OG', '2OG', '3OG'];
+    // Показываем все этажи, на которых есть комнаты
+    if (hotelRooms.length > 0) {
+      const floorsSet = new Set(hotelRooms.map(r => r.floor));
+      const allFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = ['EG', '1OG', '2OG', '3OG'];
+      const available = allFloors.filter((f): f is 'EG' | '1OG' | '2OG' | '3OG' => floorsSet.has(f));
+      // Сортируем этажи в правильном порядке
+      const sortedFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = [];
+      if (available.includes('EG')) sortedFloors.push('EG');
+      if (available.includes('1OG')) sortedFloors.push('1OG');
+      if (available.includes('2OG')) sortedFloors.push('2OG');
+      if (available.includes('3OG')) sortedFloors.push('3OG');
+      return sortedFloors.length > 0 ? sortedFloors : ['EG', '1OG', '2OG', '3OG'];
     }
+    
+    // Если нет комнат, возвращаем этажи согласно настройке hasEGFloor
+    const hasEG = currentHotel?.hasEGFloor !== false;
+    return hasEG ? ['EG', '1OG', '2OG'] : ['1OG', '2OG', '3OG'];
   })();
   
 
@@ -1958,16 +1954,18 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
       // Если есть EG, возвращаем EG, 1OG, 2OG
       if (hotelRooms.length > 0) {
         const floorsSet = new Set(hotelRooms.map(r => r.floor));
-        const available = ['EG', '1OG', '2OG'].filter(f => floorsSet.has(f));
-        return available.length > 0 ? available as ('EG' | '1OG' | '2OG')[] : ['EG', '1OG', '2OG'];
+        const floorOptions: ('EG' | '1OG' | '2OG')[] = ['EG', '1OG', '2OG'];
+        const available = floorOptions.filter((f): f is 'EG' | '1OG' | '2OG' => floorsSet.has(f));
+        return available.length > 0 ? available : ['EG', '1OG', '2OG'];
       }
       return ['EG', '1OG', '2OG'];
     } else {
       // Если нет EG, возвращаем 1OG, 2OG, 3OG
       if (hotelRooms.length > 0) {
         const floorsSet = new Set(hotelRooms.map(r => r.floor));
-        const available = ['1OG', '2OG', '3OG'].filter(f => floorsSet.has(f));
-        return available.length > 0 ? available as ('1OG' | '2OG' | '3OG')[] : ['1OG', '2OG', '3OG'];
+        const floorOptions: ('1OG' | '2OG' | '3OG')[] = ['1OG', '2OG', '3OG'];
+        const available = floorOptions.filter((f): f is '1OG' | '2OG' | '3OG' => floorsSet.has(f));
+        return available.length > 0 ? available : ['1OG', '2OG', '3OG'];
       }
       return ['1OG', '2OG', '3OG'];
     }

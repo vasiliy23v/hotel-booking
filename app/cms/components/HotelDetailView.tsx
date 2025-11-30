@@ -35,31 +35,27 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
 
-  // Определяем доступные этажи на основе настройки отеля hasEGFloor
-  // Если hasEGFloor = true - показываем EG, 1OG, 2OG (EG - первый этаж)
-  // Если hasEGFloor = false - показываем 1OG, 2OG, 3OG (1OG становится первым этажом)
+  // Определяем доступные этажи для отеля
+  // Показываем ВСЕ этажи, на которых есть комнаты, независимо от настройки hasEGFloor
+  // Настройка hasEGFloor влияет только на выбор этажа при создании новых комнат
   const getAvailableFloors = useMemo((): ('EG' | '1OG' | '2OG' | '3OG')[] => {
-    // Используем настройку отеля, если она есть, иначе определяем по комнатам
-    const hasEG = hotel?.hasEGFloor !== undefined ? hotel.hasEGFloor : 
-                  (rooms.length > 0 && rooms.some(r => r.floor === 'EG'));
-    
-    if (hasEG) {
-      // Если есть EG, возвращаем EG, 1OG, 2OG
-      const floorsSet = rooms.length > 0 ? new Set(rooms.map(r => r.floor)) : null;
-      if (floorsSet) {
-        const available = ['EG', '1OG', '2OG'].filter(f => floorsSet.has(f));
-        return available.length > 0 ? available as ('EG' | '1OG' | '2OG')[] : ['EG', '1OG', '2OG'];
-      }
-      return ['EG', '1OG', '2OG'];
-    } else {
-      // Если нет EG, возвращаем 1OG, 2OG, 3OG
-      const floorsSet = rooms.length > 0 ? new Set(rooms.map(r => r.floor)) : null;
-      if (floorsSet) {
-        const available = ['1OG', '2OG', '3OG'].filter(f => floorsSet.has(f));
-        return available.length > 0 ? available as ('1OG' | '2OG' | '3OG')[] : ['1OG', '2OG', '3OG'];
-      }
-      return ['1OG', '2OG', '3OG'];
+    // Показываем все этажи, на которых есть комнаты
+    if (rooms.length > 0) {
+      const floorsSet = new Set(rooms.map(r => r.floor));
+      const allFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = ['EG', '1OG', '2OG', '3OG'];
+      const available = allFloors.filter(f => floorsSet.has(f));
+      // Сортируем этажи в правильном порядке
+      const sortedFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = [];
+      if (available.includes('EG')) sortedFloors.push('EG');
+      if (available.includes('1OG')) sortedFloors.push('1OG');
+      if (available.includes('2OG')) sortedFloors.push('2OG');
+      if (available.includes('3OG')) sortedFloors.push('3OG');
+      return sortedFloors.length > 0 ? sortedFloors : ['EG', '1OG', '2OG', '3OG'];
     }
+    
+    // Если нет комнат, возвращаем этажи согласно настройке hasEGFloor
+    const hasEG = hotel?.hasEGFloor !== false;
+    return hasEG ? ['EG', '1OG', '2OG'] : ['1OG', '2OG', '3OG'];
   }, [hotel?.hasEGFloor, rooms]);
 
   // Автоматически выбираем первый доступный этаж, если текущий не доступен

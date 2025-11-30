@@ -15,11 +15,18 @@ import { normalizePhone } from './phone';
  * Преобразует enum FloorType из Prisma в формат приложения
  */
 function transformFloor(floor: string): 'EG' | '1OG' | '2OG' | '3OG' {
+  // Обрабатываем значения enum из Prisma
   if (floor === 'EG') return 'EG';
   if (floor === 'oneOG') return '1OG';
   if (floor === 'twoOG') return '2OG';
   if (floor === 'threeOG') return '3OG';
-  return floor as 'EG' | '1OG' | '2OG' | '3OG';
+  // Обрабатываем случаи, когда значение приходит как строка (на случай старых данных)
+  if (floor === '1OG') return '1OG';
+  if (floor === '2OG') return '2OG';
+  if (floor === '3OG') return '3OG';
+  // По умолчанию возвращаем EG
+  console.warn(`Unknown floor value: ${floor}, defaulting to EG`);
+  return 'EG';
 }
 
 /**
@@ -439,7 +446,7 @@ async function migrateHotelFloors(hotelId: string, newHasEGFloor: boolean): Prom
     if (newFloor) {
       await prisma.room.update({
         where: { id: room.id },
-        data: { floor: newFloor },
+        data: { floor: newFloor as any }, // Используем as any для обхода проверки типов Prisma
       });
     }
   }
@@ -451,10 +458,10 @@ async function migrateHotelFloors(hotelId: string, newHasEGFloor: boolean): Prom
     
     const updateData: any = {};
     if (newFloor) {
-      updateData.floor = newFloor;
+      updateData.floor = newFloor as any; // Используем as any для обхода проверки типов Prisma
     }
     if (newTargetFloor) {
-      updateData.targetFloor = newTargetFloor;
+      updateData.targetFloor = newTargetFloor as any; // Используем as any для обхода проверки типов Prisma
     }
     
     if (Object.keys(updateData).length > 0) {
