@@ -83,6 +83,8 @@ export async function GET(request: NextRequest) {
       FZ: roomsWithBookings.filter((r: Room) => r.type === 'FZ').length,
       DZ: roomsWithBookings.filter((r: Room) => r.type === 'DZ').length,
       EZ: roomsWithBookings.filter((r: Room) => r.type === 'EZ').length,
+      MZ: roomsWithBookings.filter((r: Room) => r.type === 'MZ').length,
+      App: roomsWithBookings.filter((r: Room) => r.type === 'App').length,
       COMMON: roomsWithBookings.filter((r: Room) => r.type === 'COMMON').length
     };
     

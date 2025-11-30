@@ -182,6 +182,13 @@ export default function UserDetailView({
 
       setUser(updatedUser);
       setIsEditing(false);
+      
+      // Если редактируется текущий пользователь, обновляем localStorage
+      if (currentUser.id === user.id) {
+        const { password: _password, ...userWithoutPassword } = updatedUser;
+        localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+      }
+      
       alert('Пользователь успешно обновлен');
       await loadUserData();
     } catch (error) {

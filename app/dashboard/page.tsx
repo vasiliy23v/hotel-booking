@@ -33,7 +33,7 @@ export default function Dashboard() {
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   
   // Фильтры и сортировка
-  const [filterType, setFilterType] = useState<'all' | 'FZ' | 'DZ' | 'EZ' | 'App'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'FZ' | 'DZ' | 'EZ' | 'MZ' | 'App'>('all');
   const [filterPriceMin, setFilterPriceMin] = useState(0);
   const [filterPriceMax, setFilterPriceMax] = useState(1000);
   const [filterCapacity, setFilterCapacity] = useState(0);
@@ -1072,13 +1072,14 @@ export default function Dashboard() {
                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">Тип</label>
                       <select
                         value={filterType}
-                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ' | 'App')}
+                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ' | 'MZ' | 'App')}
                         className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
                       >
                         <option value="all">Все</option>
                         <option value="FZ">FZ</option>
                         <option value="DZ">DZ</option>
                         <option value="EZ">EZ</option>
+                        <option value="MZ">MZ</option>
                         <option value="App">App</option>
                       </select>
                     </div>
@@ -1286,13 +1287,14 @@ export default function Dashboard() {
                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">Тип</label>
                       <select
                         value={filterType}
-                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ' | 'App')}
+                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ' | 'MZ' | 'App')}
                         className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
                       >
                         <option value="all">Все</option>
                         <option value="FZ">FZ</option>
                         <option value="DZ">DZ</option>
                         <option value="EZ">EZ</option>
+                        <option value="MZ">MZ</option>
                         <option value="App">App</option>
                       </select>
                     </div>
@@ -1600,13 +1602,14 @@ export default function Dashboard() {
                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">Тип</label>
                       <select
                         value={filterType}
-                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ' | 'App')}
+                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ' | 'MZ' | 'App')}
                         className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
                       >
                         <option value="all">Все</option>
                         <option value="FZ">FZ</option>
                         <option value="DZ">DZ</option>
                         <option value="EZ">EZ</option>
+                        <option value="MZ">MZ</option>
                         <option value="App">App</option>
                       </select>
                     </div>
@@ -2050,6 +2053,7 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
                   <option value="FZ">FZ</option>
                   <option value="DZ">DZ</option>
                   <option value="EZ">EZ</option>
+                  <option value="MZ">MZ</option>
                   <option value="App">App</option>
                   <option value="COMMON">COMMON</option>
                 </select>

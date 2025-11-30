@@ -90,7 +90,7 @@ export function generateRoomsForHotel(
       number: room.number,
       hotelId: hotelId,
       name: room.name || '',
-      type: room.type as 'FZ' | 'DZ' | 'EZ' | 'COMMON',
+      type: room.type as 'FZ' | 'DZ' | 'EZ' | 'MZ' | 'App' | 'COMMON',
       capacity: room.capacity,
       maxCapacity: maxCapacity,
       beds: Array.isArray(room.beds) ? room.beds : [],

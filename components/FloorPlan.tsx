@@ -1885,7 +1885,7 @@ export default function FloorPlan({
                     {/* Тип комнаты */}
                     {!room.isCommon && (
                       <div className="text-sm text-gray-600 leading-tight truncate mt-1">
-                        {room.type === 'FZ' ? 'FZ' : room.type === 'DZ' ? 'DZ' : room.type === 'EZ' ? 'EZ' : ''}
+                        {room.type === 'FZ' ? 'FZ' : room.type === 'DZ' ? 'DZ' : room.type === 'EZ' ? 'EZ' : room.type === 'MZ' ? 'MZ' : room.type === 'App' ? 'App' : ''}
                       </div>
                     )}
                     
@@ -2730,7 +2730,7 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                   <select
                     value={formData.type}
                     onChange={(e) => {
-                      const newType = e.target.value as 'FZ' | 'DZ' | 'EZ' | 'App' | 'COMMON';
+                      const newType = e.target.value as 'FZ' | 'DZ' | 'EZ' | 'MZ' | 'App' | 'COMMON';
                       const isCommon = newType === 'COMMON';
                       setFormData({ 
                         ...formData, 
@@ -2744,6 +2744,7 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                   <option value="FZ">FZ</option>
                   <option value="DZ">DZ</option>
                   <option value="EZ">EZ</option>
+                  <option value="MZ">MZ</option>
                   <option value="App">App</option>
                   <option value="COMMON">COMMON</option>
                 </select>

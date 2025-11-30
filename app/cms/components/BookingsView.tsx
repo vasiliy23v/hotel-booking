@@ -663,7 +663,7 @@ export default function BookingsView() {
                         </div>
                         {room && (
                           <div className="text-xs text-gray-500">
-                            {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : 'Общее'}
+                            {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : room.type === 'MZ' ? 'Многоместная' : room.type === 'App' ? 'Апартаменты' : 'Общее'}
                           </div>
                         )}
                       </td>
@@ -895,7 +895,7 @@ export default function BookingsView() {
                             <div>
                               <span className="text-gray-600">Тип:</span>
                               <span className="ml-2 text-gray-900">
-                                {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : 'Общее'}
+                                {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : room.type === 'MZ' ? 'Многоместная' : room.type === 'App' ? 'Апартаменты' : 'Общее'}
                               </span>
                             </div>
                             <div>

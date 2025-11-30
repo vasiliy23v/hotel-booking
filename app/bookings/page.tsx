@@ -412,7 +412,7 @@ export default function BookingsPage() {
                                       <span className="font-bold text-gray-900">Комната #{booking.roomNumber || 'N/A'}</span>
                                       {room && (
                                         <span className="text-xs text-gray-500 px-2 py-0.5 bg-gray-100 rounded">
-                                          {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : 'Общее'}
+                                          {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : room.type === 'MZ' ? 'Многоместная' : room.type === 'App' ? 'Апартаменты' : 'Общее'}
                                         </span>
                                       )}
                                     </div>

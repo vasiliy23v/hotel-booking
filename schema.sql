@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS rooms (
   number VARCHAR(50) NOT NULL,
   hotel_id VARCHAR(255) NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
   name VARCHAR(255),
-  type VARCHAR(20) NOT NULL CHECK (type IN ('FZ', 'DZ', 'EZ', 'COMMON')),
+  type VARCHAR(20) NOT NULL CHECK (type IN ('FZ', 'DZ', 'EZ', 'MZ', 'App', 'COMMON')),
   capacity VARCHAR(50) NOT NULL,
   max_capacity INTEGER NOT NULL,
   beds JSONB DEFAULT '[]'::jsonb,

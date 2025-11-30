@@ -45,6 +45,10 @@ export class ApiClient {
     return this.request<any[]>('/users');
   }
 
+  async getUser(id: string) {
+    return this.request<any>(`/users/${id}`);
+  }
+
   async createUser(user: any) {
     return this.request<any>('/users', {
       method: 'POST',

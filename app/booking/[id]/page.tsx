@@ -26,20 +26,46 @@ export default function BookingPage() {
   const [manualUserPhone, setManualUserPhone] = useState('');
 
   useEffect(() => {
-    const userStr = localStorage.getItem('currentUser');
-    if (!userStr) {
-      router.push('/');
-      return;
-    }
+    const loadUserAndRoom = async () => {
+      const userStr = localStorage.getItem('currentUser');
+      if (!userStr) {
+        router.push('/');
+        return;
+      }
 
-    const user = JSON.parse(userStr);
-    
-    setCurrentUser(user);
-    
-    setEmail(user.email || '');
-    setPhone(user.phone || '');
-    
-    loadRoom(user);
+      const user = JSON.parse(userStr);
+      let finalUser = user;
+      
+      // Загружаем актуальные данные пользователя из базы данных
+      try {
+        if (user.id) {
+          const updatedUser = await api.getUser(user.id);
+          // Обновляем localStorage актуальными данными
+          const { password: _password, ...userWithoutPassword } = updatedUser;
+          localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+          
+          finalUser = userWithoutPassword;
+          setCurrentUser(userWithoutPassword);
+          setEmail(updatedUser.email || '');
+          setPhone(updatedUser.phone || '');
+        } else {
+          // Если нет ID, используем данные из localStorage
+          setCurrentUser(user);
+          setEmail(user.email || '');
+          setPhone(user.phone || '');
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+        // В случае ошибки используем данные из localStorage
+        setCurrentUser(user);
+        setEmail(user.email || '');
+        setPhone(user.phone || '');
+      }
+      
+      loadRoom(finalUser);
+    };
+
+    loadUserAndRoom();
   }, [router, roomId]);
 
   const loadRoom = async (user?: User) => {
@@ -233,7 +259,7 @@ export default function BookingPage() {
             Бронирование комнаты #{room.number}
           </h1>
           <p className="text-gray-600 mb-6">
-            {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : 'Одноместная'} · {room.capacity} · {room.price}€/ночь
+            {room.type === 'FZ' ? 'FZ' : room.type === 'DZ' ? 'DZ' : room.type === 'EZ' ? 'EZ' : room.type === 'MZ' ? 'MZ' : room.type === 'App' ? 'App' : 'Комната'} · {room.capacity} · {room.price}€/ночь
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
