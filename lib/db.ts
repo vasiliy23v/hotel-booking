@@ -336,9 +336,10 @@ export async function deleteUser(id: string): Promise<void> {
  */
 export async function getHotels(): Promise<Hotel[]> {
   const hotels = await prisma.hotel.findMany({
-    orderBy: {
-      createdAt: 'desc',
-    },
+    orderBy: [
+      { displayOrder: 'asc' },
+      { createdAt: 'desc' },
+    ],
   });
   
   return hotels.map(h => ({
@@ -349,6 +350,7 @@ export async function getHotels(): Promise<Hotel[]> {
     floors: h.floors || undefined,
     hasEGFloor: h.hasEGFloor,
     image: h.image || undefined,
+    displayOrder: h.displayOrder || undefined,
   }));
 }
 
@@ -370,6 +372,7 @@ export async function getHotelById(id: string): Promise<Hotel | null> {
     floors: hotel.floors || undefined,
     hasEGFloor: hotel.hasEGFloor,
     image: hotel.image || undefined,
+    displayOrder: hotel.displayOrder || undefined,
   };
 }
 
@@ -387,6 +390,7 @@ export async function createHotel(hotel: Omit<Hotel, 'id'> & { id?: string }): P
       floors: hotel.floors || null,
       hasEGFloor: hotel.hasEGFloor !== undefined ? hotel.hasEGFloor : true,
       image: hotel.image || null,
+      displayOrder: hotel.displayOrder || null,
     },
   });
   
@@ -398,6 +402,7 @@ export async function createHotel(hotel: Omit<Hotel, 'id'> & { id?: string }): P
     floors: newHotel.floors || undefined,
     hasEGFloor: newHotel.hasEGFloor,
     image: newHotel.image || undefined,
+    displayOrder: newHotel.displayOrder || undefined,
   };
 }
 
@@ -502,6 +507,7 @@ export async function updateHotel(id: string, updates: Partial<Hotel>): Promise<
   if (updates.floors !== undefined) updateData.floors = updates.floors;
   if (updates.hasEGFloor !== undefined) updateData.hasEGFloor = updates.hasEGFloor;
   if (updates.image !== undefined) updateData.image = updates.image;
+  if (updates.displayOrder !== undefined) updateData.displayOrder = updates.displayOrder;
   
   const updatedHotel = await prisma.hotel.update({
     where: { id },
@@ -516,6 +522,7 @@ export async function updateHotel(id: string, updates: Partial<Hotel>): Promise<
     floors: updatedHotel.floors || undefined,
     hasEGFloor: updatedHotel.hasEGFloor,
     image: updatedHotel.image || undefined,
+    displayOrder: updatedHotel.displayOrder || undefined,
   };
 }
 

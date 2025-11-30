@@ -69,6 +69,7 @@ export interface Hotel {
   floors?: number; // Количество этажей
   hasEGFloor?: boolean; // Есть ли этаж EG (первый этаж)
   image?: string; // Путь к изображению отеля
+  displayOrder?: number; // Порядок отображения отелей
 }
 
 export interface User {

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Building2, ArrowRight } from 'lucide-react';
+import { Plus, Edit, Trash2, Building2, ArrowRight, Settings } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Hotel } from '@/types';
 import HotelModal from './HotelModal';
 import HotelDetailView from './HotelDetailView';
+import HotelOrderModal from './HotelOrderModal';
 
 export default function HotelsView({ 
   selectedHotel, 
@@ -22,33 +23,21 @@ export default function HotelsView({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [hotelToDelete, setHotelToDelete] = useState<Hotel | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  const [showOrderModal, setShowOrderModal] = useState(false);
 
   const loadHotels = async () => {
     try {
       setLoading(true);
       const data = await api.getHotels();
       
-      // Сортируем отели: "Drei Bären" (или содержащие "Drei" или "Bären") сначала
-      const sortedHotels = [...data].sort((a, b) => {
-        const aName = a.name.toLowerCase();
-        const bName = b.name.toLowerCase();
-        const isDreiBaren = (name: string) => 
-          name.includes('drei') || name.includes('bären') || name.includes('baren');
-        
-        const aIsDreiBaren = isDreiBaren(aName);
-        const bIsDreiBaren = isDreiBaren(bName);
-        
-        if (aIsDreiBaren && !bIsDreiBaren) return -1;
-        if (!aIsDreiBaren && bIsDreiBaren) return 1;
-        return 0;
-      });
-      
-      setHotels(sortedHotels);
-      if (sortedHotels.length > 0 && !selectedHotel) {
-        onSelectHotel(sortedHotels[0].id);
+      // Отели уже отсортированы по displayOrder в API
+      setHotels(data);
+      if (data.length > 0 && !selectedHotel) {
+        onSelectHotel(data[0].id);
       }
     } catch (error) {
       console.error('Error loading hotels:', error);
+      alert('Ошибка при загрузке отелей');
     } finally {
       setLoading(false);
     }
@@ -82,6 +71,7 @@ export default function HotelsView({
       setHotelToDelete(null);
       setDeleteConfirmName('');
     } catch (error) {
+      console.error('Error deleting hotel:', error);
       alert('Ошибка при удалении отеля');
     }
   };
@@ -99,6 +89,7 @@ export default function HotelsView({
       setEditingHotel(null);
       await loadHotels();
     } catch (error) {
+      console.error('Error saving hotel:', error);
       alert('Ошибка при сохранении отеля');
     }
   };
@@ -121,7 +112,15 @@ export default function HotelsView({
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex justify-end gap-2">
+          <button
+            onClick={() => setShowOrderModal(true)}
+            className="bg-gray-600 hover:bg-gray-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1 sm:gap-2"
+            title="Настроить порядок отображения отелей"
+          >
+            <Settings className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Порядок</span>
+          </button>
           <button
             onClick={() => {
               setEditingHotel(null);
@@ -208,6 +207,14 @@ export default function HotelsView({
             setShowHotelModal(false);
             setEditingHotel(null);
           }}
+        />
+      )}
+
+      {showOrderModal && (
+        <HotelOrderModal
+          hotels={hotels}
+          onClose={() => setShowOrderModal(false)}
+          onSave={loadHotels}
         />
       )}
 

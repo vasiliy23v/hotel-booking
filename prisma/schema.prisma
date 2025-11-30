@@ -44,15 +44,16 @@ enum UserRole {
 // HOTELS (Отели)
 // ============================================
 model Hotel {
-  id          String    @id
-  name        String
-  address     String
-  description String?
-  floors      Int?
-  hasEGFloor  Boolean   @default(true) @map("has_eg_floor")
-  image       String?   @db.VarChar(500)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id           String    @id
+  name         String
+  address      String
+  description  String?
+  floors       Int?
+  hasEGFloor   Boolean   @default(true) @map("has_eg_floor")
+  image        String?   @db.VarChar(500)
+  displayOrder Int?      @map("display_order")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
   rooms   Room[]
