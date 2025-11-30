@@ -14,16 +14,15 @@ import { normalizePhone } from './phone';
 /**
  * Преобразует enum FloorType из Prisma в формат приложения
  */
-function transformFloor(floor: string): 'EG' | '1OG' | '2OG' | '3OG' {
+function transformFloor(floor: string): 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG' {
   // Обрабатываем значения enum из Prisma
   if (floor === 'EG') return 'EG';
-  if (floor === 'oneOG') return '1OG';
-  if (floor === 'twoOG') return '2OG';
-  if (floor === 'threeOG') return '3OG';
-  // Обрабатываем случаи, когда значение приходит как строка (на случай старых данных)
-  if (floor === '1OG') return '1OG';
-  if (floor === '2OG') return '2OG';
-  if (floor === '3OG') return '3OG';
+  if (floor === 'oneOG' || floor === '1OG') return '1OG';
+  if (floor === 'twoOG' || floor === '2OG') return '2OG';
+  if (floor === 'threeOG' || floor === '3OG') return '3OG';
+  if (floor === 'fourOG' || floor === '4OG') return '4OG';
+  if (floor === 'fiveOG' || floor === '5OG') return '5OG';
+  if (floor === 'sixOG' || floor === '6OG') return '6OG';
   // По умолчанию возвращаем EG
   console.warn(`Unknown floor value: ${floor}, defaulting to EG`);
   return 'EG';
@@ -32,11 +31,14 @@ function transformFloor(floor: string): 'EG' | '1OG' | '2OG' | '3OG' {
 /**
  * Преобразует формат приложения в enum FloorType для Prisma
  */
-function transformFloorToPrisma(floor: 'EG' | '1OG' | '2OG' | '3OG'): 'EG' | 'oneOG' | 'twoOG' | 'threeOG' {
+function transformFloorToPrisma(floor: 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG'): 'EG' | 'oneOG' | 'twoOG' | 'threeOG' | 'fourOG' | 'fiveOG' | 'sixOG' {
   if (floor === 'EG') return 'EG';
   if (floor === '1OG') return 'oneOG';
   if (floor === '2OG') return 'twoOG';
   if (floor === '3OG') return 'threeOG';
+  if (floor === '4OG') return 'fourOG';
+  if (floor === '5OG') return 'fiveOG';
+  if (floor === '6OG') return 'sixOG';
   return 'EG';
 }
 

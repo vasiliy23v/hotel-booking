@@ -110,6 +110,9 @@ enum FloorType {
   oneOG   @map("1OG")
   twoOG   @map("2OG")
   threeOG @map("3OG")
+  fourOG  @map("4OG")
+  fiveOG  @map("5OG")
+  sixOG   @map("6OG")
 }
 
 // ============================================

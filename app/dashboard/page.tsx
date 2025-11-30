@@ -26,7 +26,7 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false); // Тихая перезагрузка без скелетона
   const [error, setError] = useState<string | null>(null); // Состояние ошибки
   const [viewMode, setViewMode] = useState<'plan' | 'list'>('plan');
-  const [selectedFloor, setSelectedFloor] = useState<'EG' | '1OG' | '2OG' | '3OG'>('EG');
+  const [selectedFloor, setSelectedFloor] = useState<'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG'>('EG');
   const [stairs, setStairs] = useState<Stairs[]>([]);
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
@@ -67,15 +67,19 @@ export default function Dashboard() {
       if (hotelRooms.length > 0) {
         // Показываем все этажи, на которых есть комнаты
         const floorsSet = new Set(hotelRooms.map(r => r.floor));
-        const allFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = ['EG', '1OG', '2OG', '3OG'];
-        const available = allFloors.filter(f => floorsSet.has(f));
+        const allFloorsFromRooms = Array.from(floorsSet) as ('EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG')[];
+        
+        // Определяем порядок сортировки этажей
+        const floorOrder: { [key: string]: number } = { 
+          'EG': 0, '1OG': 1, '2OG': 2, '3OG': 3, '4OG': 4, '5OG': 5, '6OG': 6 
+        };
         
         // Сортируем этажи в правильном порядке
-        const sortedFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = [];
-        if (available.includes('EG')) sortedFloors.push('EG');
-        if (available.includes('1OG')) sortedFloors.push('1OG');
-        if (available.includes('2OG')) sortedFloors.push('2OG');
-        if (available.includes('3OG')) sortedFloors.push('3OG');
+        const sortedFloors = allFloorsFromRooms.sort((a, b) => {
+          const orderA = floorOrder[a] ?? 999;
+          const orderB = floorOrder[b] ?? 999;
+          return orderA - orderB;
+        });
         
         if (sortedFloors.length > 0 && !sortedFloors.includes(selectedFloor)) {
           setSelectedFloor(sortedFloors[0]);
@@ -215,8 +219,9 @@ export default function Dashboard() {
         if (savedViewMode === 'plan' || savedViewMode === 'list') {
           setViewMode(savedViewMode);
         }
-        if (savedFloor === 'EG' || savedFloor === '1OG' || savedFloor === '2OG' || savedFloor === '3OG') {
-          setSelectedFloor(savedFloor);
+        // Проверяем, что сохраненный этаж валидный (EG или формат XOG, где X - число)
+        if (savedFloor && (savedFloor === 'EG' || /^\d+OG$/.test(savedFloor))) {
+          setSelectedFloor(savedFloor as 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG');
         }
         if (savedHotel) {
           const hotelExists = hotelsData.find(h => h.id === savedHotel);
@@ -488,30 +493,31 @@ export default function Dashboard() {
   const myBookingsCount = rooms.filter(r => r.booking?.bookedBy === currentUser.name).length;
 
   // Определяем доступные этажи для отеля
-  // Показываем ВСЕ этажи, на которых есть комнаты, независимо от настройки hasEGFloor
-  // Настройка hasEGFloor влияет только на выбор этажа при создании новых комнат
-  const getAvailableFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = (() => {
-    if (!selectedHotel) {
+  // Показываем ВСЕ этажи на основе hotel.floors и hasEGFloor, даже если на них еще нет комнат
+  const getAvailableFloors: ('EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG')[] = (() => {
+    if (!selectedHotel || !currentHotel) {
       return ['EG', '1OG', '2OG', '3OG'];
     }
     
-    // Показываем все этажи, на которых есть комнаты
-    if (hotelRooms.length > 0) {
-      const floorsSet = new Set(hotelRooms.map(r => r.floor));
-      const allFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = ['EG', '1OG', '2OG', '3OG'];
-      const available = allFloors.filter((f): f is 'EG' | '1OG' | '2OG' | '3OG' => floorsSet.has(f));
-      // Сортируем этажи в правильном порядке
-      const sortedFloors: ('EG' | '1OG' | '2OG' | '3OG')[] = [];
-      if (available.includes('EG')) sortedFloors.push('EG');
-      if (available.includes('1OG')) sortedFloors.push('1OG');
-      if (available.includes('2OG')) sortedFloors.push('2OG');
-      if (available.includes('3OG')) sortedFloors.push('3OG');
-      return sortedFloors.length > 0 ? sortedFloors : ['EG', '1OG', '2OG', '3OG'];
-    }
+    const hasEG = currentHotel.hasEGFloor !== false;
+    const totalFloors = currentHotel.floors || 3;
     
-    // Если нет комнат, возвращаем этажи согласно настройке hasEGFloor
-    const hasEG = currentHotel?.hasEGFloor !== false;
-    return hasEG ? ['EG', '1OG', '2OG'] : ['1OG', '2OG', '3OG'];
+    // Генерируем все этажи на основе hotel.floors и hasEGFloor
+    if (hasEG) {
+      // С EG: EG, 1OG, 2OG, ... до totalFloors (EG считается первым этажом)
+      const floors: ('EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG')[] = ['EG'];
+      for (let i = 1; i < totalFloors; i++) {
+        floors.push(`${i}OG` as '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG');
+      }
+      return floors;
+    } else {
+      // Без EG: 1OG, 2OG, 3OG, ... до totalFloors (1OG считается первым этажом)
+      const floors: ('EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG')[] = [];
+      for (let i = 1; i <= totalFloors; i++) {
+        floors.push(`${i}OG` as '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG');
+      }
+      return floors;
+    }
   })();
   
 
@@ -561,7 +567,7 @@ export default function Dashboard() {
       
       switch (sortBy) {
         case 'floor':
-          const floorOrder: { [key: string]: number } = { 'EG': 0, '1OG': 1, '2OG': 2, '3OG': 3 };
+          const floorOrder: { [key: string]: number } = { 'EG': 0, '1OG': 1, '2OG': 2, '3OG': 3, '4OG': 4, '5OG': 5, '6OG': 6 };
           comparison = (floorOrder[a.floor] || 0) - (floorOrder[b.floor] || 0);
           break;
         case 'number':

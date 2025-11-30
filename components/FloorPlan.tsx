@@ -11,7 +11,7 @@ import { api } from '@/lib/api';
 
 interface FloorPlanProps {
   rooms: Room[];
-  floor: 'EG' | '1OG' | '2OG' | '3OG';
+  floor: 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG';
   onRoomClick: (room: Room) => void;
   onRoomUpdate?: (room: Room) => void;
   onRoomCreate?: (room: Room) => void;
@@ -750,11 +750,11 @@ export default function FloorPlan({
 
     const stairsHotelId = hotelId || floorRooms[0]?.hotelId || '';
 
-    let targetFloor: 'EG' | '1OG' | '2OG' | '3OG' = floor;
-    if (floor === 'EG') targetFloor = '1OG';
-    else if (floor === '1OG') targetFloor = '2OG';
-    else if (floor === '2OG') targetFloor = '3OG';
-    else targetFloor = '1OG';
+    // Определяем целевой этаж динамически на основе текущего этажа
+    const allFloors = ['EG', '1OG', '2OG', '3OG', '4OG', '5OG', '6OG'];
+    const currentIndex = allFloors.indexOf(floor);
+    const nextIndex = Math.min(currentIndex + 1, allFloors.length - 1);
+    const targetFloor: 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG' = allFloors[nextIndex] as 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG';
 
     const newStairs: Stairs = {
       id: `stairs-${generateId()}`,
@@ -1234,16 +1234,17 @@ export default function FloorPlan({
     // Копируем ступени на выбранный этаж с сохранением точных позиций и размеров
     const duplicatedStairs: Stairs[] = copiedStairs.map((stair) => {
       // Определяем целевой этаж для ступеней
-      let newTargetFloor: 'EG' | '1OG' | '2OG' | '3OG' = targetFloor;
+      let newTargetFloor: 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG' = targetFloor;
       if (stair.targetFloor) {
         // Если у ступеней был целевой этаж, вычисляем новый целевой этаж относительно нового этажа
-        const allFloors = ['EG', '1OG', '2OG', '3OG'];
+        // Генерируем список этажей динамически (до 6 этажей)
+        const allFloors = ['EG', '1OG', '2OG', '3OG', '4OG', '5OG', '6OG'];
         const currentFloorIndex = allFloors.indexOf(stair.floor);
         const targetFloorIndex = allFloors.indexOf(stair.targetFloor);
         const floorOffset = targetFloorIndex - currentFloorIndex;
         const newFloorIndex = allFloors.indexOf(targetFloor);
         const newTargetIndex = Math.max(0, Math.min(allFloors.length - 1, newFloorIndex + floorOffset));
-        newTargetFloor = allFloors[newTargetIndex] as 'EG' | '1OG' | '2OG' | '3OG';
+        newTargetFloor = allFloors[newTargetIndex] as 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG';
       }
       
       return {

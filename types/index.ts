@@ -37,7 +37,7 @@ export interface Room {
   capacity: string;
   maxCapacity: number;
   beds: string[];
-  floor: 'EG' | '1OG' | '2OG' | '3OG';
+  floor: 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG';
   price: number;
   booking?: BookingInfo;
   position: { x: number; y: number };
@@ -53,12 +53,12 @@ export interface Room {
 export interface Stairs {
   id: string;
   hotelId: string;
-  floor: 'EG' | '1OG' | '2OG' | '3OG';
+  floor: 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG';
   position: { x: number; y: number };
   width: number;
   height: number;
   direction: 'up' | 'down' | 'both';
-  targetFloor?: 'EG' | '1OG' | '2OG' | '3OG';
+  targetFloor?: 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG';
 }
 
 export interface Hotel {
