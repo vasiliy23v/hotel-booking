@@ -33,7 +33,7 @@ export default function Dashboard() {
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   
   // Фильтры и сортировка
-  const [filterType, setFilterType] = useState<'all' | 'FZ' | 'DZ' | 'EZ'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'FZ' | 'DZ' | 'EZ' | 'APP'>('all');
   const [filterPriceMin, setFilterPriceMin] = useState(0);
   const [filterPriceMax, setFilterPriceMax] = useState(1000);
   const [filterCapacity, setFilterCapacity] = useState(0);
@@ -1072,13 +1072,14 @@ export default function Dashboard() {
                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">Тип</label>
                       <select
                         value={filterType}
-                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ')}
+                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ' | 'APP')}
                         className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
                       >
                         <option value="all">Все</option>
                         <option value="FZ">Семейная</option>
                         <option value="DZ">Двухместная</option>
                         <option value="EZ">Одноместная</option>
+                        <option value="APP">Апартаменты</option>
                       </select>
                     </div>
 
@@ -1158,7 +1159,7 @@ export default function Dashboard() {
                               <div className="text-sm font-semibold text-gray-700 truncate">{room.name}</div>
                             )}
                             <div className="text-xs text-gray-500">
-                              {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : 'Одноместная'}
+                              {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : room.type === 'APP' ? 'Апартаменты' : 'Общее'}
                             </div>
                           </div>
                           <div className="flex items-center gap-3 sm:gap-4 mt-1.5 text-xs sm:text-sm text-gray-600">
@@ -1285,13 +1286,14 @@ export default function Dashboard() {
                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">Тип</label>
                       <select
                         value={filterType}
-                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ')}
+                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ' | 'APP')}
                         className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
                       >
                         <option value="all">Все</option>
                         <option value="FZ">Семейная</option>
                         <option value="DZ">Двухместная</option>
                         <option value="EZ">Одноместная</option>
+                        <option value="APP">Апартаменты</option>
                       </select>
                     </div>
 
@@ -1456,7 +1458,7 @@ export default function Dashboard() {
                           </td>
                           <td className="px-3 py-2.5 text-sm text-gray-700">{room.floor}</td>
                           <td className="px-3 py-2.5 text-sm text-gray-700">
-                            {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : 'Общее'}
+                            {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : room.type === 'APP' ? 'Апартаменты' : 'Общее'}
                           </td>
                           <td className="px-3 py-2.5 text-sm text-gray-700">{room.capacity}</td>
                           <td className="px-3 py-2.5 text-sm font-semibold text-gray-700">
@@ -1598,13 +1600,14 @@ export default function Dashboard() {
                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">Тип</label>
                       <select
                         value={filterType}
-                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ')}
+                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ' | 'APP')}
                         className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
                       >
                         <option value="all">Все</option>
                         <option value="FZ">Семейная</option>
                         <option value="DZ">Двухместная</option>
                         <option value="EZ">Одноместная</option>
+                        <option value="APP">Апартаменты</option>
                       </select>
                     </div>
 
@@ -1769,7 +1772,7 @@ export default function Dashboard() {
                           </td>
                           <td className="px-3 py-2.5 text-sm text-gray-700">{room.floor}</td>
                           <td className="px-3 py-2.5 text-sm text-gray-700">
-                            {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : 'Общее'}
+                            {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : room.type === 'APP' ? 'Апартаменты' : 'Общее'}
                           </td>
                           <td className="px-3 py-2.5 text-sm text-gray-700">{room.capacity}</td>
                           <td className="px-3 py-2.5 text-sm font-semibold text-gray-700">
@@ -2047,6 +2050,7 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
                   <option value="FZ">Семейная (FZ)</option>
                   <option value="DZ">Двухместная (DZ)</option>
                   <option value="EZ">Одноместная (EZ)</option>
+                  <option value="APP">Апартаменты (APP)</option>
                   <option value="COMMON">Общее помещение</option>
                 </select>
               </div>
@@ -3774,7 +3778,7 @@ function BookingsView({
                         <div className="font-semibold text-gray-900">#{booking.roomNumber || 'N/A'}</div>
                         {room && (
                           <div className="text-xs text-gray-500">
-                            {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : 'Общее'}
+                            {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : room.type === 'APP' ? 'Апартаменты' : 'Общее'}
                           </div>
                         )}
                       </td>
