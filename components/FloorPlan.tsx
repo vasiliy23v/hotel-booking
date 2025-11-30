@@ -1830,25 +1830,26 @@ export default function FloorPlan({
             <>
               <div className="h-full flex flex-col justify-start overflow-hidden">
                 {/* Номер комнаты */}
-                <div className="font-bold text-sm leading-tight truncate">{room.number}</div>
+                <div className="font-normal text-sm leading-tight truncate">{room.number}</div>
                 
                 {/* Компактная информация для маленьких комнат */}
                 {!room.isCommon && (scaledWidth < 100 || scaledHeight < 80) ? (
                   <>
                     {/* Компактный режим для маленьких комнат */}
-                    <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-700">
+                    <div className="flex flex-col gap-y-0.5 mt-1 text-xs text-gray-700">
                       {room.capacity && (
                         <div className="flex items-center gap-1">
-                          <Users className="w-4 h-4" />
+                          {/* <Users className="w-4 h-4" /> */}
                           <span>{room.capacity}</span>
                         </div>
                       )}
                       {room.beds && room.beds.length > 0 && (
                         <div className="flex items-center gap-1">
-                          <Bed className="w-4 h-4" />
+                          {/* <Bed className="w-4 h-4" /> */}
                           <span className="text-[10px]">{formatBeds(room.beds)}</span>
                         </div>
                       )}
+                      <div className="flex gap-1 w-full">
                       {room.hasShower && (
                         <div className="flex items-center gap-1" title="Душ">
                           <ShowerHead className="w-3 h-3 text-blue-600" />
@@ -1860,10 +1861,11 @@ export default function FloorPlan({
                         </div>
                       )}
                       {room.price > 0 && (
-                        <div className="font-semibold ml-auto">
+                        <div className="font-semibold col-span-2 text-right">
                           {Math.round(room.price)}€
                         </div>
                       )}
+                      </div>
                     </div>
                     {/* Информация о бронировании для менеджера в компактном режиме */}
                     {isManager && room.booking && (
@@ -1883,7 +1885,7 @@ export default function FloorPlan({
                     {/* Тип комнаты */}
                     {!room.isCommon && (
                       <div className="text-sm text-gray-600 leading-tight truncate mt-1">
-                        {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : ''}
+                        {room.type === 'FZ' ? 'FZ' : room.type === 'DZ' ? 'DZ' : room.type === 'EZ' ? 'EZ' : ''}
                       </div>
                     )}
                     
