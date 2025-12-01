@@ -26,7 +26,7 @@ export default function CMSLayout({
       return;
     }
     
-    if (user.role !== 'manager') {
+    if (user.role !== 'manager' && user.role !== 'developer') {
       router.push('/dashboard');
     }
   }, [router]);

@@ -104,8 +104,9 @@ export default function Dashboard() {
       return;
     }
     
-    // Менеджеры и разработчики автоматически перенаправляются на CMS
-    if (isManagerOrDeveloper(user)) {
+    // Только менеджеры автоматически перенаправляются на CMS
+    // Developer может оставаться на dashboard
+    if (user.role === 'manager') {
       router.push('/cms/dashboard');
       return;
     }
