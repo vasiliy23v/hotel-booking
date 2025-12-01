@@ -126,7 +126,7 @@ model Booking {
   roomId        String          @map("room_id")
   bookedBy      String          @map("booked_by")
   bookedDate    DateTime        @map("booked_date") @db.Timestamptz(6)
-  email         String
+  email         String?
   phone         String          @db.VarChar(50)
   checkIn       DateTime        @map("check_in") @db.Date
   checkOut      DateTime        @map("check_out") @db.Date
@@ -225,12 +225,14 @@ model Feedback {
   comment     String   @db.Text
   screenshot  String?  @db.VarChar(500)
   userAgent   String?  @map("user_agent") @db.Text
+  isProcessed Boolean  @default(false) @map("is_processed")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([userName])
   @@index([userEmail])
   @@index([createdAt])
+  @@index([isProcessed])
   @@map("feedback")
 }
 

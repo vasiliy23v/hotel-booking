@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MessageSquare, User, Mail, Calendar, Image as ImageIcon, Search, RefreshCw, Eye, X, Filter, Trash2 } from 'lucide-react';
+import { MessageSquare, User, Mail, Calendar, Image as ImageIcon, Search, RefreshCw, Eye, X, Filter, Trash2, CheckSquare } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Feedback } from '@/types';
 
@@ -14,6 +14,7 @@ export default function FeedbackView() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadFeedbacks();
@@ -35,6 +36,63 @@ export default function FeedbackView() {
   const handleViewDetail = (feedback: Feedback) => {
     setSelectedFeedback(feedback);
     setShowDetailModal(true);
+  };
+
+  const handleToggleProcessed = async (feedback: Feedback, event?: React.ChangeEvent<HTMLInputElement> | React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
+
+    if (!feedback || !feedback.id) {
+      console.error('Invalid feedback:', feedback);
+      return;
+    }
+
+    const newProcessedStatus = !feedback.isProcessed;
+
+    try {
+      setUpdatingId(feedback.id);
+      
+      // Оптимистичное обновление UI
+      setFeedbacks(prevFeedbacks => 
+        prevFeedbacks.map(f => 
+          f && f.id === feedback.id 
+            ? { ...f, isProcessed: newProcessedStatus }
+            : f
+        )
+      );
+      
+      // Обновляем на сервере
+      const response = await api.updateFeedbackStatus(feedback.id, newProcessedStatus);
+      
+      // API возвращает объект с полем feedback
+      const updatedFeedback = response.feedback || response;
+      
+      // Обновляем отзыв в списке с данными с сервера
+      setFeedbacks(prevFeedbacks => 
+        prevFeedbacks.map(f => 
+          f && f.id === feedback.id ? updatedFeedback : f
+        )
+      );
+      
+      // Если обновляемый отзыв открыт в модальном окне, обновляем его
+      if (selectedFeedback?.id === feedback.id) {
+        setSelectedFeedback(updatedFeedback);
+      }
+    } catch (error) {
+      console.error('Error updating feedback status:', error);
+      // Откатываем изменения при ошибке
+      setFeedbacks(prevFeedbacks => 
+        prevFeedbacks.map(f => 
+          f && f.id === feedback.id 
+            ? { ...f, isProcessed: feedback.isProcessed }
+            : f
+        )
+      );
+      alert('Ошибка при обновлении статуса отзыва');
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   const handleDelete = async (feedback: Feedback, event?: React.MouseEvent) => {
@@ -66,23 +124,41 @@ export default function FeedbackView() {
     }
   };
 
-  // Фильтрация отзывов
-  const filteredFeedbacks = feedbacks.filter(feedback => {
-    const matchesSearch = 
-      feedback.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      feedback.comment.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (feedback.userEmail && feedback.userEmail.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    const matchesRole = filterRole === 'all' || feedback.userRole === filterRole;
-    
-    return matchesSearch && matchesRole;
-  });
+  // Фильтрация и сортировка отзывов
+  const filteredFeedbacks = feedbacks
+    .filter(feedback => {
+      if (!feedback || !feedback.id) return false;
+      
+      const matchesSearch = 
+        (feedback.userName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+        (feedback.comment?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+        (feedback.userEmail && feedback.userEmail.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesRole = filterRole === 'all' || feedback.userRole === filterRole;
+      
+      return matchesSearch && matchesRole;
+    })
+    .sort((a, b) => {
+      if (!a || !b) return 0;
+      // Сначала необработанные, потом обработанные
+      if (a.isProcessed !== b.isProcessed) {
+        return a.isProcessed ? 1 : -1;
+      }
+      // Внутри каждой группы сортируем по дате создания (новые сверху)
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
 
   // Получение уникальных ролей
   const uniqueRoles = Array.from(new Set(feedbacks.map(f => f.userRole)));
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'Дата не указана';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Неверная дата';
+    }
     return new Intl.DateTimeFormat('ru-RU', {
       year: 'numeric',
       month: 'long',
@@ -173,7 +249,7 @@ export default function FeedbackView() {
               onChange={(e) => setFilterRole(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
             >
-              <option value="all">Все роли</option>
+              <option key="all" value="all">Все роли</option>
               {uniqueRoles.map(role => (
                 <option key={role} value={role}>
                   {getRoleLabel(role)}
@@ -208,53 +284,78 @@ export default function FeedbackView() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredFeedbacks.map((feedback) => (
+          {filteredFeedbacks.map((feedback) => {
+            if (!feedback || !feedback.id) return null;
+            return (
             <div
               key={feedback.id}
-              className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow"
+              className={`rounded-lg border p-4 sm:p-6 transition-all ${
+                feedback.isProcessed
+                  ? 'bg-gray-50 border-gray-300 opacity-75'
+                  : 'bg-white border-gray-200 hover:shadow-md'
+              }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shrink-0">
-                      <User className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-gray-900">{feedback.userName}</h3>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getRoleBadgeColor(feedback.userRole)}`}>
-                          {getRoleLabel(feedback.userRole)}
-                        </span>
+                <div className="flex-1 flex items-start gap-3">
+                  <label className="flex items-center cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={feedback.isProcessed || false}
+                      onChange={(e) => handleToggleProcessed(feedback, e)}
+                      disabled={updatingId === feedback.id}
+                      className="w-5 h-5 text-gray-900 border-gray-300 rounded focus:ring-gray-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  </label>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shrink-0">
+                        <User className={`w-5 h-5 ${feedback.isProcessed ? 'text-gray-400' : 'text-gray-600'}`} />
                       </div>
-                      {feedback.userEmail && (
-                        <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
-                          <Mail className="w-3 h-3" />
-                          {feedback.userEmail}
-                        </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className={`font-semibold ${feedback.isProcessed ? 'text-gray-500' : 'text-gray-900'}`}>
+                            {feedback.userName}
+                          </h3>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getRoleBadgeColor(feedback.userRole)} ${feedback.isProcessed ? 'opacity-60' : ''}`}>
+                            {getRoleLabel(feedback.userRole)}
+                          </span>
+                        </div>
+                        {feedback.userEmail && (
+                          <p className={`text-sm flex items-center gap-1 mt-0.5 ${feedback.isProcessed ? 'text-gray-400' : 'text-gray-500'}`}>
+                            <Mail className="w-3 h-3" />
+                            {feedback.userEmail}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <p className={`mb-3 line-clamp-3 whitespace-pre-wrap ${feedback.isProcessed ? 'text-gray-500' : 'text-gray-700'}`}>
+                      {feedback.comment}
+                    </p>
+                    
+                    <div className={`flex items-center gap-4 text-xs flex-wrap ${feedback.isProcessed ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {formatDate(feedback.createdAt)}
+                      </span>
+                      {feedback.screenshot && (
+                        <span className={`flex items-center gap-1 ${feedback.isProcessed ? 'text-gray-400' : 'text-blue-600'}`}>
+                          <ImageIcon className="w-3 h-3" />
+                          Есть скриншот
+                        </span>
                       )}
                     </div>
-                  </div>
-                  
-                  <p className="text-gray-700 mb-3 line-clamp-3 whitespace-pre-wrap">{feedback.comment}</p>
-                  
-                  <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {formatDate(feedback.createdAt)}
-                    </span>
-                    {feedback.screenshot && (
-                      <span className="flex items-center gap-1 text-blue-600">
-                        <ImageIcon className="w-3 h-3" />
-                        Есть скриншот
-                      </span>
-                    )}
                   </div>
                 </div>
                 
                 <div className="flex gap-2 shrink-0">
                   <button
                     onClick={() => handleViewDetail(feedback)}
-                    className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
+                    className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                      feedback.isProcessed
+                        ? 'bg-gray-300 text-gray-600 hover:bg-gray-400'
+                        : 'bg-gray-900 text-white hover:bg-gray-800'
+                    }`}
                   >
                     <Eye className="w-4 h-4" />
                     <span className="hidden sm:inline">Подробнее</span>
@@ -262,7 +363,11 @@ export default function FeedbackView() {
                   <button
                     onClick={(e) => handleDelete(feedback, e)}
                     disabled={deletingId === feedback.id}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      feedback.isProcessed
+                        ? 'bg-gray-300 text-gray-600 hover:bg-gray-400'
+                        : 'bg-red-600 text-white hover:bg-red-700'
+                    }`}
                     title="Удалить отзыв"
                   >
                     {deletingId === feedback.id ? (
@@ -275,7 +380,8 @@ export default function FeedbackView() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -363,26 +469,40 @@ export default function FeedbackView() {
                 </div>
               )}
 
-              {/* ID отзыва */}
-              <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
+              {/* ID отзыва и действия */}
+              <div className="pt-4 border-t border-gray-200 flex items-center justify-between flex-wrap gap-3">
                 <p className="text-xs text-gray-500">ID: {selectedFeedback.id}</p>
-                <button
-                  onClick={() => handleDelete(selectedFeedback)}
-                  disabled={deletingId === selectedFeedback.id}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {deletingId === selectedFeedback.id ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Удаление...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="w-4 h-4" />
-                      <span>Удалить отзыв</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex gap-2 items-center">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedFeedback.isProcessed || false}
+                      onChange={(e) => handleToggleProcessed(selectedFeedback, e)}
+                      disabled={updatingId === selectedFeedback.id}
+                      className="w-5 h-5 text-gray-900 border-gray-300 rounded focus:ring-gray-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <span className="text-sm text-gray-700">
+                      {selectedFeedback.isProcessed ? 'Обработан' : 'Отметить как обработанный'}
+                    </span>
+                  </label>
+                  <button
+                    onClick={() => handleDelete(selectedFeedback)}
+                    disabled={deletingId === selectedFeedback.id}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {deletingId === selectedFeedback.id ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Удаление...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        <span>Удалить отзыв</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

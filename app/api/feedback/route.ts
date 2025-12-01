@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { createFeedback, getFeedbacks, deleteFeedback } from '@/lib/db';
+import { createFeedback, getFeedbacks, deleteFeedback, updateFeedbackStatus } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -117,6 +117,36 @@ export async function GET() {
   } catch (error: unknown) {
     console.error('Error in GET /api/feedback:', error);
     const errorMessage = error instanceof Error ? error.message : 'Ошибка при получении отзывов';
+    return NextResponse.json(
+      { error: errorMessage },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/feedback - обновить статус обработки отзыва
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, isProcessed } = body;
+
+    if (!id || typeof isProcessed !== 'boolean') {
+      return NextResponse.json(
+        { error: 'ID отзыва и статус обработки обязательны' },
+        { status: 400 }
+      );
+    }
+
+    const updatedFeedback = await updateFeedbackStatus(id, isProcessed);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Статус отзыва успешно обновлен',
+      feedback: updatedFeedback,
+    });
+  } catch (error: unknown) {
+    console.error('Error in PATCH /api/feedback:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка при обновлении статуса отзыва';
     return NextResponse.json(
       { error: errorMessage },
       { status: 500 }

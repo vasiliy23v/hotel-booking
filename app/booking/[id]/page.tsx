@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Mail, Phone, Calendar, Users, Plus, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Room, User, Guest, BookingInfo } from '@/types';
@@ -9,6 +9,7 @@ import type { Room, User, Guest, BookingInfo } from '@/types';
 export default function BookingPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const roomId = params.id as string;
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -18,12 +19,32 @@ export default function BookingPage() {
 
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [checkIn, setCheckIn] = useState('');
-  const [checkOut, setCheckOut] = useState('');
+  // Загружаем даты из URL параметров или localStorage
+  const [checkIn, setCheckIn] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlCheckIn = searchParams?.get('checkIn');
+      if (urlCheckIn) return urlCheckIn;
+      const savedCheckIn = localStorage.getItem('dashboard_checkInDate');
+      return savedCheckIn || '';
+    }
+    return '';
+  });
+  const [checkOut, setCheckOut] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlCheckOut = searchParams?.get('checkOut');
+      if (urlCheckOut) return urlCheckOut;
+      const savedCheckOut = localStorage.getItem('dashboard_checkOutDate');
+      return savedCheckOut || '';
+    }
+    return '';
+  });
   const [guests, setGuests] = useState<Guest[]>([]);
   const [notes, setNotes] = useState('');
   const [manualUserName, setManualUserName] = useState('');
   const [manualUserPhone, setManualUserPhone] = useState('');
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
     const loadUserAndRoom = async () => {
@@ -74,11 +95,9 @@ export default function BookingPage() {
       const roomData = await api.getRoom(roomId);
       setRoom(roomData);
 
-      // Обычные пользователи не могут бронировать уже забронированные комнаты
-      // Менеджер может бронировать любую комнату
-      if (roomData.booking && user?.role !== 'manager') {
-        router.push('/dashboard');
-      }
+      // Обычные пользователи могут бронировать комнату, даже если есть другие бронирования
+      // Проверка доступности будет происходить при выборе дат
+      // Менеджер может бронировать любую комнату на любые даты (с проверкой пересечений)
     } catch (error) {
       console.error('Error loading room:', error);
       router.push('/dashboard');
@@ -86,6 +105,69 @@ export default function BookingPage() {
       setLoading(false);
     }
   };
+
+  // Проверка доступности комнаты при изменении дат
+  useEffect(() => {
+    const checkAvailability = async () => {
+      if (!checkIn || !checkOut || !roomId) {
+        setIsAvailable(null);
+        setAvailabilityError(null);
+        return;
+      }
+
+      const checkInDate = new Date(checkIn);
+      const checkOutDate = new Date(checkOut);
+
+      if (checkInDate >= checkOutDate) {
+        setIsAvailable(false);
+        setAvailabilityError('Дата заезда должна быть раньше даты выезда');
+        return;
+      }
+
+      setCheckingAvailability(true);
+      setAvailabilityError(null);
+
+      try {
+        const availability = await api.checkRoomsAvailability([roomId], checkIn, checkOut);
+        const available = availability[roomId] === true;
+        setIsAvailable(available);
+        
+        if (!available) {
+          // Получаем информацию о конфликтующих бронированиях
+          if (room?.bookings && room.bookings.length > 0) {
+            const conflicting = room.bookings.find(b => {
+              const bCheckIn = new Date(b.checkIn);
+              const bCheckOut = new Date(b.checkOut);
+              return bCheckIn < checkOutDate && bCheckOut > checkInDate;
+            });
+            
+            if (conflicting) {
+              const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
+              const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
+              setAvailabilityError(`Комната уже забронирована на период ${existingCheckIn} - ${existingCheckOut}`);
+            } else {
+              setAvailabilityError('Комната недоступна на выбранные даты');
+            }
+          } else {
+            setAvailabilityError('Комната недоступна на выбранные даты');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking availability:', error);
+        setIsAvailable(false);
+        setAvailabilityError('Ошибка при проверке доступности');
+      } finally {
+        setCheckingAvailability(false);
+      }
+    };
+
+    // Debounce проверки доступности
+    const timeoutId = setTimeout(() => {
+      checkAvailability();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [checkIn, checkOut, roomId, room]);
 
 
   const addGuest = () => {
@@ -149,7 +231,7 @@ export default function BookingPage() {
       }
     }
     
-    if (!email || !phone || !checkIn || !checkOut) {
+    if (!phone || !checkIn || !checkOut) {
       alert('Пожалуйста, заполните все обязательные поля');
       return;
     }
@@ -163,6 +245,17 @@ export default function BookingPage() {
 
     if (new Date(checkIn) >= new Date(checkOut)) {
       alert('Дата заезда должна быть раньше даты выезда!');
+      return;
+    }
+
+    // Проверяем доступность перед отправкой
+    if (isAvailable === false) {
+      alert(availabilityError || 'Комната недоступна на выбранные даты. Пожалуйста, выберите другие даты.');
+      return;
+    }
+
+    if (checkingAvailability) {
+      alert('Пожалуйста, дождитесь завершения проверки доступности');
       return;
     }
 
@@ -219,7 +312,7 @@ export default function BookingPage() {
         roomId: roomId,
         bookedBy: bookedByName,
         bookedDate: new Date().toISOString(),
-        email: bookingEmail,
+        email: bookingEmail || undefined,
         phone: cleanPhone,
         checkIn,
         checkOut,
@@ -228,6 +321,17 @@ export default function BookingPage() {
       };
 
       await api.createBooking(booking);
+      // Сохраняем даты в фильтр перед возвратом на dashboard
+      // Сохраняем даты только если они заполнены
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('dashboard_dateFilterEnabled', 'true');
+        if (checkIn) {
+          localStorage.setItem('dashboard_checkInDate', checkIn);
+        }
+        if (checkOut) {
+          localStorage.setItem('dashboard_checkOutDate', checkOut);
+        }
+      }
       router.push('/dashboard');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
@@ -268,14 +372,13 @@ export default function BookingPage() {
               <div>
                 <label className="block text-sm font-semibold mb-2">
                   <Mail className="w-4 h-4 inline mr-1" />
-                  Email <span className="text-red-500">*</span>
+                  Email
                 </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                  required
                 />
               </div>
 
@@ -305,9 +408,20 @@ export default function BookingPage() {
                 <input
                   type="date"
                   value={checkIn}
-                  onChange={(e) => setCheckIn(e.target.value)}
+                  onChange={(e) => {
+                    const newCheckIn = e.target.value;
+                    setCheckIn(newCheckIn);
+                    // Если даты одинаковые - автоматически добавляем +1 день к дате выезда
+                    if (newCheckIn && checkOut && newCheckIn === checkOut) {
+                      const nextDay = new Date(newCheckIn);
+                      nextDay.setDate(nextDay.getDate() + 1);
+                      setCheckOut(nextDay.toISOString().split('T')[0]);
+                    }
+                  }}
                   min={today}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
+                    isAvailable === false ? 'border-red-500' : isAvailable === true ? 'border-green-500' : 'border-gray-300 focus:border-gray-700'
+                  }`}
                   required
                 />
               </div>
@@ -320,13 +434,46 @@ export default function BookingPage() {
                 <input
                   type="date"
                   value={checkOut}
-                  onChange={(e) => setCheckOut(e.target.value)}
+                  onChange={(e) => {
+                    const newCheckOut = e.target.value;
+                    // Если даты одинаковые - автоматически добавляем +1 день
+                    if (newCheckOut && checkIn && newCheckOut === checkIn) {
+                      const nextDay = new Date(newCheckOut);
+                      nextDay.setDate(nextDay.getDate() + 1);
+                      setCheckOut(nextDay.toISOString().split('T')[0]);
+                    } else {
+                      setCheckOut(newCheckOut);
+                    }
+                  }}
                   min={checkIn || today}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
+                    isAvailable === false ? 'border-red-500' : isAvailable === true ? 'border-green-500' : 'border-gray-300 focus:border-gray-700'
+                  }`}
                   required
                 />
               </div>
             </div>
+
+            {/* Индикатор проверки доступности */}
+            {checkIn && checkOut && (
+              <div className="mt-2">
+                {checkingAvailability ? (
+                  <div className="flex items-center gap-2 text-blue-600 text-sm">
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    Проверка доступности...
+                  </div>
+                ) : isAvailable === true ? (
+                  <div className="text-green-600 text-sm font-semibold flex items-center gap-2">
+                    <span className="w-2 h-2 bg-green-600 rounded-full"></span>
+                    Комната доступна на выбранные даты
+                  </div>
+                ) : isAvailable === false && availabilityError ? (
+                  <div className="text-red-600 text-sm font-semibold">
+                    {availabilityError}
+                  </div>
+                ) : null}
+              </div>
+            )}
 
             {/* Ввод данных пользователя для менеджера */}
             {currentUser.role === 'manager' && (
@@ -503,7 +650,23 @@ export default function BookingPage() {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => router.push('/dashboard')}
+                onClick={() => {
+                  // Сохраняем даты в фильтр перед возвратом на dashboard
+                  // Сохраняем даже если даты пустые, чтобы не потерять предыдущие значения
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('dashboard_dateFilterEnabled', 'true');
+                    // Сохраняем даты только если они заполнены, иначе оставляем предыдущие значения
+                    if (checkIn) {
+                      localStorage.setItem('dashboard_checkInDate', checkIn);
+                    }
+                    if (checkOut) {
+                      localStorage.setItem('dashboard_checkOutDate', checkOut);
+                    }
+                    // Если даты заполнены, сохраняем их
+                    // Если даты пустые, не трогаем localStorage (оставляем предыдущие значения)
+                  }
+                  router.push('/dashboard');
+                }}
                 className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 rounded-lg font-semibold"
               >
                 Отмена

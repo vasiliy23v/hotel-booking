@@ -24,9 +24,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (checkInDate >= checkOutDate) {
+    // Разрешаем одинаковые даты (бронирование на одну ночь - check-in и check-out в один день)
+    // Блокируем только если дата выезда раньше даты заезда
+    if (checkInDate > checkOutDate) {
       return NextResponse.json(
-        { error: 'Дата заезда должна быть раньше даты выезда' },
+        { error: 'Дата заезда не может быть позже даты выезда' },
         { status: 400 }
       );
     }

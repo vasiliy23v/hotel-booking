@@ -4,7 +4,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { 
   Bed, Users, DoorOpen, Lock, CheckCircle, Edit2, Plus, X, Trash2, 
-  ArrowUpDown, Copy, ShowerHead, Toilet, Grid3x3, Loader2, Calendar
+  ArrowUpDown, Copy, ShowerHead, Toilet, Grid3x3, Loader2, Calendar,
+  ArrowLeft, ArrowRight
 } from 'lucide-react';
 import type { Room, Stairs } from '@/types';
 import { api } from '@/lib/api';
@@ -15,12 +16,15 @@ interface FloorPlanProps {
   onRoomClick: (room: Room) => void;
   onRoomUpdate?: (room: Room) => void;
   onRoomCreate?: (room: Room) => void;
-  onCancelBooking?: (roomId: string) => void;
+  onCancelBooking?: (bookingId: string) => void;
   currentUser: string;
   isManager: boolean;
   stairs?: Stairs[];
   onStairsUpdate?: (stairs: Stairs[]) => void;
   hotelId?: string;
+  dateFilterEnabled?: boolean;
+  checkInDate?: string;
+  checkOutDate?: string;
 }
 
 export default function FloorPlan({
@@ -34,7 +38,10 @@ export default function FloorPlan({
   isManager,
   stairs = [],
   onStairsUpdate,
-  hotelId
+  hotelId,
+  dateFilterEnabled: externalDateFilterEnabled,
+  checkInDate: externalCheckInDate,
+  checkOutDate: externalCheckOutDate
 }: FloorPlanProps) {
   const [editMode, setEditMode] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
@@ -61,11 +68,20 @@ export default function FloorPlan({
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
-  const [dateFilterEnabled, setDateFilterEnabled] = useState(false);
-  const [checkInDate, setCheckInDate] = useState('');
-  const [checkOutDate, setCheckOutDate] = useState('');
+  // Используем внешние пропсы для фильтра по датам, если они переданы, иначе локальные состояния
+  const [internalDateFilterEnabled, setInternalDateFilterEnabled] = useState(false);
+  const [internalCheckInDate, setInternalCheckInDate] = useState('');
+  const [internalCheckOutDate, setInternalCheckOutDate] = useState('');
+  const dateFilterEnabled = externalDateFilterEnabled !== undefined ? externalDateFilterEnabled : internalDateFilterEnabled;
+  const checkInDate = externalCheckInDate !== undefined ? externalCheckInDate : internalCheckInDate;
+  const checkOutDate = externalCheckOutDate !== undefined ? externalCheckOutDate : internalCheckOutDate;
   const [roomsAvailability, setRoomsAvailability] = useState<Record<string, boolean>>({});
   const [loadingAvailability, setLoadingAvailability] = useState(false);
+  // Счетчик обновлений для принудительного перерисовывания комнат при изменении доступности
+  const [availabilityUpdateKey, setAvailabilityUpdateKey] = useState(0);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const [hasScrolled, setHasScrolled] = useState(false);
+  const planContainerRef = useRef<HTMLDivElement>(null);
   const SNAP_SIZE = 10;
   const GRID_SIZE = 10; // Размер сетки для отображения
   // Храним начальные позиции выбранных комнат при начале перетаскивания
@@ -88,6 +104,7 @@ export default function FloorPlan({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
 
   // Счетчик для генерации уникальных ID
   const idCounterRef = useRef(0);
@@ -229,15 +246,18 @@ export default function FloorPlan({
   }, [editMode, selectedRooms, localRooms, copiedRooms, handlePasteRooms, selectedStairsSet, localStairs, copiedStairs, handlePasteStairs]);
 
   // Инициализация локальных состояний при входе/выходе из режима редактирования
+  const prevEditModeRef = useRef(editMode);
+  
   useEffect(() => {
-    if (editMode) {
-      // Сохраняем оригинальные данные при входе в режим редактирования
+    // Обновляем локальные состояния только при изменении editMode
+    if (editMode && !prevEditModeRef.current) {
+      // Вход в режим редактирования
       setOriginalRooms([...rooms]);
       setOriginalStairs([...stairs]);
       setLocalRooms([...rooms]);
       setLocalStairs([...stairs]);
-    } else {
-      // При выходе из режима редактирования сбрасываем локальные состояния
+    } else if (!editMode && prevEditModeRef.current) {
+      // Выход из режима редактирования
       setLocalRooms([]);
       setLocalStairs([]);
       setOriginalRooms([]);
@@ -251,6 +271,8 @@ export default function FloorPlan({
       setShowFloorSelectModal(false);
       setCopyingType('rooms');
     }
+    
+    prevEditModeRef.current = editMode;
   }, [editMode, rooms, stairs]);
 
   // Используем локальные данные в режиме редактирования, иначе оригинальные
@@ -264,9 +286,23 @@ export default function FloorPlan({
   const floorStairs = displayStairs.filter(s => s.floor === floor);
 
   // Проверка доступности комнат по выбранным датам
+  // Выполняется каждый раз при изменении дат или включении/выключении фильтра
   useEffect(() => {
     if (!dateFilterEnabled || !checkInDate || !checkOutDate) {
       setRoomsAvailability({});
+      setLoadingAvailability(false);
+      return;
+    }
+
+    // Проверяем, что обе даты валидны
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+    
+    // Если дата выезда раньше или равна дате заезда - это ошибка
+    // (автоматически добавляем +1 день при одинаковых датах в onChange)
+    if (checkOut <= checkIn) {
+      setRoomsAvailability({});
+      setLoadingAvailability(false);
       return;
     }
 
@@ -274,6 +310,7 @@ export default function FloorPlan({
       const nonCommonRooms = floorRooms.filter(r => !r.isCommon);
       if (nonCommonRooms.length === 0) {
         setRoomsAvailability({});
+        setLoadingAvailability(false);
         return;
       }
 
@@ -282,15 +319,23 @@ export default function FloorPlan({
         const roomIds = nonCommonRooms.map(r => r.id);
         const availability = await api.checkRoomsAvailability(roomIds, checkInDate, checkOutDate);
         setRoomsAvailability(availability);
+        // Увеличиваем счетчик для принудительного обновления компонентов
+        setAvailabilityUpdateKey(prev => prev + 1);
       } catch (error) {
         console.error('Error checking rooms availability:', error);
         setRoomsAvailability({});
+        setAvailabilityUpdateKey(prev => prev + 1);
       } finally {
         setLoadingAvailability(false);
       }
     };
 
-    checkAvailability();
+    // Небольшая задержка для debounce при быстром изменении дат
+    const timeoutId = setTimeout(() => {
+      checkAvailability();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
   }, [dateFilterEnabled, checkInDate, checkOutDate, floorRooms]);
 
   // Вычисляем размеры контейнера на основе позиций комнат и ступеней
@@ -324,6 +369,52 @@ export default function FloorPlan({
   const containerSize = calculateContainerSize();
   const isMobile = windowWidth < 768;
   const isLargeScreen = windowWidth >= 1920;
+
+  // Проверка видимости плана в viewport и показ подсказки для мобильных
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isMobile || hasScrolled) return;
+
+    const checkVisibility = () => {
+      if (!planContainerRef.current) return;
+
+      const rect = planContainerRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      
+      // Проверяем, что план виден и занимает около 70% viewport
+      const visibleHeight = Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0);
+      const planHeight = rect.height;
+      const visiblePercentage = (visibleHeight / viewportHeight) * 100;
+      
+      // Показываем подсказку, если план занимает около 70% или больше viewport
+      const isVisible = rect.top < viewportHeight && rect.bottom > 0;
+      const shouldShow = isVisible && visiblePercentage >= 60 && visiblePercentage <= 80 && !hasScrolled;
+      
+      if (shouldShow && !hasScrolled) {
+        setShowScrollHint(true);
+      } else if (!shouldShow) {
+        // Не скрываем подсказку автоматически, только если план полностью скрыт
+        if (rect.bottom < 0 || rect.top > viewportHeight) {
+          setShowScrollHint(false);
+        }
+      }
+    };
+
+    // Проверяем при монтировании и при скролле
+    checkVisibility();
+    window.addEventListener('scroll', checkVisibility, { passive: true });
+    window.addEventListener('resize', checkVisibility, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', checkVisibility);
+      window.removeEventListener('resize', checkVisibility);
+    };
+  }, [isMobile, hasScrolled]);
+
+  // Функция для закрытия подсказки
+  const handleCloseHint = () => {
+    setShowScrollHint(false);
+    setHasScrolled(true);
+  };
   
   // Масштаб для мобильных устройств - увеличиваем комнаты пропорционально
   const mobileScale = isMobile ? Math.max(1.5, Math.min(windowWidth / 400, 2.0)) : 1;
@@ -337,7 +428,9 @@ export default function FloorPlan({
   // Масштабируем размеры контейнера
   const scaledContainerHeight = containerSize.height * scale;
 
-  const getRoomColor = (room: Room) => {
+  // Функции для определения цвета и иконки комнаты
+  // Используем useCallback чтобы они пересчитывались при изменении roomsAvailability
+  const getRoomColor = useCallback((room: Room) => {
     if (room.isCommon) return 'bg-gray-200 border-gray-400';
     
     // Если включен фильтр по датам, используем информацию о доступности
@@ -354,13 +447,14 @@ export default function FloorPlan({
       return 'bg-yellow-100 border-yellow-400 hover:bg-yellow-200';
     }
     
-    // Без фильтра по датам - используем текущее бронирование
-    if (!room.booking) return 'bg-emerald-100 border-emerald-400 hover:bg-emerald-200';
+    // Без фильтра по датам - используем текущие бронирования
+    const activeBookings = room.bookings || (room.booking ? [room.booking] : []);
+    if (activeBookings.length === 0) return 'bg-emerald-100 border-emerald-400 hover:bg-emerald-200';
     // Забронированные комнаты всегда красные для всех
     return 'bg-red-100 border-red-400 hover:bg-red-200';
-  };
+  }, [dateFilterEnabled, checkInDate, checkOutDate, roomsAvailability]);
 
-  const getRoomIcon = (room: Room) => {
+  const getRoomIcon = useCallback((room: Room) => {
     if (room.isCommon) return <Lock className="w-4 h-4 text-gray-600" />;
     
     // Если включен фильтр по датам, используем информацию о доступности
@@ -382,7 +476,7 @@ export default function FloorPlan({
     const isMyBooking = room.booking.bookedBy === currentUser;
     if (isMyBooking) return <CheckCircle className="w-4 h-4 text-gray-700" />;
     return <Lock className="w-4 h-4 text-gray-600" />;
-  };
+  }, [dateFilterEnabled, checkInDate, checkOutDate, roomsAvailability, currentUser]);
 
   // Функция для форматирования кроватей в формат "1-HB 2-EB"
   const formatBeds = (beds: string[]): string => {
@@ -641,24 +735,42 @@ export default function FloorPlan({
       return;
     }
     if (!room.isCommon) {
-      // Если комната забронирована
-      if (room.booking) {
-        // Менеджер может отменить любое бронирование
-        if (isManager && onCancelBooking) {
-          if (confirm('Отменить бронирование этой комнаты?')) {
-            onCancelBooking(room.id);
-          }
-        } 
-        // Обычный пользователь может отменить только своё бронирование
-        else if (onCancelBooking && room.booking.bookedBy === currentUser) {
-          if (confirm('Отменить бронирование этой комнаты?')) {
-            onCancelBooking(room.id);
+      // Получаем все активные бронирования комнаты
+      const activeBookings = room.bookings || (room.booking ? [room.booking] : []);
+      
+      // Если есть бронирования и фильтр по датам активен, проверяем пересечение
+      if (activeBookings.length > 0 && externalDateFilterEnabled && externalCheckInDate && externalCheckOutDate) {
+        const filterCheckIn = new Date(externalCheckInDate);
+        const filterCheckOut = new Date(externalCheckOutDate);
+        
+        const bookingsToShow = activeBookings.filter(booking => {
+          const bookingCheckIn = new Date(booking.checkIn);
+          const bookingCheckOut = new Date(booking.checkOut);
+          return bookingCheckIn < filterCheckOut && bookingCheckOut > filterCheckIn;
+        });
+        
+        // Если есть бронирования в выбранном диапазоне - предлагаем отменить (для менеджера) или показываем свое (для пользователя)
+        if (bookingsToShow.length > 0) {
+          const bookingToCancel = bookingsToShow[0];
+          
+          // Менеджер может отменить любое бронирование
+          // Обычный пользователь может отменить только свое
+          const canCancel = isManager || bookingToCancel.bookedBy === currentUser;
+          
+          if (canCancel && onCancelBooking) {
+            if (confirm(`Отменить бронирование ${bookingToCancel.bookedBy} на период ${new Date(bookingToCancel.checkIn).toLocaleDateString('ru-RU')} - ${new Date(bookingToCancel.checkOut).toLocaleDateString('ru-RU')}?`)) {
+              if (bookingToCancel.id) {
+                onCancelBooking(bookingToCancel.id);
+              }
+            }
+            return; // Не открываем форму, если отменяем бронирование
           }
         }
-      } else {
-        // Комната свободна - можно забронировать (и менеджер, и обычный пользователь)
-        onRoomClick(room);
       }
+      
+      // Все пользователи могут открыть форму бронирования
+      // Проверка доступности по датам будет происходить в форме
+      onRoomClick(room);
     }
   };
 
@@ -1506,7 +1618,7 @@ export default function FloorPlan({
       
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-bold">
-          {floor === 'EG' ? 'Первый этаж (EG)' : floor === '1OG' ? 'Второй этаж (1OG)' : floor === '2OG' ? 'Третий этаж (2OG)' : 'Четвертый этаж (3OG)'}
+          {floor === 'EG' ? 'Цокольный этаж (EG)' : floor === '1OG' ? 'Первый этаж (1OG)' : floor === '2OG' ? 'Второй этаж (2OG)' : 'Третий этаж (3OG)'}
         </h3>
         {isManager && (
           <div className="flex gap-2 flex-wrap">
@@ -1586,85 +1698,10 @@ export default function FloorPlan({
         </div>
       )}
 
-      {/* Фильтр по датам */}
-      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-blue-700" />
-            <label className="text-sm font-semibold text-blue-900 flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={dateFilterEnabled}
-                onChange={(e) => {
-                  setDateFilterEnabled(e.target.checked);
-                  if (!e.target.checked) {
-                    setCheckInDate('');
-                    setCheckOutDate('');
-                    setRoomsAvailability({});
-                  }
-                }}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              Фильтр по датам
-            </label>
-          </div>
-          
-          {dateFilterEnabled && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-1">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                  Заезд:
-                </label>
-                <input
-                  type="date"
-                  value={checkInDate}
-                  onChange={(e) => {
-                    setCheckInDate(e.target.value);
-                    if (e.target.value && checkOutDate && e.target.value >= checkOutDate) {
-                      // Если дата заезда больше или равна дате выезда, сбрасываем дату выезда
-                      setCheckOutDate('');
-                    }
-                  }}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="px-3 py-2 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
-                />
-              </div>
-              
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                  Выезд:
-                </label>
-                <input
-                  type="date"
-                  value={checkOutDate}
-                  onChange={(e) => setCheckOutDate(e.target.value)}
-                  min={checkInDate || new Date().toISOString().split('T')[0]}
-                  className="px-3 py-2 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
-                />
-              </div>
-
-              {loadingAvailability && (
-                <div className="flex items-center gap-2 text-sm text-blue-700">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Проверка доступности...</span>
-                </div>
-              )}
-
-              {dateFilterEnabled && checkInDate && checkOutDate && !loadingAvailability && (
-                <div className="text-xs text-gray-600 mt-1 sm:mt-0">
-                  <span className="inline-block w-3 h-3 bg-emerald-100 border border-emerald-400 rounded mr-1"></span>
-                  Свободно
-                  <span className="inline-block w-3 h-3 bg-red-100 border border-red-400 rounded mr-1 ml-3"></span>
-                  Занято
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
 
       <div
-        className={`relative border-2 border-gray-300 rounded-lg bg-gray-50 overflow-auto ${isLoading ? 'pointer-events-none' : ''}`}
+        ref={planContainerRef}
+        className={`relative border-2 border-gray-300 rounded-lg bg-gray-50 overflow-y-auto overflow-y-hidden ${isLoading ? 'pointer-events-none' : ''}`}
         style={{
           minHeight: isMobile ? `${scaledContainerHeight}px` : '600px',
           height: isMobile ? `${scaledContainerHeight}px` : 'auto',
@@ -1675,6 +1712,28 @@ export default function FloorPlan({
         onMouseLeave={handleMouseUp}
         onClick={handleAddStairs}
       >
+        {/* Подсказка для скролла на мобильных устройствах */}
+        {showScrollHint && isMobile && planContainerRef.current && (
+          <div 
+            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[99999] animate-bounce"
+          >
+            <div className="bg-green-600 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2">
+              <div className="flex gap-1">
+                <ArrowLeft className="w-4 h-4 animate-pulse" />
+                <ArrowRight className="w-4 h-4 animate-pulse" />
+              </div>
+              <span className="text-xs font-semibold whitespace-nowrap">
+                Прокрутите план
+              </span>
+              <button
+                onClick={handleCloseHint}
+                className="bg-white text-green-600 px-3 py-1 rounded text-xs font-semibold hover:bg-gray-100 transition-colors ml-1"
+              >
+                Понятно
+              </button>
+            </div>
+          </div>
+        )}
         <div
           className="relative"
           style={{
@@ -1815,6 +1874,7 @@ export default function FloorPlan({
         })}
 
         {/* Комнаты */}
+        {/* Используем key с roomsAvailability для принудительного обновления при изменении доступности */}
         {floorRooms.map(room => {
           const width = room.width || 120;
           const height = room.height || 100;
@@ -2054,7 +2114,7 @@ export default function FloorPlan({
           if (editMode) {
             return (
               <Rnd
-                key={room.id}
+                key={`${room.id}-${availabilityUpdateKey}`}
                 data-room-id={room.id}
                 size={{
                   width: scaledWidth,
@@ -2467,7 +2527,7 @@ export default function FloorPlan({
           // В обычном режиме просто div
           return (
             <div
-              key={room.id}
+              key={`${room.id}-${availabilityUpdateKey}`}
               data-room-id={room.id}
               className={`absolute border-2 rounded-lg transition-all overflow-hidden ${
                 getRoomColor(room)
@@ -2575,7 +2635,7 @@ export default function FloorPlan({
                     disabled={isLoading}
                     className="px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Первый этаж (EG)
+                    Цокольный этаж (EG)
                   </button>
                 )}
                 {floor !== '1OG' && (

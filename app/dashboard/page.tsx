@@ -42,6 +42,30 @@ export default function Dashboard() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showFilters, setShowFilters] = useState(false);
   
+  // Фильтр по датам (общий с планом) - сохраняется в localStorage, по умолчанию включен
+  const [dateFilterEnabled, setDateFilterEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dashboard_dateFilterEnabled');
+      // Если значение не сохранено, по умолчанию включаем фильтр
+      return saved === null ? true : saved === 'true';
+    }
+    return true; // По умолчанию включен
+  });
+  const [checkInDate, setCheckInDate] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('dashboard_checkInDate') || '';
+    }
+    return '';
+  });
+  const [checkOutDate, setCheckOutDate] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('dashboard_checkOutDate') || '';
+    }
+    return '';
+  });
+  const [roomsAvailability, setRoomsAvailability] = useState<Record<string, boolean>>({});
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  
   // Состояние для бронирований
   const [bookings, setBookings] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string })[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
@@ -125,6 +149,54 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
+  // Восстанавливаем даты из localStorage при возврате на страницу (например, после выхода с формы бронирования)
+  useEffect(() => {
+    const checkAndUpdateDates = () => {
+      const savedCheckInDate = localStorage.getItem('dashboard_checkInDate');
+      const savedCheckOutDate = localStorage.getItem('dashboard_checkOutDate');
+      const savedDateFilterEnabled = localStorage.getItem('dashboard_dateFilterEnabled');
+      
+      // Используем функциональное обновление состояния, чтобы избежать зависимости от текущих значений
+      setCheckInDate(prev => {
+        if (savedCheckInDate && savedCheckInDate !== prev) {
+          return savedCheckInDate;
+        }
+        return prev;
+      });
+      
+      setCheckOutDate(prev => {
+        if (savedCheckOutDate && savedCheckOutDate !== prev) {
+          return savedCheckOutDate;
+        }
+        return prev;
+      });
+      
+      setDateFilterEnabled(prev => {
+        if (savedDateFilterEnabled === 'true' && !prev) {
+          return true;
+        }
+        return prev;
+      });
+    };
+
+    // Проверяем при монтировании компонента
+    checkAndUpdateDates();
+
+    // Проверяем при возврате фокуса на окно (возврат с другой страницы)
+    const handleFocus = () => {
+      checkAndUpdateDates();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    // Также проверяем периодически (на случай, если событие focus не сработало)
+    const interval = setInterval(checkAndUpdateDates, 2000); // Увеличиваем интервал до 2 секунд
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
+  }, []); // Убираем зависимости, чтобы избежать бесконечного цикла
+
   // Сохраняем состояние в localStorage при изменении (только после загрузки данных)
   useEffect(() => {
     if (dataLoaded) {
@@ -155,6 +227,35 @@ export default function Dashboard() {
   useEffect(() => {
     localStorage.setItem('dashboard_selectedFloor', selectedFloor);
   }, [selectedFloor]);
+
+  // Сохраняем состояние фильтра по датам в localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dashboard_dateFilterEnabled', String(dateFilterEnabled));
+    }
+  }, [dateFilterEnabled]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && dataLoaded) {
+      // Сохраняем даты в localStorage только если они заполнены
+      // Если даты пустые, не удаляем их из localStorage (сохраняем предыдущие значения)
+      if (checkInDate) {
+        localStorage.setItem('dashboard_checkInDate', checkInDate);
+      }
+      // Не удаляем дату из localStorage при очистке, чтобы сохранить предыдущее значение
+    }
+  }, [checkInDate, dataLoaded]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && dataLoaded) {
+      // Сохраняем даты в localStorage только если они заполнены
+      // Если даты пустые, не удаляем их из localStorage (сохраняем предыдущие значения)
+      if (checkOutDate) {
+        localStorage.setItem('dashboard_checkOutDate', checkOutDate);
+      }
+      // Не удаляем дату из localStorage при очистке, чтобы сохранить предыдущее значение
+    }
+  }, [checkOutDate, dataLoaded]);
 
   // Обновление максимальной цены при загрузке комнат
   useEffect(() => {
@@ -215,6 +316,9 @@ export default function Dashboard() {
         const savedViewMode = localStorage.getItem('dashboard_viewMode');
         const savedFloor = localStorage.getItem('dashboard_selectedFloor');
         const savedHotel = localStorage.getItem('dashboard_selectedHotel');
+        const savedDateFilterEnabled = localStorage.getItem('dashboard_dateFilterEnabled');
+        const savedCheckInDate = localStorage.getItem('dashboard_checkInDate');
+        const savedCheckOutDate = localStorage.getItem('dashboard_checkOutDate');
 
         // Применяем все изменения состояния одновременно
         if (savedViewMode === 'plan' || savedViewMode === 'list') {
@@ -232,6 +336,20 @@ export default function Dashboard() {
             // Если отель не найден, очищаем из localStorage
             localStorage.removeItem('dashboard_selectedHotel');
           }
+        }
+        // Восстанавливаем фильтр по датам
+        // Если есть сохраненные даты, включаем фильтр автоматически
+        if (savedCheckInDate || savedCheckOutDate) {
+          setDateFilterEnabled(true);
+          if (savedCheckInDate) {
+            setCheckInDate(savedCheckInDate);
+          }
+          if (savedCheckOutDate) {
+            setCheckOutDate(savedCheckOutDate);
+          }
+        } else if (savedDateFilterEnabled === 'true') {
+          // Если фильтр был включен, но дат нет - оставляем включенным
+          setDateFilterEnabled(true);
         }
       } else {
         // Проверяем, что выбранный отель все еще существует (при обновлении данных)
@@ -295,6 +413,55 @@ export default function Dashboard() {
     }
   };
 
+  // Проверка доступности комнат по датам (общий фильтр с планом)
+  useEffect(() => {
+    if (!dateFilterEnabled || !checkInDate || !checkOutDate) {
+      setRoomsAvailability({});
+      setLoadingAvailability(false);
+      return;
+    }
+
+    // Проверяем, что обе даты валидны
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+    
+    // Если дата выезда раньше или равна дате заезда - это ошибка
+    if (checkOut <= checkIn) {
+      setRoomsAvailability({});
+      setLoadingAvailability(false);
+      return;
+    }
+
+    const checkAvailability = async () => {
+      const hotelRoomsList = rooms.filter(r => r.hotelId === selectedHotel);
+      const nonCommonRooms = hotelRoomsList.filter(r => !r.isCommon);
+      if (nonCommonRooms.length === 0) {
+        setRoomsAvailability({});
+        setLoadingAvailability(false);
+        return;
+      }
+
+      setLoadingAvailability(true);
+      try {
+        const roomIds = nonCommonRooms.map(r => r.id);
+        const availability = await api.checkRoomsAvailability(roomIds, checkInDate, checkOutDate);
+        setRoomsAvailability(availability);
+      } catch (error) {
+        console.error('Error checking rooms availability:', error);
+        setRoomsAvailability({});
+      } finally {
+        setLoadingAvailability(false);
+      }
+    };
+
+    // Небольшая задержка для debounce при быстром изменении дат
+    const timeoutId = setTimeout(() => {
+      checkAvailability();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [dateFilterEnabled, checkInDate, checkOutDate, rooms, selectedHotel]);
+
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
     router.push('/');
@@ -311,21 +478,13 @@ export default function Dashboard() {
     }
   };
 
-  const handleCancelBooking = async (roomId: string) => {
-    const room = rooms.find(r => r.id === roomId);
-    if (!room?.booking) return;
-
+  const handleCancelBooking = async (bookingId: string) => {
     if (!confirm('Вы уверены, что хотите отменить бронирование?')) return;
 
     try {
-      if (room.booking.id) {
-        await api.deleteBooking(room.booking.id);
-      }
-      // Обновляем комнату, убирая бронирование
-      const updatedRooms = rooms.map(r => 
-        r.id === roomId ? { ...r, booking: undefined } : r
-      );
-      setRooms(updatedRooms);
+      await api.deleteBooking(bookingId);
+      // Перезагружаем данные для обновления списка бронирований
+      await loadData(true);
     } catch (error) {
       console.error('Error canceling booking:', error);
       alert('Ошибка при отмене бронирования');
@@ -394,11 +553,18 @@ export default function Dashboard() {
   };
 
   const handleRoomClick = (room: Room) => {
-    if (!room.isCommon && !room.booking) {
-      // Бронировать можно только свободные комнаты
-      // Менеджер сначала должен отменить существующее бронирование
-      router.push(`/booking/${room.id}`);
+    if (room.isCommon) return;
+    
+    // Все пользователи могут бронировать любую комнату
+    // Проверка доступности по датам будет происходить в форме бронирования
+    // Передаем даты из фильтра в URL, если они установлены
+    const params = new URLSearchParams();
+    if (dateFilterEnabled && checkInDate && checkOutDate) {
+      params.set('checkIn', checkInDate);
+      params.set('checkOut', checkOutDate);
     }
+    const queryString = params.toString();
+    router.push(`/booking/${room.id}${queryString ? `?${queryString}` : ''}`);
   };
 
 
@@ -546,16 +712,36 @@ export default function Dashboard() {
     .filter(room => {
       if (room.isCommon) return false;
       
-      // Для гостя показываем только свободные комнаты и свои бронирования
+      // Для гостя показываем комнаты, где есть свободные даты или свои бронирования
       if (currentUser.role === 'guest') {
-        if (room.booking && room.booking.bookedBy !== currentUser.name) {
-          return false; // Скрываем чужие бронирования
+        const activeBookings = room.bookings || (room.booking ? [room.booking] : []);
+        const hasMyBooking = activeBookings.some(b => b.bookedBy === currentUser.name);
+        const hasOtherBookings = activeBookings.some(b => b.bookedBy !== currentUser.name);
+        
+        // Если есть чужие бронирования и нет своих - скрываем (но можно забронировать на другие даты)
+        // Показываем комнату, если нет бронирований или есть свое бронирование
+        // Или если фильтр по датам показывает, что комната доступна
+        if (dateFilterEnabled && checkInDate && checkOutDate) {
+          // При фильтре по датам показываем только доступные
+          const isAvailable = roomsAvailability[room.id];
+          if (isAvailable === false && !hasMyBooking) return false;
+        } else if (hasOtherBookings && !hasMyBooking && activeBookings.length > 0) {
+          // Без фильтра - показываем только если есть свое бронирование или комната свободна
+          // Но на самом деле можно показывать все комнаты, так как можно бронировать на другие даты
         }
-        // Показываем свободные и свои забронированные
       }
       
-      // Фильтр "только свободные"
-      if (filterAvailableOnly && room.booking) return false;
+      // Фильтр по датам (общий с планом) - показываем только доступные комнаты
+      if (dateFilterEnabled && checkInDate && checkOutDate) {
+        const isAvailable = roomsAvailability[room.id];
+        if (isAvailable === false) return false; // Скрываем недоступные комнаты
+      }
+      
+      // Фильтр "только свободные" - комната считается свободной, если нет активных бронирований
+      if (filterAvailableOnly) {
+        const activeBookings = room.bookings || (room.booking ? [room.booking] : []);
+        if (activeBookings.length > 0) return false;
+      }
       // Остальные фильтры (применяются только если установлены)
       if (filterType !== 'all' && room.type !== filterType) return false;
       if (filterPriceMin > 0 && room.price < filterPriceMin) return false;
@@ -611,13 +797,17 @@ export default function Dashboard() {
     setFilterPriceMax(getMaxPrice());
     setFilterCapacity(0);
     setFilterAvailableOnly(false);
+    // При сбросе фильтра по датам - очищаем даты, но фильтр остается включенным (за весь период)
+    // dateFilterEnabled остается true, но даты очищаются
+    setCheckInDate('');
+    setCheckOutDate('');
     setSortBy('floor');
     setSortDirection('asc');
   };
 
   // Проверка, применены ли фильтры
   const maxPrice = getMaxPrice();
-  const hasActiveFilters = filterType !== 'all' || filterPriceMin > 0 || filterPriceMax < maxPrice || filterCapacity > 0 || filterAvailableOnly || sortBy !== 'floor' || sortDirection !== 'asc';
+  const hasActiveFilters = filterType !== 'all' || filterPriceMin > 0 || filterPriceMax < maxPrice || filterCapacity > 0 || filterAvailableOnly || dateFilterEnabled || sortBy !== 'floor' || sortDirection !== 'asc';
 
   const floorRooms = hotelRooms.filter(r => r.floor === selectedFloor);
 
@@ -788,7 +978,7 @@ export default function Dashboard() {
                 <div className={`w-full sm:w-48 h-48 sm:h-32 shrink-0 rounded-xl overflow-hidden shadow-sm transition-opacity ${isRefreshing ? 'opacity-70' : ''}`}>
                   <img
                     src={currentHotel.image}
-                    alt={currentHotel.name}
+                    alt={currentHotel?.name || ''}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -802,7 +992,7 @@ export default function Dashboard() {
               <div className={`flex-1 transition-opacity ${isRefreshing ? 'opacity-70' : ''}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    {currentHotel.name}
+                    {currentHotel?.name}
                   </h1>
                   {isRefreshing && (
                     <RefreshCw className="w-4 h-4 text-gray-400 animate-spin" />
@@ -823,10 +1013,11 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Navigation - Минималистичная (только если выбран отель) */}
+      {/* Общие компоненты навигации (только если выбран отель) */}
       {selectedHotel && (
         <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3 space-y-3">
+            {/* Переключатель режимов: План - Список */}
             <div className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
               <button
                 onClick={() => setSelectedHotel('')}
@@ -859,9 +1050,9 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Выбор этажа для плана */}
-            {viewMode === 'plan' && currentHotel && getAvailableFloors.length > 0 && (
-              <div className="mt-2 sm:mt-3 flex gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
+            {/* Выбор этажа (для обоих режимов) */}
+            {currentHotel && getAvailableFloors.length > 0 && (
+              <div className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
                 {getAvailableFloors.map((floor) => (
                   <button
                     key={floor}
@@ -877,6 +1068,93 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
+
+            {/* Фильтр по датам (общий для плана и списка) */}
+            <div className="p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-2 mb-3">
+                <Calendar className="w-4 h-4 text-blue-600" />
+                <label className="text-xs sm:text-sm font-semibold text-gray-700 cursor-pointer flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={dateFilterEnabled}
+                    onChange={(e) => {
+                      setDateFilterEnabled(e.target.checked);
+                      if (!e.target.checked) {
+                        setCheckInDate('');
+                        setCheckOutDate('');
+                      }
+                    }}
+                    className="w-4 h-4 text-gray-700 border-gray-300 rounded focus:ring-gray-500"
+                  />
+                  Фильтр по датам
+                </label>
+              </div>
+              
+              {dateFilterEnabled && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Дата заезда</label>
+                    <input
+                      type="date"
+                      value={checkInDate}
+                      onChange={(e) => {
+                        const newCheckInDate = e.target.value;
+                        setCheckInDate(newCheckInDate);
+                        
+                        // Если дата выезда раньше новой даты заезда - сбрасываем дату выезда
+                        if (newCheckInDate && checkOutDate && newCheckInDate > checkOutDate) {
+                          setCheckOutDate('');
+                        }
+                        // Если даты одинаковые - автоматически добавляем +1 день к дате выезда
+                        else if (newCheckInDate && checkOutDate && newCheckInDate === checkOutDate) {
+                          const nextDay = new Date(newCheckInDate);
+                          nextDay.setDate(nextDay.getDate() + 1);
+                          setCheckOutDate(nextDay.toISOString().split('T')[0]);
+                        }
+                      }}
+                      className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-blue-600"
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Дата выезда</label>
+                    <input
+                      type="date"
+                      value={checkOutDate}
+                      onChange={(e) => {
+                        const newCheckOutDate = e.target.value;
+                        if (newCheckOutDate && checkInDate && newCheckOutDate === checkInDate) {
+                          // Если даты одинаковые - автоматически добавляем +1 день
+                          const nextDay = new Date(newCheckOutDate);
+                          nextDay.setDate(nextDay.getDate() + 1);
+                          setCheckOutDate(nextDay.toISOString().split('T')[0]);
+                        } else {
+                          setCheckOutDate(newCheckOutDate);
+                        }
+                      }}
+                      className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-blue-600"
+                      min={checkInDate || new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {dateFilterEnabled && checkInDate && checkOutDate && currentUser?.role === 'guest' && viewMode === 'list' && (
+                <div className="mt-3 text-xs text-gray-600">
+                  {loadingAvailability ? (
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      Проверка доступности...
+                    </div>
+                  ) : (
+                    <div className="text-green-600 font-semibold">
+                      Показаны только доступные комнаты на выбранные даты
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1028,16 +1306,20 @@ export default function Dashboard() {
                 onRoomClick={handleRoomClick}
                 onRoomUpdate={isManagerOrDeveloper(currentUser) ? handleRoomUpdate : undefined}
                 onRoomCreate={isManagerOrDeveloper(currentUser) ? handleRoomCreate : undefined}
-                onCancelBooking={handleCancelBooking}
+                onCancelBooking={(bookingId) => handleCancelBooking(bookingId)}
                 currentUser={currentUser.name}
                 isManager={isManagerOrDeveloper(currentUser)}
                 stairs={stairs.filter((s: Stairs) => s.hotelId === selectedHotel)}
                 onStairsUpdate={isManagerOrDeveloper(currentUser) ? handleStairsUpdate : undefined}
                 hotelId={selectedHotel}
+                dateFilterEnabled={dateFilterEnabled}
+                checkInDate={checkInDate}
+                checkOutDate={checkOutDate}
               />
             </div>
 
-            {/* Список комнат с фильтрами */}
+            {/* Список комнат с фильтрами - только для менеджеров и разработчиков */}
+            {isManagerOrDeveloper(currentUser) && (
             <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900">
@@ -1153,8 +1435,8 @@ export default function Dashboard() {
                       <div
                         key={room.id}
                         className={`flex items-center justify-between p-3 sm:p-4 rounded-lg border transition-colors ${
-                          room.booking
-                            ? room.booking.bookedBy === currentUser.name
+                          (room.bookings && room.bookings.length > 0) || room.booking
+                            ? (room.bookings || (room.booking ? [room.booking] : [])).some(b => b.bookedBy === currentUser.name)
                               ? 'bg-emerald-50 border-emerald-200'
                               : 'bg-gray-50 border-gray-200'
                             : 'bg-white border-gray-200 hover:border-gray-300'
@@ -1179,7 +1461,21 @@ export default function Dashboard() {
                               <span className="font-semibold text-gray-700">{room.price}€{room.pricePerPerson ? '/Per' : ''}/ночь</span>
                             )}
                           </div>
-                          {room.booking && (
+                          {(room.bookings && room.bookings.length > 0) && (
+                            <div className="mt-1.5 space-y-1">
+                              {room.bookings.slice(0, 2).map((booking, idx) => (
+                                <div key={booking.id || idx} className="text-xs text-gray-500">
+                                  {booking.bookedBy} · {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
+                                </div>
+                              ))}
+                              {room.bookings.length > 2 && (
+                                <div className="text-xs text-gray-400">
+                                  +{room.bookings.length - 2} еще
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {!room.bookings && room.booking && (
                             <div className="mt-1.5 text-xs text-gray-500">
                               {room.booking.bookedBy} · {new Date(room.booking.checkIn).toLocaleDateString()} - {new Date(room.booking.checkOut).toLocaleDateString()}
                             </div>
@@ -1187,7 +1483,7 @@ export default function Dashboard() {
                         </div>
 
                         <div className="flex items-center gap-2 ml-4">
-                          {!room.booking && !room.isCommon && (
+                          {!room.isCommon && (
                             <Link
                               href={`/booking/${room.id}`}
                               prefetch={false}
@@ -1196,14 +1492,7 @@ export default function Dashboard() {
                               Забронировать
                             </Link>
                           )}
-                          {room.booking && (room.booking.bookedBy === currentUser.name || isManagerOrDeveloper(currentUser)) && (
-                            <button
-                              onClick={() => handleCancelBooking(room.id)}
-                              className="px-3 py-1.5 bg-pink-900 hover:bg-pink-950 text-white rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap"
-                            >
-                              Отменить бронь
-                            </button>
-                          )}
+                          {/* Кнопка отмены бронирования теперь в FloorPlan, так как нужен bookingId */}
                           {isManagerOrDeveloper(currentUser) && (
                             <>
                               <button
@@ -1229,14 +1518,18 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
+            )}
+          </div>
+        )}
 
-            {/* Таблица всех комнат отеля - показывается только в режиме плана */}
-            {viewMode === 'plan' && (
+        {/* Таблица всех комнат отеля - показывается только в режиме списка */}
+        {viewMode === 'list' && selectedHotel && (
+          <div className="space-y-6">
             <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4">
                 <div>
                   {currentHotel && (
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">{currentHotel.name}</h2>
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">{currentHotel?.name}</h2>
                   )}
                   <p className="text-sm text-gray-600">
                     {currentUser.role === 'guest' 
@@ -1412,10 +1705,17 @@ export default function Dashboard() {
                             {sortBy !== 'type' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
                         </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                        <th 
+                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('capacity')}
+                        >
                           <div className="flex items-center gap-1">
                             <Users className="w-3 h-3" />
                             Вместимость
+                            {sortBy === 'capacity' && (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                            )}
+                            {sortBy !== 'capacity' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
                         </th>
                         <th 
@@ -1442,7 +1742,7 @@ export default function Dashboard() {
                             {sortBy !== 'status' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
                         </th>
-                        {(isManagerOrDeveloper(currentUser) || filteredAndSortedRooms.some(r => !r.isCommon && (!r.booking || r.booking.bookedBy === currentUser.name))) && (
+                        {(isManagerOrDeveloper(currentUser) || filteredAndSortedRooms.some(r => !r.isCommon && (!r.booking || r.booking.bookedBy === currentUser?.name))) && (
                           <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Действия</th>
                         )}
                       </tr>
@@ -1453,7 +1753,7 @@ export default function Dashboard() {
                           key={room.id}
                           className={`border-b border-gray-100 transition-colors ${
                             room.booking
-                              ? room.booking.bookedBy === currentUser.name
+                              ? room.booking.bookedBy === currentUser?.name
                                 ? 'bg-blue-50/50 hover:bg-blue-50'
                                 : 'bg-gray-50/50 hover:bg-gray-50'
                               : 'hover:bg-gray-50'
@@ -1487,7 +1787,7 @@ export default function Dashboard() {
                               <span className="text-xs text-green-600 font-semibold">Свободна</span>
                             )}
                           </td>
-                          {(isManagerOrDeveloper(currentUser) || (!room.isCommon && (!room.booking || room.booking.bookedBy === currentUser.name))) && (
+                          {(isManagerOrDeveloper(currentUser) || (!room.isCommon && (!room.booking || room.booking.bookedBy === currentUser?.name))) && (
                             <td className="px-3 py-2.5">
                               <div className="flex items-center gap-2">
                                 {!room.booking && !room.isCommon && (
@@ -1499,7 +1799,7 @@ export default function Dashboard() {
                                     Забронировать
                                   </Link>
                                 )}
-                                {room.booking && (room.booking.bookedBy === currentUser.name || isManagerOrDeveloper(currentUser)) && (
+                                {room.booking && (room.booking.bookedBy === currentUser?.name || isManagerOrDeveloper(currentUser)) && (
                                   <button
                                     onClick={() => handleCancelBooking(room.id)}
                                     className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
@@ -1539,22 +1839,21 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
-            )}
           </div>
         )}
 
-        {/* Режим списка - показываем только таблицу всех комнат */}
-        {viewMode === 'list' && selectedHotel && (
+        {/* Режим списка - показываем только таблицу всех комнат (дубликат удален) */}
+        {false && viewMode === 'list' && selectedHotel && (
           <div className="space-y-6">
             {/* Таблица всех комнат отеля */}
             <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4">
                 <div>
                   {currentHotel && (
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">{currentHotel.name}</h2>
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">{currentHotel?.name}</h2>
                   )}
                   <p className="text-sm text-gray-600">
-                    {currentUser.role === 'guest' 
+                    {currentUser?.role === 'guest' 
                       ? 'Доступные комнаты' 
                       : filterAvailableOnly ? 'Свободные комнаты' : 'Все комнаты отеля'}
                   </p>
@@ -1727,10 +2026,17 @@ export default function Dashboard() {
                             {sortBy !== 'type' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
                         </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                        <th 
+                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('capacity')}
+                        >
                           <div className="flex items-center gap-1">
                             <Users className="w-3 h-3" />
                             Вместимость
+                            {sortBy === 'capacity' && (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                            )}
+                            {sortBy !== 'capacity' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
                         </th>
                         <th 
@@ -1757,7 +2063,7 @@ export default function Dashboard() {
                             {sortBy !== 'status' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
                         </th>
-                        {(isManagerOrDeveloper(currentUser) || filteredAndSortedRooms.some(r => !r.isCommon && (!r.booking || r.booking.bookedBy === currentUser.name))) && (
+                        {(isManagerOrDeveloper(currentUser) || filteredAndSortedRooms.some(r => !r.isCommon && (!r.booking || r.booking.bookedBy === currentUser?.name))) && (
                           <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Действия</th>
                         )}
                       </tr>
@@ -1768,7 +2074,7 @@ export default function Dashboard() {
                           key={room.id}
                           className={`border-b border-gray-100 transition-colors ${
                             room.booking
-                              ? room.booking.bookedBy === currentUser.name
+                              ? room.booking.bookedBy === currentUser?.name
                                 ? 'bg-blue-50/50 hover:bg-blue-50'
                                 : 'bg-gray-50/50 hover:bg-gray-50'
                               : 'hover:bg-gray-50'
@@ -1802,7 +2108,7 @@ export default function Dashboard() {
                               <span className="text-xs text-green-600 font-semibold">Свободна</span>
                             )}
                           </td>
-                          {(isManagerOrDeveloper(currentUser) || (!room.isCommon && (!room.booking || room.booking.bookedBy === currentUser.name))) && (
+                          {(isManagerOrDeveloper(currentUser) || (!room.isCommon && (!room.booking || room.booking.bookedBy === currentUser?.name))) && (
                             <td className="px-3 py-2.5">
                               <div className="flex items-center gap-2">
                                 {!room.booking && !room.isCommon && (
@@ -1814,7 +2120,7 @@ export default function Dashboard() {
                                     Забронировать
                                   </Link>
                                 )}
-                                {room.booking && (room.booking.bookedBy === currentUser.name || isManagerOrDeveloper(currentUser)) && (
+                                {room.booking && (room.booking.bookedBy === currentUser?.name || isManagerOrDeveloper(currentUser)) && (
                                   <button
                                     onClick={() => handleCancelBooking(room.id)}
                                     className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
@@ -1911,11 +2217,6 @@ export default function Dashboard() {
             >
               <div className="relative">
                 <BookOpen className={`w-5 h-5 ${!selectedHotel && activeTab === 'bookings' ? 'text-gray-900' : 'text-gray-500'}`} />
-                {bookingStats.unconfirmed > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-pink-950 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                    {bookingStats.unconfirmed > 9 ? '9+' : bookingStats.unconfirmed}
-                  </span>
-                )}
               </div>
               <span className="text-xs font-semibold">Бронирования</span>
             </button>

@@ -10,7 +10,7 @@ export interface BookingInfo {
   roomId: string;
   bookedBy: string;
   bookedDate: string;
-  email: string;
+  email?: string; // Опциональный email
   phone: string;
   checkIn: string;
   checkOut: string;
@@ -39,7 +39,8 @@ export interface Room {
   beds: string[];
   floor: 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG';
   price: number;
-  booking?: BookingInfo;
+  booking?: BookingInfo; // Оставлено для обратной совместимости, но устарело - используйте bookings
+  bookings?: BookingInfo[]; // Массив всех активных бронирований
   position: { x: number; y: number };
   width?: number;
   height?: number;
@@ -127,6 +128,7 @@ export interface Feedback {
   comment: string;
   screenshot?: string;
   userAgent?: string;
+  isProcessed?: boolean; // Помечен ли отзыв как обработанный
   createdAt: string;
   updatedAt?: string;
 }

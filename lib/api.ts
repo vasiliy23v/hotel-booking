@@ -249,6 +249,13 @@ export class ApiClient {
     return this.request<any[]>('/feedback');
   }
 
+  async updateFeedbackStatus(id: string, isProcessed: boolean) {
+    return this.request<any>('/feedback', {
+      method: 'PATCH',
+      body: JSON.stringify({ id, isProcessed }),
+    });
+  }
+
   async deleteFeedback(id: string) {
     return this.request(`/feedback?id=${id}`, {
       method: 'DELETE',

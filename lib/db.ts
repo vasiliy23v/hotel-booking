@@ -79,7 +79,7 @@ function transformBooking(booking: any): BookingInfo {
     roomId: booking.roomId,
     bookedBy: booking.bookedBy,
     bookedDate: booking.bookedDate.toISOString(),
-    email: booking.email,
+    email: booking.email || undefined,
     phone: booking.phone,
     checkIn: booking.checkIn.toISOString().split('T')[0],
     checkOut: booking.checkOut.toISOString().split('T')[0],
@@ -560,9 +560,11 @@ export async function getRooms(hotelId?: string): Promise<Room[]> {
   const roomsWithBookings = await Promise.all(
     rooms.map(async (room) => {
       const transformedRoom = transformRoom(room);
-      const activeBooking = await getActiveBookingForRoom(room.id);
-      if (activeBooking) {
-        (transformedRoom as any).booking = activeBooking;
+      const activeBookings = await getActiveBookingsForRoom(room.id);
+      if (activeBookings.length > 0) {
+        (transformedRoom as any).bookings = activeBookings;
+        // Для обратной совместимости оставляем первое бронирование в booking
+        (transformedRoom as any).booking = activeBookings[0];
       }
       return transformedRoom;
     })
@@ -615,10 +617,12 @@ export async function createRoom(room: Omit<Room, 'id'> & { id?: string }): Prom
   });
   
   const transformedRoom = transformRoom(newRoom);
-  // Загружаем активное бронирование для комнаты, если есть
-  const activeBooking = await getActiveBookingForRoom(roomId);
-  if (activeBooking) {
-    (transformedRoom as any).booking = activeBooking;
+  // Загружаем активные бронирования для комнаты, если есть
+  const activeBookings = await getActiveBookingsForRoom(roomId);
+  if (activeBookings.length > 0) {
+    (transformedRoom as any).bookings = activeBookings;
+    // Для обратной совместимости оставляем первое бронирование в booking
+    (transformedRoom as any).booking = activeBookings[0];
   }
   return transformedRoom;
 }
@@ -725,13 +729,22 @@ export async function getBookingById(id: string): Promise<BookingInfo | null> {
 }
 
 /**
- * Получить активное бронирование для комнаты
+ * Получить активное бронирование для комнаты (для обратной совместимости)
+ * @deprecated Используйте getActiveBookingsForRoom для получения всех активных бронирований
  */
 export async function getActiveBookingForRoom(roomId: string): Promise<BookingInfo | null> {
+  const bookings = await getActiveBookingsForRoom(roomId);
+  return bookings.length > 0 ? bookings[0] : null;
+}
+
+/**
+ * Получить все активные бронирования для комнаты
+ */
+export async function getActiveBookingsForRoom(roomId: string): Promise<BookingInfo[]> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const booking = await prisma.booking.findFirst({
+  const bookings = await prisma.booking.findMany({
     where: {
       roomId,
       checkOut: {
@@ -739,13 +752,11 @@ export async function getActiveBookingForRoom(roomId: string): Promise<BookingIn
       },
     },
     orderBy: {
-      bookedDate: 'desc',
+      checkIn: 'asc',
     },
   });
   
-  if (!booking) return null;
-  
-  return transformBooking(booking);
+  return bookings.map(transformBooking);
 }
 
 /**
@@ -760,21 +771,23 @@ export async function isRoomAvailable(
 ): Promise<boolean> {
   // Проверяем пересечения дат
   // Пересечение происходит если: newCheckIn < existingCheckOut AND newCheckOut > existingCheckIn
+  // Для одинаковых дат (checkIn = checkOut) проверяем, есть ли бронирование, которое включает эту дату
   const conflictingBooking = await prisma.booking.findFirst({
     where: {
       roomId,
       id: excludeBookingId ? { not: excludeBookingId } : undefined,
       // Проверяем пересечение дат: существующее бронирование пересекается с новым,
-      // если checkIn < existingCheckOut AND checkOut > existingCheckIn
+      // если existingCheckIn < newCheckOut AND existingCheckOut > newCheckIn
+      // Используем <= и >= для поддержки одинаковых дат (бронирование на одну ночь)
       AND: [
         {
           checkIn: {
-            lt: checkOut, // existingCheckIn < newCheckOut
+            lte: checkOut, // existingCheckIn <= newCheckOut
           },
         },
         {
           checkOut: {
-            gt: checkIn, // existingCheckOut > newCheckIn
+            gte: checkIn, // existingCheckOut >= newCheckIn
           },
         },
       ],
@@ -799,6 +812,41 @@ export async function createBooking(
     throw new Error('Дата заезда должна быть раньше даты выезда');
   }
 
+  // Проверяем доступность комнаты перед созданием бронирования
+  const isAvailable = await isRoomAvailable(booking.roomId, checkInDate, checkOutDate);
+  if (!isAvailable) {
+    // Получаем информацию о конфликтующем бронировании для более понятного сообщения
+    const conflicting = await prisma.booking.findFirst({
+      where: {
+        roomId: booking.roomId,
+        AND: [
+          {
+            checkIn: {
+              lte: checkOutDate,
+            },
+          },
+          {
+            checkOut: {
+              gte: checkInDate,
+            },
+          },
+        ],
+      },
+      orderBy: {
+        checkIn: 'asc',
+      },
+    });
+
+    if (conflicting) {
+      const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
+      const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
+      throw new Error(
+        `Комната уже забронирована на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
+      );
+    }
+    throw new Error('Комната уже забронирована на выбранные даты. Пожалуйста, выберите другие даты.');
+  }
+
   try {
     // Создаем бронирование
     // EXCLUDE constraint на уровне базы данных автоматически предотвратит пересечения
@@ -809,7 +857,7 @@ export async function createBooking(
         roomId: booking.roomId,
         bookedBy: booking.bookedBy,
         bookedDate: new Date(booking.bookedDate),
-        email: booking.email,
+        email: booking.email || null,
         phone: booking.phone,
         checkIn: checkInDate,
         checkOut: checkOutDate,
@@ -897,9 +945,10 @@ export async function updateBooking(
     const checkInDate = updates.checkIn ? new Date(updates.checkIn) : new Date(currentBooking.checkIn);
     const checkOutDate = updates.checkOut ? new Date(updates.checkOut) : new Date(currentBooking.checkOut);
 
-    // Валидация дат
-    if (checkInDate >= checkOutDate) {
-      throw new Error('Дата заезда должна быть раньше даты выезда');
+    // Валидация дат - разрешаем одинаковые даты (бронирование на одну ночь)
+    // Блокируем только если дата выезда раньше даты заезда
+    if (checkInDate > checkOutDate) {
+      throw new Error('Дата заезда не может быть позже даты выезда');
     }
 
     // EXCLUDE constraint автоматически проверит пересечения при обновлении
@@ -1206,6 +1255,7 @@ export interface Feedback {
   comment: string;
   screenshot?: string;
   userAgent?: string;
+  isProcessed?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -1228,6 +1278,7 @@ export async function getFeedbacks(): Promise<Feedback[]> {
     comment: f.comment,
     screenshot: f.screenshot || undefined,
     userAgent: f.userAgent || undefined,
+    isProcessed: (f as any).isProcessed || false,
     createdAt: f.createdAt.toISOString(),
     updatedAt: f.updatedAt.toISOString(),
   }));
@@ -1251,6 +1302,7 @@ export async function getFeedbackById(id: string): Promise<Feedback | null> {
     comment: feedback.comment,
     screenshot: feedback.screenshot || undefined,
     userAgent: feedback.userAgent || undefined,
+    isProcessed: (feedback as any).isProcessed || false,
     createdAt: feedback.createdAt.toISOString(),
     updatedAt: feedback.updatedAt.toISOString(),
   };
@@ -1281,8 +1333,32 @@ export async function createFeedback(
     comment: newFeedback.comment,
     screenshot: newFeedback.screenshot || undefined,
     userAgent: newFeedback.userAgent || undefined,
+    isProcessed: (newFeedback as any).isProcessed || false,
     createdAt: newFeedback.createdAt.toISOString(),
     updatedAt: newFeedback.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * Обновить статус обработки отзыва
+ */
+export async function updateFeedbackStatus(id: string, isProcessed: boolean): Promise<Feedback> {
+  const updatedFeedback = await prisma.feedback.update({
+    where: { id },
+    data: { isProcessed } as any,
+  });
+
+  return {
+    id: updatedFeedback.id,
+    userName: updatedFeedback.userName,
+    userEmail: updatedFeedback.userEmail || undefined,
+    userRole: updatedFeedback.userRole,
+    comment: updatedFeedback.comment,
+    screenshot: updatedFeedback.screenshot || undefined,
+    userAgent: updatedFeedback.userAgent || undefined,
+    isProcessed: (updatedFeedback as any).isProcessed || false,
+    createdAt: updatedFeedback.createdAt.toISOString(),
+    updatedAt: updatedFeedback.updatedAt.toISOString(),
   };
 }
 
