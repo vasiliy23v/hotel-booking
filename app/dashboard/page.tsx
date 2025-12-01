@@ -1175,7 +1175,7 @@ export default function Dashboard() {
                               {room.capacity}
                             </span>
                             {!room.isCommon && room.price > 0 && (
-                              <span className="font-semibold text-gray-700">{room.price}€/ночь</span>
+                              <span className="font-semibold text-gray-700">{room.price}€{room.pricePerPerson ? '/Per' : ''}/ночь</span>
                             )}
                           </div>
                           {room.booking && (
@@ -1470,7 +1470,7 @@ export default function Dashboard() {
                           </td>
                           <td className="px-3 py-2.5 text-sm text-gray-700">{room.capacity}</td>
                           <td className="px-3 py-2.5 text-sm font-semibold text-gray-700">
-                            {!room.isCommon && room.price > 0 ? `${room.price}€` : '-'}
+                            {!room.isCommon && room.price > 0 ? `${room.price}€${room.pricePerPerson ? '/Per' : ''}` : '-'}
                           </td>
                           <td className="px-3 py-2.5">
                             {room.booking ? (
@@ -1785,7 +1785,7 @@ export default function Dashboard() {
                           </td>
                           <td className="px-3 py-2.5 text-sm text-gray-700">{room.capacity}</td>
                           <td className="px-3 py-2.5 text-sm font-semibold text-gray-700">
-                            {!room.isCommon && room.price > 0 ? `${room.price}€` : '-'}
+                            {!room.isCommon && room.price > 0 ? `${room.price}€${room.pricePerPerson ? '/Per' : ''}` : '-'}
                           </td>
                           <td className="px-3 py-2.5">
                             {room.booking ? (
@@ -1999,6 +1999,7 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
     hotelId: room?.hotelId || hotels[0]?.id || '',
     description: room?.description || '',
     isCommon: room?.isCommon || false,
+    pricePerPerson: room?.pricePerPerson || false,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -2129,6 +2130,18 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
                 min="0"
                 className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
               />
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  id="pricePerPerson"
+                  checked={formData.pricePerPerson}
+                  onChange={(e) => setFormData({ ...formData, pricePerPerson: e.target.checked })}
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="pricePerPerson" className="text-sm font-semibold cursor-pointer">
+                  Цена за одного человека
+                </label>
+              </div>
             </div>
 
             <div className="flex gap-2 sm:gap-3">

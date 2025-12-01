@@ -259,7 +259,7 @@ export default function BookingPage() {
             Бронирование комнаты #{room.number}
           </h1>
           <p className="text-gray-600 mb-6">
-            {room.type === 'FZ' ? 'FZ' : room.type === 'DZ' ? 'DZ' : room.type === 'EZ' ? 'EZ' : room.type === 'MZ' ? 'MZ' : room.type === 'App' ? 'App' : 'Комната'} · {room.capacity} · {room.price}€/ночь
+            {room.type === 'FZ' ? 'FZ' : room.type === 'DZ' ? 'DZ' : room.type === 'EZ' ? 'EZ' : room.type === 'MZ' ? 'MZ' : room.type === 'App' ? 'App' : 'Комната'} · {room.capacity} · {room.price}€{room.pricePerPerson ? '/Per' : ''}/ночь
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -488,7 +488,7 @@ export default function BookingPage() {
                 </div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm">Цена за ночь:</span>
-                  <span className="font-semibold">{room.price}€</span>
+                  <span className="font-semibold">{room.price}€{room.pricePerPerson ? '/Per' : ''}</span>
                 </div>
                 <div className="border-t pt-2 mt-2">
                   <div className="flex justify-between items-center">

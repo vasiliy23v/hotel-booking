@@ -48,6 +48,7 @@ export interface Room {
   description?: string;
   hasShower?: boolean;
   hasToilet?: boolean;
+  pricePerPerson?: boolean; // Цена указана за одного человека
 }
 
 export interface Stairs {
