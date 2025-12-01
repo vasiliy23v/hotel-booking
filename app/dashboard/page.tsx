@@ -2000,6 +2000,7 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
     description: room?.description || '',
     isCommon: room?.isCommon || false,
     pricePerPerson: room?.pricePerPerson || false,
+    textVertical: room?.textVertical || false,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -2012,6 +2013,7 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
       position: room?.position || { x: 0, y: 0 },
       width: room?.width || 120,
       height: room?.height || 100,
+      textVertical: formData.type === 'COMMON' ? formData.textVertical : false,
     });
   };
 
@@ -2143,6 +2145,21 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
                 </label>
               </div>
             </div>
+
+            {formData.type === 'COMMON' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="textVertical"
+                  checked={formData.textVertical}
+                  onChange={(e) => setFormData({ ...formData, textVertical: e.target.checked })}
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="textVertical" className="text-sm font-semibold cursor-pointer">
+                  Расположить текст вертикально
+                </label>
+              </div>
+            )}
 
             <div className="flex gap-2 sm:gap-3">
               <button

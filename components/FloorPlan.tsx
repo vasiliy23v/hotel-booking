@@ -1829,9 +1829,17 @@ export default function FloorPlan({
           // Контент комнаты
           const roomContent = (
             <>
-              <div className="h-full flex flex-col justify-start overflow-hidden">
+              <div className={`h-full flex ${room.isCommon && room.textVertical ? 'items-center justify-center' : 'flex-col justify-start'} overflow-hidden`}>
                 {/* Номер комнаты */}
-                <div className="font-normal text-sm leading-tight truncate">{room.number}</div>
+                <div 
+                  className={`font-normal text-sm leading-tight ${room.isCommon && room.textVertical ? '' : 'truncate'}`}
+                  style={room.isCommon && room.textVertical ? { 
+                    transform: 'rotate(-90deg)',
+                    whiteSpace: 'nowrap'
+                  } : {}}
+                >
+                  {room.number}
+                </div>
                 
                 {/* Компактная информация для маленьких комнат */}
                 {!room.isCommon && (scaledWidth < 100 || scaledHeight < 80) ? (
@@ -2667,6 +2675,7 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
     hasShower: room?.hasShower || false,
     hasToilet: room?.hasToilet || false,
     pricePerPerson: room?.pricePerPerson || false,
+    textVertical: room?.textVertical || false,
   });
 
   const handleSave = () => {
@@ -2696,7 +2705,8 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
       description: formData.description.trim() || undefined,
       hasShower: formData.hasShower,
       hasToilet: formData.hasToilet,
-      pricePerPerson: formData.pricePerPerson
+      pricePerPerson: formData.pricePerPerson,
+      textVertical: formData.type === 'COMMON' ? formData.textVertical : false
     };
 
     onSave(roomData);
@@ -2853,6 +2863,21 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                   </div>
                 </div>
               </>
+            )}
+
+            {formData.type === 'COMMON' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="textVertical"
+                  checked={formData.textVertical}
+                  onChange={(e) => setFormData({ ...formData, textVertical: e.target.checked })}
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="textVertical" className="text-sm font-semibold cursor-pointer">
+                  Расположить текст вертикально
+                </label>
+              </div>
             )}
 
             <div className="grid md:grid-cols-2 gap-4">

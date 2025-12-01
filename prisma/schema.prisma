@@ -85,6 +85,7 @@ model Room {
   hasShower   Boolean     @default(false) @map("has_shower")
   hasToilet   Boolean     @default(false) @map("has_toilet")
   pricePerPerson Boolean  @default(false) @map("price_per_person")
+  textVertical Boolean    @default(false) @map("text_vertical")
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 

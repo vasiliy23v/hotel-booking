@@ -49,6 +49,7 @@ export interface Room {
   hasShower?: boolean;
   hasToilet?: boolean;
   pricePerPerson?: boolean; // Цена указана за одного человека
+  textVertical?: boolean; // Расположить текст вертикально (только для COMMON)
 }
 
 export interface Stairs {

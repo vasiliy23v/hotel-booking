@@ -66,6 +66,7 @@ function transformRoom(room: any): Room {
     hasShower: room.hasShower || false,
     hasToilet: room.hasToilet || false,
     pricePerPerson: room.pricePerPerson || false,
+    textVertical: room.textVertical || false,
   };
 }
 
@@ -609,7 +610,8 @@ export async function createRoom(room: Omit<Room, 'id'> & { id?: string }): Prom
       hasShower: room.hasShower || false,
       hasToilet: room.hasToilet || false,
       pricePerPerson: room.pricePerPerson || false,
-    },
+      ...(room.textVertical !== undefined && { textVertical: room.textVertical }),
+    } as any,
   });
   
   const transformedRoom = transformRoom(newRoom);
@@ -653,6 +655,9 @@ export async function updateRoom(id: string, updates: Partial<Room>): Promise<Ro
   }
   if (updates.pricePerPerson !== undefined) {
     updateData.pricePerPerson = Boolean(updates.pricePerPerson);
+  }
+  if (updates.textVertical !== undefined) {
+    updateData.textVertical = Boolean(updates.textVertical);
   }
   
   console.log('updateRoom: updateData:', JSON.stringify(updateData, null, 2));
