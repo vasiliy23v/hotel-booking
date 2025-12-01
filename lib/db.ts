@@ -608,8 +608,8 @@ export async function createRoom(room: Omit<Room, 'id'> & { id?: string }): Prom
       description: room.description || null,
       hasShower: room.hasShower || false,
       hasToilet: room.hasToilet || false,
-      ...(room.pricePerPerson !== undefined && { pricePerPerson: room.pricePerPerson }),
-    } as any,
+      pricePerPerson: room.pricePerPerson || false,
+    },
   });
   
   const transformedRoom = transformRoom(newRoom);
