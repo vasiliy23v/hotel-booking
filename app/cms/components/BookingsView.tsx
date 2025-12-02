@@ -528,11 +528,6 @@ export default function BookingsView() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-        {/* Объединенная статистика */}
-        <div className="bg-white dark:bg-card rounded-lg shadow-sm p-4 sm:p-6 border border-gray-600 dark:border-gray-600/20">
-        
-        </div>
-
       <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
         <div className="flex flex-col justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-foreground flex items-center gap-2">

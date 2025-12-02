@@ -14,6 +14,7 @@ import FeedbackView from '../components/FeedbackView';
 import FeedbackForm from '@/components/FeedbackForm';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/navigation/AppSidebar';
+import { MobileNav } from '@/components/navigation/MobileNav';
 import { ModeToggle } from '@/components/mode-toggle';
 
 export default function CMSDashboard() {
@@ -157,61 +158,36 @@ export default function CMSDashboard() {
       </SidebarInset>
 
       {/* Bottom Navigation Menu для мобильных устройств */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-background dark:bg-background border-t border-border dark:border-border z-[100] shadow-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="flex items-center justify-around h-16">
-          <button
-            onClick={() => setViewMode('hotels')}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-              viewMode === 'hotels'
-                ? 'text-gray-900 dark:text-[hsl(var(--foreground))] bg-gray-50 dark:bg-[hsl(var(--accent))]'
-                : 'light:text-gray-600 dark:text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-[hsl(var(--foreground))]'
-            }`}
-          >
-            <Building2 className={`w-5 h-5 ${viewMode === 'hotels' ? 'text-gray-900 dark:text-[hsl(var(--foreground))]' : 'text-gray-500 dark:text-gray-400'}`} />
-            <span className="text-xs font-semibold">Отели</span>
-          </button>
-          <button
-            onClick={() => setViewMode('users')}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-              viewMode === 'users'
-                ? 'text-gray-900 dark:text-[hsl(var(--foreground))] bg-gray-50 dark:bg-[hsl(var(--accent))]'
-                : 'light:text-gray-600 dark:text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-[hsl(var(--foreground))]'
-            }`}
-          >
-            <Users className={`w-5 h-5 ${viewMode === 'users' ? 'text-gray-900 dark:text-[hsl(var(--foreground))]' : 'text-gray-500 dark:text-gray-400'}`} />
-            <span className="text-xs font-semibold">Пользователи</span>
-          </button>
-          <button
-            onClick={() => setViewMode('bookings')}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${
-              viewMode === 'bookings'
-                ? 'text-gray-900 dark:text-[hsl(var(--foreground))] bg-gray-50 dark:bg-[hsl(var(--accent))]'
-                : 'light:text-gray-600 dark:text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-[hsl(var(--foreground))]'
-            }`}
-          >
-            <div className="relative">
-              <BookOpen className={`w-5 h-5 ${viewMode === 'bookings' ? 'text-gray-900 dark:text-[hsl(var(--foreground))]' : 'text-gray-500 dark:text-gray-400'}`} />
-              {bookingStats.unconfirmed > 0 && (
-                <span className="absolute -top-1 -right-1 bg-black dark:bg-white text-white dark:text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                  {bookingStats.unconfirmed > 9 ? '9+' : bookingStats.unconfirmed}
-                </span>
-              )}
-            </div>
-            <span className="text-xs font-semibold">Бронирования</span>
-          </button>
-          <button
-            onClick={() => setViewMode('feedback')}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-              viewMode === 'feedback'
-                ? 'text-gray-900 dark:text-[hsl(var(--foreground))] bg-gray-50 dark:bg-[hsl(var(--accent))]'
-                : 'light:text-gray-600 dark:text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-[hsl(var(--foreground))]'
-            }`}
-          >
-            <MessageCircle className={`w-5 h-5 ${viewMode === 'feedback' ? 'text-gray-900 dark:text-[hsl(var(--foreground))]' : 'text-gray-500 dark:text-gray-400'}`} />
-            <span className="text-xs font-semibold">Отзывы</span>
-          </button>
-        </div>
-      </nav>
+      <MobileNav
+        items={[
+          {
+            id: 'hotels',
+            label: 'Отели',
+            icon: Building2,
+            onClick: () => setViewMode('hotels'),
+          },
+          {
+            id: 'users',
+            label: 'Пользователи',
+            icon: Users,
+            onClick: () => setViewMode('users'),
+          },
+          {
+            id: 'bookings',
+            label: 'Бронирования',
+            icon: BookOpen,
+            onClick: () => setViewMode('bookings'),
+            badge: bookingStats.unconfirmed > 0 ? bookingStats.unconfirmed : undefined,
+          },
+          {
+            id: 'feedback',
+            label: 'Отзывы',
+            icon: MessageCircle,
+            onClick: () => setViewMode('feedback'),
+          },
+        ]}
+        activeId={viewMode}
+      />
 
       {/* Форма обратной связи */}
       {showFeedbackForm && currentUser && (

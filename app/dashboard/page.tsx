@@ -59,6 +59,7 @@ import { BookingFormModal, type BookingFormData } from "@/components/booking/Boo
 import { ConfirmCancelBookingDialog } from "@/components/booking/ConfirmCancelBookingDialog";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
+import { MobileNav } from "@/components/navigation/MobileNav";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 
@@ -2626,67 +2627,35 @@ export default function Dashboard() {
 
           {/* Bottom Navigation Menu для мобильных устройств (только для гостей) */}
           {currentUser.role === "guest" && (
-            <nav
-              className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-card border-t border-gray-200 dark:border-border z-[100] shadow-lg"
-              style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-            >
-              <div className="flex items-center justify-around h-16">
-                {/* Отели - список всех отелей */}
-                <button
-                  onClick={() => {
-                    setSelectedHotel(""); // Сбрасываем выбор отеля
-                    setActiveTab("hotels"); // Переключаемся на вкладку отелей
-                  }}
-                  className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-                    !selectedHotel && activeTab === "hotels"
-                      ? "text-gray-900 dark:text-foreground bg-gray-50 dark:bg-muted"
-                      : "text-gray-600 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground"
-                  }`}
-                >
-                  <Building2
-                    className={`w-5 h-5 ${
-                      !selectedHotel && activeTab === "hotels"
-                        ? "text-gray-900 dark:text-foreground"
-                        : "text-gray-500 dark:text-muted-foreground"
-                    }`}
-                  />
-                  <span className="text-xs font-semibold">Отели</span>
-                </button>
-
-                {/* Бронирования - показываем на главной странице */}
-                <button
-                  onClick={() => {
-                    setSelectedHotel(""); // Сбрасываем выбор отеля
-                    setActiveTab("bookings"); // Переключаемся на вкладку бронирований
-                  }}
-                  className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${
-                    !selectedHotel && activeTab === "bookings"
-                      ? "text-gray-900 dark:text-foreground bg-gray-50 dark:bg-muted"
-                      : "text-gray-600 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground"
-                  }`}
-                >
-                  <div className="relative">
-                    <BookOpen
-                      className={`w-5 h-5 ${
-                        !selectedHotel && activeTab === "bookings"
-                          ? "text-gray-900 dark:text-foreground"
-                          : "text-gray-500 dark:text-muted-foreground"
-                      }`}
-                    />
-                  </div>
-                  <span className="text-xs font-semibold">Бронирования</span>
-                </button>
-
-                {/* Выйти */}
-                <button
-                  onClick={handleLogout}
-                  className="flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors text-gray-600 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground"
-                >
-                  <LogOut className="w-5 h-5 text-gray-500 dark:text-muted-foreground" />
-                  <span className="text-xs font-semibold">Выйти</span>
-                </button>
-              </div>
-            </nav>
+            <MobileNav
+              items={[
+                {
+                  id: "hotels",
+                  label: "Отели",
+                  icon: Building2,
+                  onClick: () => {
+                    setSelectedHotel("");
+                    setActiveTab("hotels");
+                  },
+                },
+                {
+                  id: "bookings",
+                  label: "Бронирования",
+                  icon: BookOpen,
+                  onClick: () => {
+                    setSelectedHotel("");
+                    setActiveTab("bookings");
+                  },
+                },
+                {
+                  id: "logout",
+                  label: "Выйти",
+                  icon: LogOut,
+                  onClick: handleLogout,
+                },
+              ]}
+              activeId={!selectedHotel && activeTab ? activeTab : "hotels"}
+            />
           )}
 
           {/* Форма обратной связи */}
