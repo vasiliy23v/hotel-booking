@@ -5,9 +5,9 @@ import { Rnd } from 'react-rnd';
 import { 
   Bed, Users, DoorOpen, Lock, CheckCircle, Edit2, Plus, X, Trash2, 
   ArrowUpDown, Copy, ShowerHead, Toilet, Grid3x3, Loader2, Calendar,
-  ArrowLeft, ArrowRight
+  ArrowLeft, ArrowRight, Info
 } from 'lucide-react';
-import type { Room, Stairs } from '@/types';
+import type { Room, Stairs, BookingInfo } from '@/types';
 import { api } from '@/lib/api';
 
 interface FloorPlanProps {
@@ -25,6 +25,8 @@ interface FloorPlanProps {
   dateFilterEnabled?: boolean;
   checkInDate?: string;
   checkOutDate?: string;
+  loadingAvailability?: boolean;
+  roomsAvailability?: Record<string, boolean>;
 }
 
 export default function FloorPlan({
@@ -41,7 +43,9 @@ export default function FloorPlan({
   hotelId,
   dateFilterEnabled: externalDateFilterEnabled,
   checkInDate: externalCheckInDate,
-  checkOutDate: externalCheckOutDate
+  checkOutDate: externalCheckOutDate,
+  loadingAvailability,
+  roomsAvailability
 }: FloorPlanProps) {
   const [editMode, setEditMode] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
@@ -75,12 +79,15 @@ export default function FloorPlan({
   const dateFilterEnabled = externalDateFilterEnabled !== undefined ? externalDateFilterEnabled : internalDateFilterEnabled;
   const checkInDate = externalCheckInDate !== undefined ? externalCheckInDate : internalCheckInDate;
   const checkOutDate = externalCheckOutDate !== undefined ? externalCheckOutDate : internalCheckOutDate;
-  const [roomsAvailability, setRoomsAvailability] = useState<Record<string, boolean>>({});
-  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [internalRoomsAvailability, setRoomsAvailability] = useState<Record<string, boolean>>({});
+  const [internalLoadingAvailability, setLoadingAvailability] = useState(false);
+  const roomsAvailabilityState = roomsAvailability !== undefined ? roomsAvailability : internalRoomsAvailability;
+  const loadingAvailabilityState = loadingAvailability !== undefined ? loadingAvailability : internalLoadingAvailability;
   // Счетчик обновлений для принудительного перерисовывания комнат при изменении доступности
   const [availabilityUpdateKey, setAvailabilityUpdateKey] = useState(0);
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
+  const [bookingsPopupRoom, setBookingsPopupRoom] = useState<Room | null>(null);
   const planContainerRef = useRef<HTMLDivElement>(null);
   const SNAP_SIZE = 10;
   const GRID_SIZE = 10; // Размер сетки для отображения
@@ -431,52 +438,52 @@ export default function FloorPlan({
   // Функции для определения цвета и иконки комнаты
   // Используем useCallback чтобы они пересчитывались при изменении roomsAvailability
   const getRoomColor = useCallback((room: Room) => {
-    if (room.isCommon) return 'bg-gray-200 border-gray-400';
+    if (room.isCommon) return 'bg-gray-200 dark:bg-muted border-gray-400 dark:border-border';
     
     // Если включен фильтр по датам, используем информацию о доступности
     if (dateFilterEnabled && checkInDate && checkOutDate) {
-      const isAvailable = roomsAvailability[room.id];
+      const isAvailable = roomsAvailabilityState[room.id];
       if (isAvailable === false) {
         // Комната занята в выбранные даты
-        return 'bg-red-100 border-red-400 hover:bg-red-200';
+        return 'bg-red-100 border-red-400 hover:bg-red-200 dark:bg-red-900/20 dark:border-red-600/20 dark:hover:bg-red-800';
       } else if (isAvailable === true) {
         // Комната свободна в выбранные даты
-        return 'bg-emerald-100 border-emerald-400 hover:bg-emerald-200';
+        return 'bg-emerald-100 border-emerald-400 hover:bg-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-600 dark:hover:bg-emerald-800';
       }
       // Если информация еще загружается, показываем нейтральный цвет
-      return 'bg-yellow-100 border-yellow-400 hover:bg-yellow-200';
+      return 'bg-yellow-100 border-yellow-400 hover:bg-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-600 dark:hover:bg-yellow-800';
     }
     
     // Без фильтра по датам - используем текущие бронирования
     const activeBookings = room.bookings || (room.booking ? [room.booking] : []);
-    if (activeBookings.length === 0) return 'bg-emerald-100 border-emerald-400 hover:bg-emerald-200';
+    if (activeBookings.length === 0) return 'bg-emerald-100 border-emerald-400 hover:bg-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-600/20 dark:hover:bg-emerald-800';
     // Забронированные комнаты всегда красные для всех
-    return 'bg-red-100 border-red-400 hover:bg-red-200';
-  }, [dateFilterEnabled, checkInDate, checkOutDate, roomsAvailability]);
+    return 'bg-red-100 border-red-400 hover:bg-red-200 dark:bg-red-900 dark:border-red-600 dark:hover:bg-red-800';
+  }, [dateFilterEnabled, checkInDate, checkOutDate, roomsAvailabilityState]);
 
   const getRoomIcon = useCallback((room: Room) => {
-    if (room.isCommon) return <Lock className="w-4 h-4 text-gray-600" />;
+    if (room.isCommon) return <Lock className="w-4 h-4 text-gray-600 dark:text-muted-foreground" />;
     
     // Если включен фильтр по датам, используем информацию о доступности
     if (dateFilterEnabled && checkInDate && checkOutDate) {
-      const isAvailable = roomsAvailability[room.id];
+      const isAvailable = roomsAvailabilityState[room.id];
       if (isAvailable === false) {
         // Комната занята в выбранные даты
-        return <Lock className="w-4 h-4 text-red-600" />;
+        return <Lock className="w-4 h-4 text-red-600 dark:text-red-400" />;
       } else if (isAvailable === true) {
         // Комната свободна в выбранные даты
-        return <DoorOpen className="w-4 h-4 text-emerald-600" />;
+        return <DoorOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />;
       }
       // Если информация еще загружается, показываем нейтральный цвет
-      return <Loader2 className="w-4 h-4 text-yellow-600 animate-spin" />;
+      return <Loader2 className="w-4 h-4 text-yellow-600 animate-spin dark:text-yellow-400" />;
     }
     
     // Без фильтра по датам - используем текущее бронирование
     if (!room.booking) return <DoorOpen className="w-4 h-4 text-emerald-600" />;
     const isMyBooking = room.booking.bookedBy === currentUser;
-    if (isMyBooking) return <CheckCircle className="w-4 h-4 text-gray-700" />;
-    return <Lock className="w-4 h-4 text-gray-600" />;
-  }, [dateFilterEnabled, checkInDate, checkOutDate, roomsAvailability, currentUser]);
+    if (isMyBooking) return <CheckCircle className="w-4 h-4 text-gray-700 dark:text-foreground" />;
+    return <Lock className="w-4 h-4 text-gray-600 dark:text-muted-foreground" />;
+  }, [dateFilterEnabled, checkInDate, checkOutDate, roomsAvailabilityState, currentUser]);
 
   // Функция для форматирования кроватей в формат "1-HB 2-EB"
   const formatBeds = (beds: string[]): string => {
@@ -1605,19 +1612,19 @@ export default function FloorPlan({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 relative">
+    <div className="bg-white dark:bg-card rounded-lg shadow-lg p-6 relative">
       {/* Лоадер */}
       {isLoading && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10001] rounded-lg">
-          <div className="bg-white rounded-lg p-6 flex flex-col items-center gap-4 shadow-xl">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <p className="text-gray-700 font-semibold">{loadingMessage}</p>
+          <div className="bg-white dark:bg-card rounded-lg p-6 flex flex-col items-center gap-4 shadow-xl">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-primary" />
+            <p className="text-gray-700 dark:text-foreground font-semibold">{loadingMessage}</p>
           </div>
         </div>
       )}
       
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-bold">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-foreground">
           {floor === 'EG' ? 'Цокольный этаж (EG)' : floor === '1OG' ? 'Первый этаж (1OG)' : floor === '2OG' ? 'Второй этаж (2OG)' : 'Третий этаж (3OG)'}
         </h3>
         {isManager && (
@@ -1625,7 +1632,7 @@ export default function FloorPlan({
             {!editMode ? (
               <button
                 onClick={() => setEditMode(true)}
-                className="px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 bg-gray-200 text-gray-700 hover:bg-gray-300"
+                className="px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 bg-gray-200 dark:bg-muted text-gray-700 dark:text-foreground hover:bg-gray-300 dark:hover:bg-accent"
               >
                 <Edit2 className="w-4 h-4" />
                 Редактировать план
@@ -1660,7 +1667,7 @@ export default function FloorPlan({
                 <button
                   onClick={() => setAddingStairs(!addingStairs)}
                   className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-                    addingStairs ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    addingStairs ? 'bg-gray-700 dark:bg-primary text-white dark:text-primary-foreground' : 'bg-gray-200 dark:bg-muted text-gray-700 dark:text-foreground hover:bg-gray-300 dark:hover:bg-accent'
                   }`}
                 >
                   <ArrowUpDown className="w-4 h-4" />
@@ -1669,7 +1676,7 @@ export default function FloorPlan({
                 <button
                   onClick={() => setSnapToGrid(!snapToGrid)}
                   className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-                    snapToGrid ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    snapToGrid ? 'bg-purple-600 dark:bg-purple-700 text-white' : 'bg-gray-200 dark:bg-muted text-gray-700 dark:text-foreground hover:bg-gray-300 dark:hover:bg-accent'
                   }`}
                   title="Примагничивание к сетке"
                 >
@@ -1679,7 +1686,7 @@ export default function FloorPlan({
                 <button
                   onClick={() => setShowGrid(!showGrid)}
                   className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-                    showGrid ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    showGrid ? 'bg-blue-600 dark:bg-blue-700 text-white' : 'bg-gray-200 dark:bg-muted text-gray-700 dark:text-foreground hover:bg-gray-300 dark:hover:bg-accent'
                   }`}
                   title="Показать сетку"
                 >
@@ -1693,7 +1700,7 @@ export default function FloorPlan({
       </div>
 
       {editMode && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+        <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-800 dark:text-yellow-300">
           <strong>Режим редактирования:</strong> Перетаскивайте комнаты мышью, изменяйте размеры за угол. Двойной клик по комнате открывает форму редактирования. Используйте Ctrl/Cmd+клик или Shift+клик для множественного выбора - затем перетащите любую выбранную комнату, чтобы переместить все выбранные одновременно, или измените размер любой выбранной комнаты, чтобы изменить размер всех выбранных одновременно. Все изменения сохраняются автоматически.
         </div>
       )}
@@ -1701,7 +1708,7 @@ export default function FloorPlan({
 
       <div
         ref={planContainerRef}
-        className={`relative border-2 border-gray-300 rounded-lg bg-gray-50 overflow-y-auto overflow-y-hidden ${isLoading ? 'pointer-events-none' : ''}`}
+        className={`relative border-2 border-gray-300 dark:border-border rounded-lg bg-gray-50 dark:bg-muted overflow-y-auto overflow-y-hidden ${isLoading ? 'pointer-events-none' : ''}`}
         style={{
           minHeight: isMobile ? `${scaledContainerHeight}px` : '600px',
           height: isMobile ? `${scaledContainerHeight}px` : 'auto',
@@ -1727,7 +1734,7 @@ export default function FloorPlan({
               </span>
               <button
                 onClick={handleCloseHint}
-                className="bg-white text-green-600 px-3 py-1 rounded text-xs font-semibold hover:bg-gray-100 transition-colors ml-1"
+                className="bg-white dark:bg-card text-green-600 dark:text-green-400 px-3 py-1 rounded text-xs font-semibold hover:bg-gray-100 dark:hover:bg-accent transition-colors ml-1"
               >
                 Понятно
               </button>
@@ -1905,7 +1912,7 @@ export default function FloorPlan({
                 {!room.isCommon && (scaledWidth < 100 || scaledHeight < 80) ? (
                   <>
                     {/* Компактный режим для маленьких комнат */}
-                    <div className="flex flex-col gap-y-0.5 mt-1 text-xs text-gray-700">
+                    <div className="flex flex-col gap-y-0.5 mt-1 text-xs text-gray-700 dark:text-foreground">
                       {room.capacity && (
                         <div className="flex items-center gap-1">
                           {/* <Users className="w-4 h-4" /> */}
@@ -1938,11 +1945,11 @@ export default function FloorPlan({
                     </div>
                     {/* Информация о бронировании для менеджера в компактном режиме */}
                     {isManager && room.booking && (
-                      <div className="mt-1 text-[9px] text-gray-700 border-t border-gray-300 pt-1">
+                      <div className="mt-1 text-[9px] text-gray-700 dark:text-foreground border-t border-gray-300 dark:border-border pt-1">
                         <div className="font-semibold truncate" title={room.booking.bookedBy}>
                           {room.booking.bookedBy}
                         </div>
-                        <div className="text-gray-600">
+                        <div className="text-gray-600 dark:text-muted-foreground">
                           {new Date(room.booking.checkIn).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })} - {new Date(room.booking.checkOut).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
                         </div>
                       </div>
@@ -1953,14 +1960,14 @@ export default function FloorPlan({
                   <>
                     {/* Тип комнаты */}
                     {!room.isCommon && (
-                      <div className="text-sm text-gray-600 leading-tight truncate mt-1">
+                      <div className="text-sm text-gray-600 dark:text-muted-foreground leading-tight truncate mt-1">
                         {room.type === 'FZ' ? 'FZ' : room.type === 'DZ' ? 'DZ' : room.type === 'EZ' ? 'EZ' : room.type === 'MZ' ? 'MZ' : room.type === 'App' ? 'App' : ''}
                       </div>
                     )}
                     
                     {/* Информация о людях и кроватях */}
                     {!room.isCommon && (
-                      <div className="flex items-start flex-col gap-2 mt-1 text-xs text-gray-700">
+                      <div className="flex items-start flex-col gap-2 mt-1 text-xs text-gray-700 dark:text-foreground">
                         {/* Количество людей */}
                         {room.capacity && (
                           <div className="flex items-center gap-1">
@@ -2000,18 +2007,18 @@ export default function FloorPlan({
                     
                     {/* Цена */}
                     {!room.isCommon && room.price > 0 && (
-                      <div className="text-xs font-semibold text-gray-700 leading-tight mt-1">
+                      <div className="text-xs font-semibold text-gray-700 dark:text-foreground leading-tight mt-1">
                         {Math.round(room.price)}€{room.pricePerPerson ? '/Per' : ''}
                       </div>
                     )}
                     
                     {/* Информация о бронировании для менеджера */}
                     {isManager && room.booking && (
-                      <div className="mt-2 pt-2 border-t border-gray-300 text-[10px] text-gray-700">
+                      <div className="mt-2 pt-2 border-t border-gray-300 dark:border-border text-[10px] text-gray-700 dark:text-foreground">
                         <div className="font-semibold truncate" title={room.booking.bookedBy}>
                           {room.booking.bookedBy}
                         </div>
-                        <div className="text-gray-600">
+                        <div className="text-gray-600 dark:text-muted-foreground">
                           {new Date(room.booking.checkIn).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })} - {new Date(room.booking.checkOut).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
                         </div>
                       </div>
@@ -2024,6 +2031,20 @@ export default function FloorPlan({
               <div className="absolute bottom-1 right-1">
                 {getRoomIcon(room)}
               </div>
+
+              {/* Иконка информации о бронированиях для менеджера */}
+              {isManager && !room.isCommon && room.bookings && room.bookings.length > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setBookingsPopupRoom(room);
+                  }}
+                  className="absolute top-1 right-1 w-5 h-5 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center shadow-sm z-10"
+                  title="Показать бронирования"
+                >
+                  <Info className="w-3 h-3" />
+                </button>
+              )}
 
               {editMode && (isSelected || selectedRooms.has(room.id)) && (
                 <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs p-1 overflow-x-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}>
@@ -2606,14 +2627,14 @@ export default function FloorPlan({
           }}
         >
           <div 
-            className="bg-white rounded-lg max-w-md w-full shadow-2xl"
+            className="bg-white dark:bg-card rounded-lg max-w-md w-full shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6">
-              <h2 className="text-2xl font-bold mb-4">
+              <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-foreground">
                 Выберите этаж для копирования
               </h2>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 dark:text-muted-foreground mb-6">
                 {copyingType === 'rooms' ? (
                   <>Выберите этаж, на который нужно скопировать {copiedRooms.length} {copiedRooms.length === 1 ? 'комнату' : copiedRooms.length < 5 ? 'комнаты' : 'комнат'}</>
                 ) : (
@@ -2698,11 +2719,113 @@ export default function FloorPlan({
                       setCopiedStairs([]);
                     }
                   }}
-                  className="px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-semibold transition-colors mt-2"
+                  className="px-6 py-3 bg-gray-300 dark:bg-muted hover:bg-gray-400 dark:hover:bg-accent text-gray-700 dark:text-foreground rounded-lg font-semibold transition-colors mt-2"
                 >
                   Отмена
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Попап с бронированиями комнаты */}
+      {bookingsPopupRoom && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-card rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] overflow-hidden">
+            <div className="p-4 border-b border-gray-200 dark:border-border flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-foreground">
+                Бронирования комнаты #{bookingsPopupRoom.number}
+              </h3>
+              <button
+                onClick={() => setBookingsPopupRoom(null)}
+                className="text-gray-500 dark:text-muted-foreground hover:text-gray-700 dark:hover:text-foreground"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[60vh]">
+              {(() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const futureBookings = (bookingsPopupRoom.bookings || [])
+                  .filter((b: BookingInfo) => new Date(b.checkOut) >= today)
+                  .sort((a: BookingInfo, b: BookingInfo) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+                
+                if (futureBookings.length === 0) {
+                  return (
+                    <div className="text-center text-gray-500 dark:text-muted-foreground py-8">
+                      Нет предстоящих бронирований
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="space-y-3">
+                    {futureBookings.map((booking: BookingInfo, index: number) => {
+                      const checkIn = new Date(booking.checkIn);
+                      const checkOut = new Date(booking.checkOut);
+                      const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+                      const isActive = checkIn <= today && checkOut > today;
+                      
+                      return (
+                        <div 
+                          key={booking.id || index}
+                          className={`p-3 rounded-lg border ${isActive ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-800' : 'bg-gray-50 dark:bg-muted border-gray-200 dark:border-border'}`}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="font-semibold text-gray-900 dark:text-foreground">
+                              {booking.bookedBy}
+                            </div>
+                            {isActive && (
+                              <span className="text-xs bg-green-500 dark:bg-green-600 text-white px-2 py-0.5 rounded-full">
+                                Сейчас
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600 dark:text-muted-foreground space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4" />
+                              <span>
+                                {checkIn.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })} — {checkOut.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                              <span className="text-gray-400 dark:text-muted-foreground">({nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'})</span>
+                            </div>
+                            {booking.phone && (
+                              <div className="text-xs text-gray-500 dark:text-muted-foreground">
+                                📞 {booking.phone}
+                              </div>
+                            )}
+                            {booking.email && (
+                              <div className="text-xs text-gray-500 dark:text-muted-foreground">
+                                ✉️ {booking.email}
+                              </div>
+                            )}
+                            {booking.guests && booking.guests.length > 0 && (
+                              <div className="text-xs text-gray-500 dark:text-muted-foreground">
+                                👥 Гости: {booking.guests.map(g => g.name).join(', ')}
+                              </div>
+                            )}
+                            {booking.isPaid && (
+                              <div className="text-xs text-green-600 dark:text-green-400 font-semibold">
+                                ✓ Оплачено {booking.amount ? `(${booking.amount}€)` : ''}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="p-4 border-t border-gray-200 dark:border-border">
+              <button
+                onClick={() => setBookingsPopupRoom(null)}
+                className="w-full py-2 bg-gray-200 dark:bg-muted hover:bg-gray-300 dark:hover:bg-accent text-gray-700 dark:text-foreground rounded-lg font-semibold transition-colors"
+              >
+                Закрыть
+              </button>
             </div>
           </div>
         </div>
@@ -2774,16 +2897,16 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
 
   return (
     <div className="fixed inset-0 bg-transparent flex items-center justify-center z-[10000] p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-2xl w-full my-8 max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div className="bg-white dark:bg-card rounded-lg max-w-2xl w-full my-8 max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-4">
+          <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-foreground">
             {room ? 'Редактировать комнату' : 'Создать новую комнату'}
           </h2>
 
           <div className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold mb-2">
+                <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                   Номер комнаты <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -2791,13 +2914,13 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                   value={formData.number}
                   onChange={(e) => setFormData({ ...formData, number: e.target.value })}
                   placeholder="101"
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">
+                <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                   Тип комнаты <span className="text-red-500">*</span>
                 </label>
                   <select
@@ -2812,7 +2935,7 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                         price: isCommon ? 0 : formData.price || 70
                       });
                     }}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                 >
                   <option value="FZ">FZ</option>
                   <option value="DZ">DZ</option>
@@ -2828,7 +2951,7 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
               <>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold mb-2">
+                    <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                       Вместимость (текст)
                     </label>
                     <input
@@ -2836,12 +2959,12 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                       value={formData.capacity}
                       onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
                       placeholder="до 4 чел."
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold mb-2">
+                    <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                       Максимальная вместимость
                     </label>
                     <input
@@ -2849,13 +2972,13 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                       value={formData.maxCapacity}
                       onChange={(e) => setFormData({ ...formData, maxCapacity: parseInt(e.target.value) || 1 })}
                       min="1"
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold mb-2">
+                  <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                     Кровати (через запятую)
                   </label>
                   <input
@@ -2863,12 +2986,12 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                     value={formData.beds}
                     onChange={(e) => setFormData({ ...formData, beds: e.target.value })}
                     placeholder="1-DB, 1-HB"
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold mb-2">
+                  <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                     Цена за ночь (€)
                   </label>
                   <input
@@ -2876,7 +2999,7 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
                     min="0"
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                   />
                   <div className="flex items-center gap-2 mt-2">
                     <input
@@ -2886,7 +3009,7 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                       onChange={(e) => setFormData({ ...formData, pricePerPerson: e.target.checked })}
                       className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <label htmlFor="pricePerPerson" className="text-sm font-semibold cursor-pointer">
+                    <label htmlFor="pricePerPerson" className="text-sm font-semibold cursor-pointer text-gray-900 dark:text-foreground">
                       Цена за одного человека
                     </label>
                   </div>
@@ -2900,10 +3023,10 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                       id="hasShower"
                       checked={formData.hasShower}
                       onChange={(e) => setFormData({ ...formData, hasShower: e.target.checked })}
-                      className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      className="w-5 h-5 text-blue-600 dark:text-primary border-gray-300 dark:border-border rounded focus:ring-blue-500 dark:focus:ring-primary"
                     />
-                    <label htmlFor="hasShower" className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
-                      <ShowerHead className="w-5 h-5 text-blue-600" />
+                    <label htmlFor="hasShower" className="flex items-center gap-2 text-sm font-semibold cursor-pointer text-gray-900 dark:text-foreground">
+                      <ShowerHead className="w-5 h-5 text-blue-600 dark:text-primary" />
                       <span>Душ</span>
                     </label>
                   </div>
@@ -2914,10 +3037,10 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                       id="hasToilet"
                       checked={formData.hasToilet}
                       onChange={(e) => setFormData({ ...formData, hasToilet: e.target.checked })}
-                      className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      className="w-5 h-5 text-blue-600 dark:text-primary border-gray-300 dark:border-border rounded focus:ring-blue-500 dark:focus:ring-primary"
                     />
-                    <label htmlFor="hasToilet" className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
-                      <Toilet className="w-5 h-5 text-blue-600" />
+                    <label htmlFor="hasToilet" className="flex items-center gap-2 text-sm font-semibold cursor-pointer text-gray-900 dark:text-foreground">
+                      <Toilet className="w-5 h-5 text-blue-600 dark:text-primary" />
                       <span>Туалет</span>
                     </label>
                   </div>
@@ -2932,9 +3055,9 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                   id="textVertical"
                   checked={formData.textVertical}
                   onChange={(e) => setFormData({ ...formData, textVertical: e.target.checked })}
-                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-5 h-5 text-blue-600 dark:text-primary border-gray-300 dark:border-border rounded focus:ring-blue-500 dark:focus:ring-primary"
                 />
-                <label htmlFor="textVertical" className="text-sm font-semibold cursor-pointer">
+                <label htmlFor="textVertical" className="text-sm font-semibold cursor-pointer text-gray-900 dark:text-foreground">
                   Расположить текст вертикально
                 </label>
               </div>
@@ -2942,26 +3065,26 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold mb-2">
+                <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                   Ширина (px)
                 </label>
                 <input
                   type="number"
                   value={formData.width}
                   onChange={(e) => setFormData({ ...formData, width: parseInt(e.target.value) || 120 })}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">
+                <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                   Высота (px)
                 </label>
                 <input
                   type="number"
                   value={formData.height}
                   onChange={(e) => setFormData({ ...formData, height: parseInt(e.target.value) || 100 })}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                 />
               </div>
             </div>
@@ -2975,7 +3098,7 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Описание комнаты, особенности..."
                 rows={3}
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-blue-500 dark:focus:border-ring focus:outline-none"
               />
             </div>
           </div>
@@ -2983,13 +3106,13 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
           <div className="flex gap-3 mt-6">
             <button
               onClick={onClose}
-              className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 rounded-lg font-semibold"
+              className="flex-1 bg-gray-300 dark:bg-muted hover:bg-gray-400 dark:hover:bg-accent text-gray-700 dark:text-foreground py-3 rounded-lg font-semibold"
             >
               Отмена
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 bg-gray-700 hover:bg-gray-800 text-white py-3 rounded-lg font-semibold"
+              className="flex-1 bg-gray-700 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white dark:text-primary-foreground py-3 rounded-lg font-semibold"
             >
               {room ? 'Сохранить' : 'Создать'}
             </button>
@@ -3025,14 +3148,14 @@ function StairsEditModal({ stairs, hotelId, floor, onSave, onClose }: any) {
 
   return (
     <div className="fixed inset-0 bg-transparent flex items-center justify-center z-[10000] p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-md w-full my-8 max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div className="bg-white dark:bg-card rounded-lg max-w-md w-full my-8 max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-4">Редактировать ступени</h2>
+          <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-foreground">Редактировать ступени</h2>
 
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold mb-2">
+                <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                   Позиция X (px)
                 </label>
                 <input
@@ -3040,12 +3163,12 @@ function StairsEditModal({ stairs, hotelId, floor, onSave, onClose }: any) {
                   value={formData.x}
                   onChange={(e) => setFormData({ ...formData, x: parseInt(e.target.value) || 0 })}
                   min="0"
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">
+                <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                   Позиция Y (px)
                 </label>
                 <input
@@ -3053,14 +3176,14 @@ function StairsEditModal({ stairs, hotelId, floor, onSave, onClose }: any) {
                   value={formData.y}
                   onChange={(e) => setFormData({ ...formData, y: parseInt(e.target.value) || 0 })}
                   min="0"
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold mb-2">
+                <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                   Ширина (px)
                 </label>
                 <input
@@ -3068,12 +3191,12 @@ function StairsEditModal({ stairs, hotelId, floor, onSave, onClose }: any) {
                   value={formData.width}
                   onChange={(e) => setFormData({ ...formData, width: parseInt(e.target.value) || 80 })}
                   min="40"
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">
+                <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                   Высота (px)
                 </label>
                 <input
@@ -3081,13 +3204,13 @@ function StairsEditModal({ stairs, hotelId, floor, onSave, onClose }: any) {
                   value={formData.height}
                   onChange={(e) => setFormData({ ...formData, height: parseInt(e.target.value) || 80 })}
                   min="40"
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-2">
+              <label className="block text-sm font-semibold mb-2 text-gray-900 dark:text-foreground">
                 Направление
               </label>
               <select
@@ -3096,7 +3219,7 @@ function StairsEditModal({ stairs, hotelId, floor, onSave, onClose }: any) {
                   const newDirection = e.target.value as 'up' | 'down' | 'both';
                   setFormData({ ...formData, direction: newDirection });
                 }}
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-blue-500 dark:focus:border-ring focus:outline-none"
               >
                 <option value="up">Вверх ↑</option>
                 <option value="down">Вниз ↓</option>
@@ -3108,13 +3231,13 @@ function StairsEditModal({ stairs, hotelId, floor, onSave, onClose }: any) {
           <div className="flex gap-3 mt-6">
             <button
               onClick={onClose}
-              className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 rounded-lg font-semibold"
+              className="flex-1 bg-gray-300 dark:bg-muted hover:bg-gray-400 dark:hover:bg-accent text-gray-700 dark:text-foreground py-3 rounded-lg font-semibold"
             >
               Отмена
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 bg-gray-700 hover:bg-gray-800 text-white py-3 rounded-lg font-semibold"
+              className="flex-1 bg-gray-700 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white dark:text-primary-foreground py-3 rounded-lg font-semibold"
             >
               Сохранить
             </button>

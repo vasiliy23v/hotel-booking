@@ -1,17 +1,70 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { Building2, Bed, Users, BarChart3, LogOut, Plus, Edit, Trash2, LayoutGrid, Filter, Calendar, Euro, X, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, DollarSign, Mail, Copy, RefreshCw, CheckCircle, AlertCircle, Clock, KeyRound, ArrowRight, Phone, BookOpen, List, Eye, EyeOff, Bell, MessageSquare, CreditCard } from 'lucide-react';
-import { api } from '@/lib/api';
-import type { User, Room, Hotel, Stairs, Statistics, CashMonitoring, Invite, BookingInfo } from '@/types';
-import FloorPlan from '@/components/FloorPlan';
-import Link from 'next/link';
-import FeedbackForm from '@/components/FeedbackForm';
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Building2,
+  Bed,
+  Users,
+  BarChart3,
+  LogOut,
+  Plus,
+  Edit,
+  Trash2,
+  LayoutGrid,
+  Filter,
+  Calendar,
+  Euro,
+  X,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  DollarSign,
+  Mail,
+  Copy,
+  RefreshCw,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  KeyRound,
+  ArrowRight,
+  Phone,
+  BookOpen,
+  List,
+  Eye,
+  EyeOff,
+  Bell,
+  MessageSquare,
+  CreditCard,
+  MoreVertical,
+} from "lucide-react";
+import { api } from "@/lib/api";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type {
+  User,
+  Room,
+  Hotel,
+  Stairs,
+  Statistics,
+  CashMonitoring,
+  Invite,
+  BookingInfo,
+} from "@/types";
+import FloorPlan from "@/components/FloorPlan";
+import Link from "next/link";
+import FeedbackForm from "@/components/FeedbackForm";
+import { BookingFormModal, type BookingFormData } from "@/components/booking/BookingFormModal";
+import { ConfirmCancelBookingDialog } from "@/components/booking/ConfirmCancelBookingDialog";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/navigation/AppSidebar";
+import { ModeToggle } from "@/components/mode-toggle";
+import { Button } from "@/components/ui/button";
 
 // Вспомогательная функция для проверки прав менеджера или разработчика
 const isManagerOrDeveloper = (user: User | null): boolean => {
-  return user?.role === 'manager' || user?.role === 'developer';
+  return user?.role === "manager" || user?.role === "developer";
 };
 
 export default function Dashboard() {
@@ -20,91 +73,122 @@ export default function Dashboard() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   // Состояние будет восстановлено после загрузки данных
-  const [selectedHotel, setSelectedHotel] = useState<string>('');
+  const [selectedHotel, setSelectedHotel] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false); // Флаг загрузки данных
   const [isRefreshing, setIsRefreshing] = useState(false); // Тихая перезагрузка без скелетона
   const [error, setError] = useState<string | null>(null); // Состояние ошибки
-  const [viewMode, setViewMode] = useState<'plan' | 'list'>('plan');
-  const [selectedFloor, setSelectedFloor] = useState<'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG'>('EG');
+  const [viewMode, setViewMode] = useState<"plan" | "list">("plan");
+  const [selectedFloor, setSelectedFloor] = useState<
+    "EG" | "1OG" | "2OG" | "3OG" | "4OG" | "5OG" | "6OG"
+  >("EG");
   const [stairs, setStairs] = useState<Stairs[]>([]);
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
-  
+
   // Фильтры и сортировка
-  const [filterType, setFilterType] = useState<'all' | 'FZ' | 'DZ' | 'EZ' | 'MZ' | 'App'>('all');
+  const [filterType, setFilterType] = useState<
+    "all" | "FZ" | "DZ" | "EZ" | "MZ" | "App"
+  >("all");
   const [filterPriceMin, setFilterPriceMin] = useState(0);
   const [filterPriceMax, setFilterPriceMax] = useState(1000);
   const [filterCapacity, setFilterCapacity] = useState(0);
   const [filterAvailableOnly, setFilterAvailableOnly] = useState(false); // По умолчанию показываем все комнаты
-  const [sortBy, setSortBy] = useState<'floor' | 'number' | 'type' | 'price' | 'capacity' | 'status'>('floor');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortBy, setSortBy] = useState<
+    "floor" | "number" | "type" | "price" | "capacity" | "status"
+  >("floor");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // Фильтр по датам (общий с планом) - сохраняется в localStorage, по умолчанию включен
   const [dateFilterEnabled, setDateFilterEnabled] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('dashboard_dateFilterEnabled');
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("dashboard_dateFilterEnabled");
       // Если значение не сохранено, по умолчанию включаем фильтр
-      return saved === null ? true : saved === 'true';
+      return saved === null ? true : saved === "true";
     }
     return true; // По умолчанию включен
   });
   const [checkInDate, setCheckInDate] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('dashboard_checkInDate') || '';
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("dashboard_checkInDate") || "";
     }
-    return '';
+    return "";
   });
   const [checkOutDate, setCheckOutDate] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('dashboard_checkOutDate') || '';
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("dashboard_checkOutDate") || "";
     }
-    return '';
+    return "";
   });
-  const [roomsAvailability, setRoomsAvailability] = useState<Record<string, boolean>>({});
+  const [roomsAvailability, setRoomsAvailability] = useState<
+    Record<string, boolean>
+  >({});
   const [loadingAvailability, setLoadingAvailability] = useState(false);
-  
+
   // Состояние для бронирований
-  const [bookings, setBookings] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string })[]>([]);
+  const [bookings, setBookings] = useState<
+    (BookingInfo & { roomNumber?: string; hotelName?: string })[]
+  >([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
-  const [filterBookedBy, setFilterBookedBy] = useState<string>('');
-  const [filterRoomNumber, setFilterRoomNumber] = useState<string>('');
-  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
-  const [filterDateTo, setFilterDateTo] = useState<string>('');
+  const [filterBookedBy, setFilterBookedBy] = useState<string>("");
+  const [filterRoomNumber, setFilterRoomNumber] = useState<string>("");
+  const [filterDateFrom, setFilterDateFrom] = useState<string>("");
+  const [filterDateTo, setFilterDateTo] = useState<string>("");
   const [showBookingsFilters, setShowBookingsFilters] = useState(false);
-  const [bookingsSortBy, setBookingsSortBy] = useState<'checkIn' | 'checkOut' | 'bookedDate' | 'bookedBy' | 'roomNumber'>('checkIn');
-  const [bookingsSortDirection, setBookingsSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [bookingStats, setBookingStats] = useState({ unconfirmed: 0, unpaid: 0 });
-  
+  const [bookingsSortBy, setBookingsSortBy] = useState<
+    "checkIn" | "checkOut" | "bookedDate" | "bookedBy" | "roomNumber"
+  >("checkIn");
+  const [bookingsSortDirection, setBookingsSortDirection] = useState<
+    "asc" | "desc"
+  >("desc");
+  const [bookingStats, setBookingStats] = useState({
+    unconfirmed: 0,
+    unpaid: 0,
+  });
+
   // Состояние для активной вкладки в мобильном меню (только для обычных пользователей)
-  const [activeTab, setActiveTab] = useState<'hotels' | 'bookings'>('hotels');
-  
+  const [activeTab, setActiveTab] = useState<"hotels" | "bookings">("hotels");
+
   // Ref для отслеживания предыдущего значения выбранного отеля
   const prevSelectedHotelRef = useRef<string | null>(null);
 
   // Автоматически выбираем первый доступный этаж при изменении отеля
   useEffect(() => {
     if (selectedHotel && rooms.length > 0) {
-      const hotelRooms = rooms.filter(r => r.hotelId === selectedHotel);
+      const hotelRooms = rooms.filter((r) => r.hotelId === selectedHotel);
       if (hotelRooms.length > 0) {
         // Показываем все этажи, на которых есть комнаты
-        const floorsSet = new Set(hotelRooms.map(r => r.floor));
-        const allFloorsFromRooms = Array.from(floorsSet) as ('EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG')[];
-        
+        const floorsSet = new Set(hotelRooms.map((r) => r.floor));
+        const allFloorsFromRooms = Array.from(floorsSet) as (
+          | "EG"
+          | "1OG"
+          | "2OG"
+          | "3OG"
+          | "4OG"
+          | "5OG"
+          | "6OG"
+        )[];
+
         // Определяем порядок сортировки этажей
-        const floorOrder: { [key: string]: number } = { 
-          'EG': 0, '1OG': 1, '2OG': 2, '3OG': 3, '4OG': 4, '5OG': 5, '6OG': 6 
+        const floorOrder: { [key: string]: number } = {
+          EG: 0,
+          "1OG": 1,
+          "2OG": 2,
+          "3OG": 3,
+          "4OG": 4,
+          "5OG": 5,
+          "6OG": 6,
         };
-        
+
         // Сортируем этажи в правильном порядке
         const sortedFloors = allFloorsFromRooms.sort((a, b) => {
           const orderA = floorOrder[a] ?? 999;
           const orderB = floorOrder[b] ?? 999;
           return orderA - orderB;
         });
-        
+
         if (sortedFloors.length > 0 && !sortedFloors.includes(selectedFloor)) {
           setSelectedFloor(sortedFloors[0]);
         }
@@ -114,24 +198,24 @@ export default function Dashboard() {
   }, [selectedHotel, rooms.length]);
 
   useEffect(() => {
-    const userStr = localStorage.getItem('currentUser');
+    const userStr = localStorage.getItem("currentUser");
     if (!userStr) {
-      router.push('/');
+      router.push("/");
       return;
     }
 
     const user = JSON.parse(userStr);
-    
+
     // Проверяем, заполнен ли телефон (обязателен)
     if (!user.phone) {
-      router.push('/complete-profile');
+      router.push("/complete-profile");
       return;
     }
-    
+
     // Только менеджеры автоматически перенаправляются на CMS
     // Developer может оставаться на dashboard
-    if (user.role === 'manager') {
-      router.push('/cms/dashboard');
+    if (user.role === "manager") {
+      router.push("/cms/dashboard");
       return;
     }
 
@@ -139,12 +223,12 @@ export default function Dashboard() {
     loadData();
     loadBookings(); // Загружаем бронирования при загрузке страницы
     loadBookingStats();
-    
+
     // Обновляем статистику каждые 30 секунд
     const interval = setInterval(() => {
       loadBookingStats();
     }, 30000);
-    
+
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
@@ -152,27 +236,29 @@ export default function Dashboard() {
   // Восстанавливаем даты из localStorage при возврате на страницу (например, после выхода с формы бронирования)
   useEffect(() => {
     const checkAndUpdateDates = () => {
-      const savedCheckInDate = localStorage.getItem('dashboard_checkInDate');
-      const savedCheckOutDate = localStorage.getItem('dashboard_checkOutDate');
-      const savedDateFilterEnabled = localStorage.getItem('dashboard_dateFilterEnabled');
-      
+      const savedCheckInDate = localStorage.getItem("dashboard_checkInDate");
+      const savedCheckOutDate = localStorage.getItem("dashboard_checkOutDate");
+      const savedDateFilterEnabled = localStorage.getItem(
+        "dashboard_dateFilterEnabled"
+      );
+
       // Используем функциональное обновление состояния, чтобы избежать зависимости от текущих значений
-      setCheckInDate(prev => {
+      setCheckInDate((prev) => {
         if (savedCheckInDate && savedCheckInDate !== prev) {
           return savedCheckInDate;
         }
         return prev;
       });
-      
-      setCheckOutDate(prev => {
+
+      setCheckOutDate((prev) => {
         if (savedCheckOutDate && savedCheckOutDate !== prev) {
           return savedCheckOutDate;
         }
         return prev;
       });
-      
-      setDateFilterEnabled(prev => {
-        if (savedDateFilterEnabled === 'true' && !prev) {
+
+      setDateFilterEnabled((prev) => {
+        if (savedDateFilterEnabled === "true" && !prev) {
           return true;
         }
         return prev;
@@ -187,12 +273,12 @@ export default function Dashboard() {
       checkAndUpdateDates();
     };
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener("focus", handleFocus);
     // Также проверяем периодически (на случай, если событие focus не сработало)
     const interval = setInterval(checkAndUpdateDates, 2000); // Увеличиваем интервал до 2 секунд
-    
+
     return () => {
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener("focus", handleFocus);
       clearInterval(interval);
     };
   }, []); // Убираем зависимости, чтобы избежать бесконечного цикла
@@ -201,57 +287,60 @@ export default function Dashboard() {
   useEffect(() => {
     if (dataLoaded) {
       if (selectedHotel) {
-        localStorage.setItem('dashboard_selectedHotel', selectedHotel);
+        localStorage.setItem("dashboard_selectedHotel", selectedHotel);
       } else {
-        localStorage.removeItem('dashboard_selectedHotel');
+        localStorage.removeItem("dashboard_selectedHotel");
       }
     }
   }, [selectedHotel, dataLoaded]);
 
   useEffect(() => {
     if (dataLoaded) {
-      localStorage.setItem('dashboard_viewMode', viewMode);
+      localStorage.setItem("dashboard_viewMode", viewMode);
     }
   }, [viewMode, dataLoaded]);
 
   useEffect(() => {
     if (dataLoaded) {
-      localStorage.setItem('dashboard_selectedFloor', selectedFloor);
+      localStorage.setItem("dashboard_selectedFloor", selectedFloor);
     }
   }, [selectedFloor, dataLoaded]);
 
   useEffect(() => {
-    localStorage.setItem('dashboard_viewMode', viewMode);
+    localStorage.setItem("dashboard_viewMode", viewMode);
   }, [viewMode]);
 
   useEffect(() => {
-    localStorage.setItem('dashboard_selectedFloor', selectedFloor);
+    localStorage.setItem("dashboard_selectedFloor", selectedFloor);
   }, [selectedFloor]);
 
   // Сохраняем состояние фильтра по датам в localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('dashboard_dateFilterEnabled', String(dateFilterEnabled));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        "dashboard_dateFilterEnabled",
+        String(dateFilterEnabled)
+      );
     }
   }, [dateFilterEnabled]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && dataLoaded) {
+    if (typeof window !== "undefined" && dataLoaded) {
       // Сохраняем даты в localStorage только если они заполнены
       // Если даты пустые, не удаляем их из localStorage (сохраняем предыдущие значения)
       if (checkInDate) {
-        localStorage.setItem('dashboard_checkInDate', checkInDate);
+        localStorage.setItem("dashboard_checkInDate", checkInDate);
       }
       // Не удаляем дату из localStorage при очистке, чтобы сохранить предыдущее значение
     }
   }, [checkInDate, dataLoaded]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && dataLoaded) {
+    if (typeof window !== "undefined" && dataLoaded) {
       // Сохраняем даты в localStorage только если они заполнены
       // Если даты пустые, не удаляем их из localStorage (сохраняем предыдущие значения)
       if (checkOutDate) {
-        localStorage.setItem('dashboard_checkOutDate', checkOutDate);
+        localStorage.setItem("dashboard_checkOutDate", checkOutDate);
       }
       // Не удаляем дату из localStorage при очистке, чтобы сохранить предыдущее значение
     }
@@ -260,10 +349,12 @@ export default function Dashboard() {
   // Обновление максимальной цены при загрузке комнат
   useEffect(() => {
     if (rooms.length > 0 && selectedHotel) {
-      const hotelRooms = rooms.filter(r => r.hotelId === selectedHotel);
-      const roomsWithPrice = hotelRooms.filter(r => !r.isCommon && r.price > 0);
+      const hotelRooms = rooms.filter((r) => r.hotelId === selectedHotel);
+      const roomsWithPrice = hotelRooms.filter(
+        (r) => !r.isCommon && r.price > 0
+      );
       if (roomsWithPrice.length > 0) {
-        const maxPrice = Math.max(...roomsWithPrice.map(r => r.price));
+        const maxPrice = Math.max(...roomsWithPrice.map((r) => r.price));
         if (maxPrice > 0 && filterPriceMax === 1000) {
           setFilterPriceMax(maxPrice);
         }
@@ -278,14 +369,14 @@ export default function Dashboard() {
       prevSelectedHotelRef.current = selectedHotel;
       return;
     }
-    
+
     // Проверяем, действительно ли изменился отель
     if (prevSelectedHotelRef.current !== selectedHotel && selectedHotel) {
-      console.log('Hotel changed, reloading data for:', selectedHotel);
+      console.log("Hotel changed, reloading data for:", selectedHotel);
       loadData(true); // Тихая перезагрузка без скелетона
       loadBookings();
     }
-    
+
     // Обновляем предыдущее значение
     prevSelectedHotelRef.current = selectedHotel;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -299,11 +390,11 @@ export default function Dashboard() {
       } else {
         setLoading(true);
       }
-      
+
       const [hotelsData, roomsData, stairsData] = await Promise.all([
         api.getHotels(),
         api.getRooms(),
-        api.getStairs()
+        api.getStairs(),
       ]);
 
       setHotels(hotelsData);
@@ -313,28 +404,34 @@ export default function Dashboard() {
       // Восстанавливаем состояние из localStorage только после загрузки данных
       if (!dataLoaded) {
         // Восстанавливаем все состояния синхронно в одном батче
-        const savedViewMode = localStorage.getItem('dashboard_viewMode');
-        const savedFloor = localStorage.getItem('dashboard_selectedFloor');
-        const savedHotel = localStorage.getItem('dashboard_selectedHotel');
-        const savedDateFilterEnabled = localStorage.getItem('dashboard_dateFilterEnabled');
-        const savedCheckInDate = localStorage.getItem('dashboard_checkInDate');
-        const savedCheckOutDate = localStorage.getItem('dashboard_checkOutDate');
+        const savedViewMode = localStorage.getItem("dashboard_viewMode");
+        const savedFloor = localStorage.getItem("dashboard_selectedFloor");
+        const savedHotel = localStorage.getItem("dashboard_selectedHotel");
+        const savedDateFilterEnabled = localStorage.getItem(
+          "dashboard_dateFilterEnabled"
+        );
+        const savedCheckInDate = localStorage.getItem("dashboard_checkInDate");
+        const savedCheckOutDate = localStorage.getItem(
+          "dashboard_checkOutDate"
+        );
 
         // Применяем все изменения состояния одновременно
-        if (savedViewMode === 'plan' || savedViewMode === 'list') {
+        if (savedViewMode === "plan" || savedViewMode === "list") {
           setViewMode(savedViewMode);
         }
         // Проверяем, что сохраненный этаж валидный (EG или формат XOG, где X - число)
-        if (savedFloor && (savedFloor === 'EG' || /^\d+OG$/.test(savedFloor))) {
-          setSelectedFloor(savedFloor as 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG');
+        if (savedFloor && (savedFloor === "EG" || /^\d+OG$/.test(savedFloor))) {
+          setSelectedFloor(
+            savedFloor as "EG" | "1OG" | "2OG" | "3OG" | "4OG" | "5OG" | "6OG"
+          );
         }
         if (savedHotel) {
-          const hotelExists = hotelsData.find(h => h.id === savedHotel);
+          const hotelExists = hotelsData.find((h) => h.id === savedHotel);
           if (hotelExists) {
             setSelectedHotel(savedHotel);
           } else {
             // Если отель не найден, очищаем из localStorage
-            localStorage.removeItem('dashboard_selectedHotel');
+            localStorage.removeItem("dashboard_selectedHotel");
           }
         }
         // Восстанавливаем фильтр по датам
@@ -347,25 +444,26 @@ export default function Dashboard() {
           if (savedCheckOutDate) {
             setCheckOutDate(savedCheckOutDate);
           }
-        } else if (savedDateFilterEnabled === 'true') {
+        } else if (savedDateFilterEnabled === "true") {
           // Если фильтр был включен, но дат нет - оставляем включенным
           setDateFilterEnabled(true);
         }
       } else {
         // Проверяем, что выбранный отель все еще существует (при обновлении данных)
-        if (selectedHotel && !hotelsData.find(h => h.id === selectedHotel)) {
+        if (selectedHotel && !hotelsData.find((h) => h.id === selectedHotel)) {
           // Если отель был удален, сбрасываем выбор
-          setSelectedHotel('');
-          localStorage.removeItem('dashboard_selectedHotel');
+          setSelectedHotel("");
+          localStorage.removeItem("dashboard_selectedHotel");
         }
       }
-      
+
       // Устанавливаем флаг только при успешной загрузке
       setDataLoaded(true);
       setError(null); // Очищаем ошибку при успешной загрузке
     } catch (error) {
-      console.error('Error loading data:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Ошибка при загрузке данных';
+      console.error("Error loading data:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Ошибка при загрузке данных";
       setError(errorMessage);
       // Не устанавливаем dataLoaded при ошибке, чтобы показать экран загрузки
       // и пользователь мог увидеть, что что-то пошло не так
@@ -381,7 +479,7 @@ export default function Dashboard() {
       const [bookingsData, roomsData, hotelsData] = await Promise.all([
         api.getBookings(),
         api.getRooms(),
-        api.getHotels()
+        api.getHotels(),
       ]);
 
       // Обогащаем бронирования информацией о комнатах и отелях
@@ -390,14 +488,14 @@ export default function Dashboard() {
         const hotel = hotelsData.find((h: Hotel) => h.id === room?.hotelId);
         return {
           ...booking,
-          roomNumber: room?.number || 'N/A',
-          hotelName: hotel?.name || 'N/A'
+          roomNumber: room?.number || "N/A",
+          hotelName: hotel?.name || "N/A",
         };
       });
 
       setBookings(enrichedBookings);
     } catch (error) {
-      console.error('Error loading bookings:', error);
+      console.error("Error loading bookings:", error);
       setBookings([]);
     } finally {
       setBookingsLoading(false);
@@ -409,7 +507,7 @@ export default function Dashboard() {
       const stats = await api.getBookingStats();
       setBookingStats(stats);
     } catch (error) {
-      console.error('Error loading booking stats:', error);
+      console.error("Error loading booking stats:", error);
     }
   };
 
@@ -424,7 +522,7 @@ export default function Dashboard() {
     // Проверяем, что обе даты валидны
     const checkIn = new Date(checkInDate);
     const checkOut = new Date(checkOutDate);
-    
+
     // Если дата выезда раньше или равна дате заезда - это ошибка
     if (checkOut <= checkIn) {
       setRoomsAvailability({});
@@ -433,8 +531,8 @@ export default function Dashboard() {
     }
 
     const checkAvailability = async () => {
-      const hotelRoomsList = rooms.filter(r => r.hotelId === selectedHotel);
-      const nonCommonRooms = hotelRoomsList.filter(r => !r.isCommon);
+      const hotelRoomsList = rooms.filter((r) => r.hotelId === selectedHotel);
+      const nonCommonRooms = hotelRoomsList.filter((r) => !r.isCommon);
       if (nonCommonRooms.length === 0) {
         setRoomsAvailability({});
         setLoadingAvailability(false);
@@ -443,11 +541,15 @@ export default function Dashboard() {
 
       setLoadingAvailability(true);
       try {
-        const roomIds = nonCommonRooms.map(r => r.id);
-        const availability = await api.checkRoomsAvailability(roomIds, checkInDate, checkOutDate);
+        const roomIds = nonCommonRooms.map((r) => r.id);
+        const availability = await api.checkRoomsAvailability(
+          roomIds,
+          checkInDate,
+          checkOutDate
+        );
         setRoomsAvailability(availability);
       } catch (error) {
-        console.error('Error checking rooms availability:', error);
+        console.error("Error checking rooms availability:", error);
         setRoomsAvailability({});
       } finally {
         setLoadingAvailability(false);
@@ -463,40 +565,50 @@ export default function Dashboard() {
   }, [dateFilterEnabled, checkInDate, checkOutDate, rooms, selectedHotel]);
 
   const handleLogout = () => {
-    localStorage.removeItem('currentUser');
-    router.push('/');
+    localStorage.removeItem("currentUser");
+    router.push("/");
   };
 
   const handleDeleteRoom = async (id: string) => {
-    if (!confirm('Вы уверены, что хотите удалить эту комнату?')) return;
-    
+    if (!confirm("Вы уверены, что хотите удалить эту комнату?")) return;
+
     try {
       await api.deleteRoom(id);
-      setRooms(rooms.filter(r => r.id !== id));
+      setRooms(rooms.filter((r) => r.id !== id));
     } catch (error) {
-      alert('Ошибка при удалении комнаты');
+      alert("Ошибка при удалении комнаты");
     }
   };
 
   const handleCancelBooking = async (bookingId: string) => {
-    if (!confirm('Вы уверены, что хотите отменить бронирование?')) return;
+    if (!confirm("Вы уверены, что хотите отменить бронирование?")) return;
 
     try {
       await api.deleteBooking(bookingId);
       // Перезагружаем данные для обновления списка бронирований
       await loadData(true);
     } catch (error) {
-      console.error('Error canceling booking:', error);
-      alert('Ошибка при отмене бронирования');
+      console.error("Error canceling booking:", error);
+      alert("Ошибка при отмене бронирования");
     }
   };
 
-
-  const handleSaveRoom = async (roomData: Partial<Room> & { number: string; hotelId: string; type: Room['type']; floor: Room['floor'] }) => {
+  const handleSaveRoom = async (
+    roomData: Partial<Room> & {
+      number: string;
+      hotelId: string;
+      type: Room["type"];
+      floor: Room["floor"];
+    }
+  ) => {
     try {
       if (editingRoom) {
         await api.updateRoom(editingRoom.id, roomData);
-        setRooms(rooms.map(r => r.id === editingRoom.id ? { ...r, ...roomData } : r));
+        setRooms(
+          rooms.map((r) =>
+            r.id === editingRoom.id ? { ...r, ...roomData } : r
+          )
+        );
       } else {
         const newRoom = await api.createRoom(roomData);
         setRooms([...rooms, newRoom]);
@@ -504,69 +616,69 @@ export default function Dashboard() {
       setShowRoomModal(false);
       setEditingRoom(null);
     } catch (error) {
-      alert('Ошибка при сохранении комнаты');
+      alert("Ошибка при сохранении комнаты");
     }
   };
 
   const handleRoomUpdate = async (updatedRoom: Room) => {
     try {
       await api.updateRoom(updatedRoom.id, updatedRoom);
-      setRooms(prevRooms => prevRooms.map(r => r.id === updatedRoom.id ? updatedRoom : r));
+      setRooms((prevRooms) =>
+        prevRooms.map((r) => (r.id === updatedRoom.id ? updatedRoom : r))
+      );
     } catch (error) {
-      console.error('Error updating room:', error);
+      console.error("Error updating room:", error);
     }
   };
 
   const handleRoomCreate = async (newRoom: Room) => {
     try {
       const created = await api.createRoom(newRoom);
-      setRooms(prevRooms => [...prevRooms, created]);
+      setRooms((prevRooms) => [...prevRooms, created]);
     } catch (error) {
-      console.error('Error creating room:', error);
+      console.error("Error creating room:", error);
     }
   };
-
 
   const handleStairsUpdate = async (updatedStairs: Stairs[]) => {
     try {
       // Обновляем все ступени
       for (const stair of updatedStairs) {
-        const existing = stairs.find(s => s.id === stair.id);
+        const existing = stairs.find((s) => s.id === stair.id);
         if (existing) {
           await api.updateStairs(stair.id, stair);
         } else {
           await api.createStairs(stair);
         }
       }
-      
+
       // Удаляем ступени, которых нет в обновленном списке
-      const currentIds = updatedStairs.map(s => s.id);
-      const toDelete = stairs.filter(s => !currentIds.includes(s.id));
+      const currentIds = updatedStairs.map((s) => s.id);
+      const toDelete = stairs.filter((s) => !currentIds.includes(s.id));
       for (const stair of toDelete) {
         await api.deleteStairs(stair.id);
       }
-      
+
       setStairs(updatedStairs);
     } catch (error) {
-      console.error('Error updating stairs:', error);
+      console.error("Error updating stairs:", error);
     }
   };
 
   const handleRoomClick = (room: Room) => {
     if (room.isCommon) return;
-    
+
     // Все пользователи могут бронировать любую комнату
     // Проверка доступности по датам будет происходить в форме бронирования
     // Передаем даты из фильтра в URL, если они установлены
     const params = new URLSearchParams();
     if (dateFilterEnabled && checkInDate && checkOutDate) {
-      params.set('checkIn', checkInDate);
-      params.set('checkOut', checkOutDate);
+      params.set("checkIn", checkInDate);
+      params.set("checkOut", checkOutDate);
     }
     const queryString = params.toString();
-    router.push(`/booking/${room.id}${queryString ? `?${queryString}` : ''}`);
+    router.push(`/booking/${room.id}${queryString ? `?${queryString}` : ""}`);
   };
-
 
   // Показываем индикатор загрузки, пока пользователь не загружен или данные не получены
   if (!currentUser || loading || !dataLoaded) {
@@ -576,8 +688,10 @@ export default function Dashboard() {
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
           <div className="text-center">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <div className="text-lg text-gray-900 mb-4">Ошибка загрузки данных</div>
-            <div className="text-sm text-gray-600 mb-4">{error}</div>
+            <div className="text-lg text-gray-900 mb-4">
+              Ошибка загрузки данных
+            </div>
+            <div className="text-sm light:text-gray-600 dark:text-gray-600 mb-4">{error}</div>
             <button
               onClick={() => {
                 setError(null);
@@ -592,7 +706,7 @@ export default function Dashboard() {
         </div>
       );
     }
-    
+
     // Скелетон загрузки
     return (
       <div className="min-h-screen bg-gray-50 flex">
@@ -606,8 +720,11 @@ export default function Dashboard() {
             {/* Navigation skeleton */}
             <nav className="flex-1 p-4 space-y-2">
               <div className="h-3 w-16 bg-gray-100 rounded mb-3"></div>
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse"></div>
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-10 bg-gray-100 rounded-lg animate-pulse"
+                ></div>
               ))}
               <div className="h-10 bg-gray-200 rounded-lg animate-pulse mt-4"></div>
             </nav>
@@ -624,8 +741,11 @@ export default function Dashboard() {
 
           {/* Cards skeleton */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white rounded-xl p-5 border border-gray-100">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-xl p-5 border border-gray-100"
+              >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 bg-gray-100 rounded-lg animate-pulse"></div>
                   <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
@@ -637,9 +757,9 @@ export default function Dashboard() {
 
           {/* Rooms grid skeleton */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-              <div 
-                key={i} 
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div
+                key={i}
                 className="bg-white rounded-xl p-4 border border-gray-100"
                 style={{ animationDelay: `${i * 50}ms` }}
               >
@@ -654,70 +774,93 @@ export default function Dashboard() {
     );
   }
 
-  const hotelRooms = rooms.filter(r => r.hotelId === selectedHotel);
-  const currentHotel = hotels.find(h => h.id === selectedHotel);
-  const availableRooms = hotelRooms.filter(r => !r.booking && !r.isCommon).length;
-  const myBookingsCount = rooms.filter(r => r.booking?.bookedBy === currentUser.name).length;
+  const hotelRooms = rooms.filter((r) => r.hotelId === selectedHotel);
+  const currentHotel = hotels.find((h) => h.id === selectedHotel);
+  const availableRooms = hotelRooms.filter(
+    (r) => !r.booking && !r.isCommon
+  ).length;
+  const myBookingsCount = rooms.filter(
+    (r) => r.booking?.bookedBy === currentUser.name
+  ).length;
 
   // Определяем доступные этажи для отеля
   // Показываем ВСЕ этажи на основе hotel.floors и hasEGFloor, даже если на них еще нет комнат
-  const getAvailableFloors: ('EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG')[] = (() => {
+  const getAvailableFloors: (
+    | "EG"
+    | "1OG"
+    | "2OG"
+    | "3OG"
+    | "4OG"
+    | "5OG"
+    | "6OG"
+  )[] = (() => {
     if (!selectedHotel || !currentHotel) {
-      return ['EG', '1OG', '2OG', '3OG'];
+      return ["EG", "1OG", "2OG", "3OG"];
     }
-    
+
     const hasEG = currentHotel.hasEGFloor !== false;
     const totalFloors = currentHotel.floors || 3;
-    
+
     // Генерируем все этажи на основе hotel.floors и hasEGFloor
     if (hasEG) {
       // С EG: EG, 1OG, 2OG, ... до totalFloors (EG считается первым этажом)
-      const floors: ('EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG')[] = ['EG'];
+      const floors: ("EG" | "1OG" | "2OG" | "3OG" | "4OG" | "5OG" | "6OG")[] = [
+        "EG",
+      ];
       for (let i = 1; i < totalFloors; i++) {
-        floors.push(`${i}OG` as '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG');
+        floors.push(`${i}OG` as "1OG" | "2OG" | "3OG" | "4OG" | "5OG" | "6OG");
       }
       return floors;
     } else {
       // Без EG: 1OG, 2OG, 3OG, ... до totalFloors (1OG считается первым этажом)
-      const floors: ('EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG')[] = [];
+      const floors: ("EG" | "1OG" | "2OG" | "3OG" | "4OG" | "5OG" | "6OG")[] =
+        [];
       for (let i = 1; i <= totalFloors; i++) {
-        floors.push(`${i}OG` as '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG');
+        floors.push(`${i}OG` as "1OG" | "2OG" | "3OG" | "4OG" | "5OG" | "6OG");
       }
       return floors;
     }
   })();
-  
 
   // Вычисляем минимальную цену для каждого отеля
   const getHotelMinPrice = (hotelId: string): number => {
-    const hotelRoomsList = rooms.filter(r => r.hotelId === hotelId && !r.isCommon);
+    const hotelRoomsList = rooms.filter(
+      (r) => r.hotelId === hotelId && !r.isCommon
+    );
     if (hotelRoomsList.length === 0) return 0;
-    return Math.min(...hotelRoomsList.map(r => r.price));
+    return Math.min(...hotelRoomsList.map((r) => r.price));
   };
 
   // Обработка сортировки по клику на заголовок
-  const handleSort = (column: 'floor' | 'number' | 'type' | 'price' | 'capacity' | 'status') => {
+  const handleSort = (
+    column: "floor" | "number" | "type" | "price" | "capacity" | "status"
+  ) => {
     if (sortBy === column) {
       // Если кликнули на тот же столбец - меняем направление
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       // Если кликнули на другой столбец - устанавливаем его и направление по умолчанию
       setSortBy(column);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
   };
 
   // Фильтрация и сортировка комнат для таблицы
   const filteredAndSortedRooms = hotelRooms
-    .filter(room => {
+    .filter((room) => {
       if (room.isCommon) return false;
-      
+
       // Для гостя показываем комнаты, где есть свободные даты или свои бронирования
-      if (currentUser.role === 'guest') {
-        const activeBookings = room.bookings || (room.booking ? [room.booking] : []);
-        const hasMyBooking = activeBookings.some(b => b.bookedBy === currentUser.name);
-        const hasOtherBookings = activeBookings.some(b => b.bookedBy !== currentUser.name);
-        
+      if (currentUser.role === "guest") {
+        const activeBookings =
+          room.bookings || (room.booking ? [room.booking] : []);
+        const hasMyBooking = activeBookings.some(
+          (b) => b.bookedBy === currentUser.name
+        );
+        const hasOtherBookings = activeBookings.some(
+          (b) => b.bookedBy !== currentUser.name
+        );
+
         // Если есть чужие бронирования и нет своих - скрываем (но можно забронировать на другие даты)
         // Показываем комнату, если нет бронирований или есть свое бронирование
         // Или если фильтр по датам показывает, что комната доступна
@@ -725,25 +868,30 @@ export default function Dashboard() {
           // При фильтре по датам показываем только доступные
           const isAvailable = roomsAvailability[room.id];
           if (isAvailable === false && !hasMyBooking) return false;
-        } else if (hasOtherBookings && !hasMyBooking && activeBookings.length > 0) {
+        } else if (
+          hasOtherBookings &&
+          !hasMyBooking &&
+          activeBookings.length > 0
+        ) {
           // Без фильтра - показываем только если есть свое бронирование или комната свободна
           // Но на самом деле можно показывать все комнаты, так как можно бронировать на другие даты
         }
       }
-      
+
       // Фильтр по датам (общий с планом) - показываем только доступные комнаты
       if (dateFilterEnabled && checkInDate && checkOutDate) {
         const isAvailable = roomsAvailability[room.id];
         if (isAvailable === false) return false; // Скрываем недоступные комнаты
       }
-      
+
       // Фильтр "только свободные" - комната считается свободной, если нет активных бронирований
       if (filterAvailableOnly) {
-        const activeBookings = room.bookings || (room.booking ? [room.booking] : []);
+        const activeBookings =
+          room.bookings || (room.booking ? [room.booking] : []);
         if (activeBookings.length > 0) return false;
       }
       // Остальные фильтры (применяются только если установлены)
-      if (filterType !== 'all' && room.type !== filterType) return false;
+      if (filterType !== "all" && room.type !== filterType) return false;
       if (filterPriceMin > 0 && room.price < filterPriceMin) return false;
       if (filterPriceMax < 1000 && room.price > filterPriceMax) return false;
       if (filterCapacity > 0 && room.maxCapacity < filterCapacity) return false;
@@ -751,25 +899,33 @@ export default function Dashboard() {
     })
     .sort((a, b) => {
       let comparison = 0;
-      
+
       switch (sortBy) {
-        case 'floor':
-          const floorOrder: { [key: string]: number } = { 'EG': 0, '1OG': 1, '2OG': 2, '3OG': 3, '4OG': 4, '5OG': 5, '6OG': 6 };
+        case "floor":
+          const floorOrder: { [key: string]: number } = {
+            EG: 0,
+            "1OG": 1,
+            "2OG": 2,
+            "3OG": 3,
+            "4OG": 4,
+            "5OG": 5,
+            "6OG": 6,
+          };
           comparison = (floorOrder[a.floor] || 0) - (floorOrder[b.floor] || 0);
           break;
-        case 'number':
+        case "number":
           comparison = a.number.localeCompare(b.number);
           break;
-        case 'type':
+        case "type":
           comparison = a.type.localeCompare(b.type);
           break;
-        case 'price':
+        case "price":
           comparison = a.price - b.price;
           break;
-        case 'capacity':
+        case "capacity":
           comparison = a.maxCapacity - b.maxCapacity;
           break;
-        case 'status':
+        case "status":
           const aStatus = a.booking ? 1 : 0;
           const bStatus = b.booking ? 1 : 0;
           comparison = aStatus - bStatus;
@@ -777,162 +933,124 @@ export default function Dashboard() {
         default:
           return 0;
       }
-      
-      return sortDirection === 'asc' ? comparison : -comparison;
+
+      return sortDirection === "asc" ? comparison : -comparison;
     });
 
   // Вычисление максимальной цены для сброса
   const getMaxPrice = () => {
     if (hotelRooms.length === 0) return 1000;
-    const roomsWithPrice = hotelRooms.filter(r => !r.isCommon && r.price > 0);
+    const roomsWithPrice = hotelRooms.filter((r) => !r.isCommon && r.price > 0);
     if (roomsWithPrice.length === 0) return 1000;
-    const maxPrice = Math.max(...roomsWithPrice.map(r => r.price));
+    const maxPrice = Math.max(...roomsWithPrice.map((r) => r.price));
     return Math.ceil(maxPrice / 10) * 10; // Округляем до десятков
   };
 
   // Функция сброса фильтров
   const resetFilters = () => {
-    setFilterType('all');
+    setFilterType("all");
     setFilterPriceMin(0);
     setFilterPriceMax(getMaxPrice());
     setFilterCapacity(0);
     setFilterAvailableOnly(false);
     // При сбросе фильтра по датам - очищаем даты, но фильтр остается включенным (за весь период)
     // dateFilterEnabled остается true, но даты очищаются
-    setCheckInDate('');
-    setCheckOutDate('');
-    setSortBy('floor');
-    setSortDirection('asc');
+    setCheckInDate("");
+    setCheckOutDate("");
+    setSortBy("floor");
+    setSortDirection("asc");
   };
 
   // Проверка, применены ли фильтры
   const maxPrice = getMaxPrice();
-  const hasActiveFilters = filterType !== 'all' || filterPriceMin > 0 || filterPriceMax < maxPrice || filterCapacity > 0 || filterAvailableOnly || dateFilterEnabled || sortBy !== 'floor' || sortDirection !== 'asc';
+  const hasActiveFilters =
+    filterType !== "all" ||
+    filterPriceMin > 0 ||
+    filterPriceMax < maxPrice ||
+    filterCapacity > 0 ||
+    filterAvailableOnly ||
+    dateFilterEnabled ||
+    sortBy !== "floor" ||
+    sortDirection !== "asc";
 
-  const floorRooms = hotelRooms.filter(r => r.floor === selectedFloor);
+  const floorRooms = hotelRooms.filter((r) => r.floor === selectedFloor);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex pb-16 lg:pb-0">
-      {/* Sidebar - только для десктопа */}
-      {currentUser.role === 'guest' && (
-        <aside className="hidden lg:block w-64 bg-white border-r border-gray-200 sticky top-0 h-screen z-50">
-          <div className="h-full flex flex-col">
-            {/* Sidebar Header */}
-            <div className="p-4 border-b border-gray-200">
-              <h2 className="text-lg font-bold text-gray-900">Навигация</h2>
-            </div>
-
-            {/* Navigation Menu */}
-            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-              {/* Отели */}
-              <div className="mb-4">
-                <div className="text-xs font-semibold text-gray-500 uppercase mb-2 px-2">Отели</div>
-                <button
-                  onClick={() => {
-                    setSelectedHotel('');
-                    setActiveTab('hotels');
-                  }}
-                  className={`w-full px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 text-left mb-1 ${
-                    !selectedHotel && activeTab === 'hotels' && currentUser.role === 'guest'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-                  }`}
-                >
-                  <Building2 className="w-4 h-4 shrink-0" />
-                  <span>Все отели</span>
-                </button>
-                <div className="space-y-1 mb-2">
-                  {hotels.map(hotel => (
-                    <button
-                      key={hotel.id}
-                      onClick={() => setSelectedHotel(hotel.id)}
-                      className={`w-full px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 text-left ${
-                        selectedHotel === hotel.id
-                          ? 'bg-gray-900 text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-                      }`}
-                    >
-                      <Building2 className="w-4 h-4 shrink-0" />
-                      <span className="truncate">{hotel.name}</span>
-                    </button>
-                  ))}
-                </div>
-                 {/* Мои бронирования */}
-              <button
-                onClick={() => {
-                  setSelectedHotel('');
-                  setActiveTab('bookings');
-                  if (bookings.length === 0) {
-                    loadBookings();
-                  }
-                }}
-                className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 text-left ${
-                  !selectedHotel && activeTab === 'bookings' && currentUser.role === 'guest'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-                }`}
-              >
-                <BookOpen className="w-5 h-5" />
-                <span>Мои бронирования</span>
-              </button>
-              </div>
-
-             
-            </nav>
-
-            {/* Sidebar Footer */}
-            <div className="p-4 border-t border-gray-200">
-              <button
-                onClick={handleLogout}
-                className="w-full px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-3 text-gray-700 hover:bg-gray-50"
-              >
-                <LogOut className="w-5 h-5" />
-                <span>Выйти</span>
-              </button>
-            </div>
-          </div>
-        </aside>
+    <SidebarProvider className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      {(currentUser.role === "guest" || isManagerOrDeveloper(currentUser)) && (
+        <AppSidebar
+          currentUser={currentUser}
+          hotels={hotels}
+          selectedHotel={selectedHotel}
+          activeTab={activeTab}
+          onHotelSelect={setSelectedHotel}
+          onTabChange={(tab) => setActiveTab(tab as "hotels" | "bookings")}
+          onLogout={handleLogout}
+          onLoadBookings={loadBookings}
+        />
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <SidebarInset className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
           <div className="px-3 sm:px-4 py-2 sm:py-3">
             <div className="flex justify-between items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <Link href="/" prefetch={false} className="flex items-center gap-2 sm:gap-3 min-w-0 hover:opacity-80 transition-opacity">
+                {(currentUser.role === "guest" || isManagerOrDeveloper(currentUser)) && (
+                  <SidebarTrigger className="lg:hidden" />
+                )}
+                <Link
+                  href="/"
+                  prefetch={false}
+                  className="flex items-center gap-2 sm:gap-3 min-w-0 hover:opacity-80 transition-opacity"
+                >
                   <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 shrink-0" />
-                  <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate cursor-pointer">Hotel Booking</h1>
+                  <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate cursor-pointer">
+                    Hotel Booking
+                  </h1>
                 </Link>
-                <span className={`hidden sm:inline text-xs px-2 py-0.5 rounded ${
-                  isManagerOrDeveloper(currentUser)
-                    ? 'bg-gray-700 text-white' 
-                    : 'bg-gray-100 text-gray-700'
-                } font-semibold`}>
-                  {currentUser.role === 'developer' ? 'Разработчик' : currentUser.role === 'manager' ? 'Менеджер' : 'Гость'}
+                <span
+                  className={`hidden sm:inline text-xs px-2 py-0.5 rounded ${
+                    isManagerOrDeveloper(currentUser)
+                      ? "bg-gray-700 text-white"
+                      : "bg-gray-100 text-gray-700"
+                  } font-semibold`}
+                >
+                  {currentUser.role === "developer"
+                    ? "Разработчик"
+                    : currentUser.role === "manager"
+                    ? "Менеджер"
+                    : "Гость"}
                 </span>
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3">
                 {selectedHotel && (
                   <div className="hidden sm:flex items-center gap-3 text-xs sm:text-sm">
-                    <div className="text-gray-700">
-                      Свободно: <span className="font-bold text-emerald-600">{availableRooms}</span>
+                    <div className="text-gray-700 dark:text-gray-300">
+                      Свободно:{" "}
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        {availableRooms}
+                      </span>
                     </div>
                   </div>
                 )}
 
+                {/* Переключатель темы */}
+                <ModeToggle />
 
                 {/* Кнопка обратной связи */}
-                <button
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={() => setShowFeedbackForm(true)}
-                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Отправить отзыв / Сообщить об ошибке "
+                  title="Отправить отзыв / Сообщить об ошибке"
                 >
-                  <MessageSquare className="w-5 h-5" />
-                </button>
-
+                  <MessageSquare className="h-[1.2rem] w-[1.2rem]" />
+                  <span className="sr-only">Отправить отзыв</span>
+                </Button>
 
                 {/* Кнопка CMS для менеджеров */}
                 {isManagerOrDeveloper(currentUser) && (
@@ -946,1226 +1064,1550 @@ export default function Dashboard() {
                   </Link>
                 )}
 
-                {/* Кнопка выхода для менеджеров (для гостей она в sidebar) */}
-                {isManagerOrDeveloper(currentUser) && (
-                  <button
-                    onClick={handleLogout}
-                    className="bg-gray-900 hover:bg-gray-800 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2"
-                  >
-                    <LogOut className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Выйти</span>
-                  </button>
-                )}
               </div>
             </div>
           </div>
         </header>
 
-      {/* Информация о выбранном отеле */}
-      {selectedHotel && currentHotel && (
-        <div className="bg-white border-b border-gray-200 relative overflow-hidden">
-          {/* Индикатор обновления данных */}
-          {isRefreshing && (
-            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gray-100 overflow-hidden">
-              <div className="h-full w-1/3 bg-gray-900 animate-[shimmer_1s_ease-in-out_infinite]" 
-                   style={{ animation: 'shimmer 1s ease-in-out infinite' }} />
-            </div>
-          )}
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-              {/* Фото отеля */}
-              {currentHotel.image ? (
-                <div className={`w-full sm:w-48 h-48 sm:h-32 shrink-0 rounded-xl overflow-hidden shadow-sm transition-opacity ${isRefreshing ? 'opacity-70' : ''}`}>
-                  <img
-                    src={currentHotel.image}
-                    alt={currentHotel?.name || ''}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className={`w-full sm:w-48 h-48 sm:h-32 shrink-0 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-sm transition-opacity ${isRefreshing ? 'opacity-70' : ''}`}>
-                  <Building2 className="w-12 h-12 text-gray-400" />
-                </div>
-              )}
-              
-              {/* Информация об отеле */}
-              <div className={`flex-1 transition-opacity ${isRefreshing ? 'opacity-70' : ''}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    {currentHotel?.name}
-                  </h1>
-                  {isRefreshing && (
-                    <RefreshCw className="w-4 h-4 text-gray-400 animate-spin" />
+        {/* Информация о выбранном отеле */}
+        {selectedHotel && currentHotel && (
+          <div className="bg-white border-b border-gray-200 relative overflow-hidden">
+            {/* Индикатор обновления данных */}
+            {isRefreshing && (
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gray-100 overflow-hidden">
+                <div
+                  className="h-full w-1/3 bg-gray-900 animate-[shimmer_1s_ease-in-out_infinite]"
+                  style={{ animation: "shimmer 1s ease-in-out infinite" }}
+                />
+              </div>
+            )}
+            <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                {/* Фото отеля */}
+                {currentHotel.image ? (
+                  <div
+                    className={`w-full sm:w-48 h-48 sm:h-32 shrink-0 rounded-xl overflow-hidden shadow-sm transition-opacity ${
+                      isRefreshing ? "opacity-70" : ""
+                    }`}
+                  >
+                    <img
+                      src={currentHotel.image}
+                      alt={currentHotel?.name || ""}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className={`w-full sm:w-48 h-48 sm:h-32 shrink-0 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-sm transition-opacity ${
+                      isRefreshing ? "opacity-70" : ""
+                    }`}
+                  >
+                    <Building2 className="w-12 h-12 text-gray-400" />
+                  </div>
+                )}
+
+                {/* Информация об отеле */}
+                <div
+                  className={`flex-1 transition-opacity ${
+                    isRefreshing ? "opacity-70" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                      {currentHotel?.name}
+                    </h1>
+                    {isRefreshing && (
+                      <RefreshCw className="w-4 h-4 text-gray-400 animate-spin" />
+                    )}
+                  </div>
+                  <p className="text-sm sm:text-base light:text-gray-600 dark:text-gray-600 mb-3 flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                    {currentHotel.address}
+                  </p>
+                  {currentHotel.description && (
+                    <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
+                      {currentHotel.description}
+                    </p>
                   )}
                 </div>
-                <p className="text-sm sm:text-base text-gray-600 mb-3 flex items-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                  {currentHotel.address}
-                </p>
-                {currentHotel.description && (
-                  <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
-                    {currentHotel.description}
-                  </p>
-                )}
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Общие компоненты навигации (только если выбран отель) */}
-      {selectedHotel && (
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3 space-y-3">
-            {/* Переключатель режимов: План - Список */}
-            <div className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
-              <button
-                onClick={() => setSelectedHotel('')}
-                className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Назад</span>
-              </button>
-              <button
-                onClick={() => setViewMode('plan')}
-                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 ${
-                  viewMode === 'plan'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                <LayoutGrid className="w-4 h-4" />
-                <span className="hidden sm:inline">План</span>
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 ${
-                  viewMode === 'list'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                <List className="w-4 h-4" />
-                <span className="hidden sm:inline">Список</span>
-              </button>
-            </div>
-
-            {/* Выбор этажа (для обоих режимов) */}
-            {currentHotel && getAvailableFloors.length > 0 && (
+        {/* Общие компоненты навигации (только если выбран отель) */}
+        {selectedHotel && (
+          <div className="bg-white border-b border-gray-200">
+            <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3 space-y-3">
+              {/* Переключатель режимов: План - Список */}
               <div className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
-                {getAvailableFloors.map((floor) => (
-                  <button
-                    key={floor}
-                    onClick={() => setSelectedFloor(floor)}
-                    className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
-                      selectedFloor === floor
-                        ? 'bg-gray-900 text-white shadow-sm'
-                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    {floor}
-                  </button>
-                ))}
+                <button
+                  onClick={() => setSelectedHotel("")}
+                  className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Назад</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("plan")}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 ${
+                    viewMode === "plan"
+                      ? "bg-gray-900 text-white"
+                      : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  <span className="hidden sm:inline">План</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 ${
+                    viewMode === "list"
+                      ? "bg-gray-900 text-white"
+                      : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                  <span className="hidden sm:inline">Список</span>
+                </button>
               </div>
-            )}
 
-            {/* Фильтр по датам (общий для плана и списка) */}
-            <div className="p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center gap-2 mb-3">
-                <Calendar className="w-4 h-4 text-blue-600" />
-                <label className="text-xs sm:text-sm font-semibold text-gray-700 cursor-pointer flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={dateFilterEnabled}
-                    onChange={(e) => {
-                      setDateFilterEnabled(e.target.checked);
-                      if (!e.target.checked) {
-                        setCheckInDate('');
-                        setCheckOutDate('');
-                      }
-                    }}
-                    className="w-4 h-4 text-gray-700 border-gray-300 rounded focus:ring-gray-500"
-                  />
-                  Фильтр по датам
-                </label>
-              </div>
-              
+              {/* Выбор этажа (для обоих режимов) */}
+              {currentHotel && getAvailableFloors.length > 0 && (
+                <div className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
+                  {getAvailableFloors.map((floor) => (
+                    <button
+                      key={floor}
+                      onClick={() => setSelectedFloor(floor)}
+                      className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
+                        selectedFloor === floor
+                          ? "bg-gray-900 text-white shadow-sm"
+                          : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
+                      {floor}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {dateFilterEnabled && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Дата заезда</label>
-                    <input
-                      type="date"
-                      value={checkInDate}
-                      onChange={(e) => {
-                        const newCheckInDate = e.target.value;
-                        setCheckInDate(newCheckInDate);
-                        
-                        // Если дата выезда раньше новой даты заезда - сбрасываем дату выезда
-                        if (newCheckInDate && checkOutDate && newCheckInDate > checkOutDate) {
-                          setCheckOutDate('');
-                        }
-                        // Если даты одинаковые - автоматически добавляем +1 день к дате выезда
-                        else if (newCheckInDate && checkOutDate && newCheckInDate === checkOutDate) {
-                          const nextDay = new Date(newCheckInDate);
-                          nextDay.setDate(nextDay.getDate() + 1);
-                          setCheckOutDate(nextDay.toISOString().split('T')[0]);
-                        }
-                      }}
-                      className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-blue-600"
-                      min={new Date().toISOString().split('T')[0]}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Дата выезда</label>
-                    <input
-                      type="date"
-                      value={checkOutDate}
-                      onChange={(e) => {
-                        const newCheckOutDate = e.target.value;
-                        if (newCheckOutDate && checkInDate && newCheckOutDate === checkInDate) {
-                          // Если даты одинаковые - автоматически добавляем +1 день
-                          const nextDay = new Date(newCheckOutDate);
-                          nextDay.setDate(nextDay.getDate() + 1);
-                          setCheckOutDate(nextDay.toISOString().split('T')[0]);
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
+                      Дата заезда
+                      {loadingAvailability && checkInDate && checkOutDate && (
+                        <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                      )}
+                    </label>
+                    <DatePicker
+                      date={checkInDate ? new Date(checkInDate) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          const newCheckInDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                          setCheckInDate(newCheckInDate);
+
+                          // Если дата выезда раньше новой даты заезда - сбрасываем дату выезда
+                          if (
+                            newCheckInDate &&
+                            checkOutDate &&
+                            newCheckInDate > checkOutDate
+                          ) {
+                            setCheckOutDate("");
+                          }
+                          // Если даты одинаковые - автоматически добавляем +1 день к дате выезда
+                          else if (
+                            newCheckInDate &&
+                            checkOutDate &&
+                            newCheckInDate === checkOutDate
+                          ) {
+                            const nextDay = new Date(date);
+                            nextDay.setDate(nextDay.getDate() + 1);
+                            setCheckOutDate(`${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`);
+                          }
                         } else {
-                          setCheckOutDate(newCheckOutDate);
+                          setCheckInDate("");
                         }
                       }}
-                      className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-blue-600"
-                      min={checkInDate || new Date().toISOString().split('T')[0]}
+                      placeholder="Выберите дату заезда"
+                      minDate={new Date()}
+                      className="w-full text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                      Дата выезда
+                    </label>
+                    <DatePicker
+                      date={checkOutDate ? new Date(checkOutDate) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          const newCheckOutDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                          if (
+                            newCheckOutDate &&
+                            checkInDate &&
+                            newCheckOutDate === checkInDate
+                          ) {
+                            // Если даты одинаковые - автоматически добавляем +1 день
+                            const nextDay = new Date(date);
+                            nextDay.setDate(nextDay.getDate() + 1);
+                            setCheckOutDate(`${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`);
+                          } else {
+                            setCheckOutDate(newCheckOutDate);
+                          }
+                        } else {
+                          setCheckOutDate("");
+                        }
+                      }}
+                      placeholder="Выберите дату выезда"
+                      minDate={checkInDate ? new Date(new Date(checkInDate).getTime() + 86400000) : new Date()}
+                      className="w-full text-xs"
                     />
                   </div>
                 </div>
               )}
-              
-              {dateFilterEnabled && checkInDate && checkOutDate && currentUser?.role === 'guest' && viewMode === 'list' && (
-                <div className="mt-3 text-xs text-gray-600">
-                  {loadingAvailability ? (
-                    <div className="flex items-center gap-2 text-blue-600">
-                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                      Проверка доступности...
-                    </div>
-                  ) : (
-                    <div className="text-green-600 font-semibold">
-                      Показаны только доступные комнаты на выбранные даты
-                    </div>
-                  )}
-                </div>
-              )}
+
             </div>
           </div>
-        </div>
-      )}
+        )}
 
         {/* Content */}
         <main className="flex-1 px-3 sm:px-4 py-4 sm:py-6 lg:py-8 overflow-y-auto">
-        {/* Бронирования и отели - показываем в зависимости от активной вкладки, когда отель не выбран */}
-        {!selectedHotel && (() => {
-          // Для обычных пользователей используем активную вкладку, для менеджеров показываем все
-          const showBookings = currentUser.role === 'guest' ? (activeTab === 'bookings') : true;
-          const showHotels = currentUser.role === 'guest' ? (activeTab === 'hotels') : true;
-          
-          return (
-            <div className="space-y-6">
-              {/* Мои бронирования - показываем в зависимости от вкладки */}
-              {showBookings && (
-                <BookingsView 
-                  currentUser={currentUser}
-                  bookings={bookings}
-                  bookingsLoading={bookingsLoading}
-                  rooms={rooms}
-                  filterBookedBy={filterBookedBy}
-                  setFilterBookedBy={setFilterBookedBy}
-                  filterRoomNumber={filterRoomNumber}
-                  setFilterRoomNumber={setFilterRoomNumber}
-                  filterDateFrom={filterDateFrom}
-                  setFilterDateFrom={setFilterDateFrom}
-                  filterDateTo={filterDateTo}
-                  setFilterDateTo={setFilterDateTo}
-                  showBookingsFilters={showBookingsFilters}
-                  setShowBookingsFilters={setShowBookingsFilters}
-                  bookingsSortBy={bookingsSortBy}
-                  setBookingsSortBy={setBookingsSortBy}
-                  bookingsSortDirection={bookingsSortDirection}
-                  setBookingsSortDirection={setBookingsSortDirection}
-                  onCancelBooking={async (bookingId: string) => {
-                    try {
-                      await api.deleteBooking(bookingId);
-                      await loadBookings();
-                    } catch (error) {
-                      console.error('Error canceling booking:', error);
-                      alert('Ошибка при отмене бронирования');
-                    }
-                  }}
-                />
-              )}
+          {/* Бронирования и отели - показываем в зависимости от активной вкладки, когда отель не выбран */}
+          {!selectedHotel &&
+            (() => {
+              // Для обычных пользователей используем активную вкладку, для менеджеров показываем все
+              const showBookings =
+                currentUser.role === "guest" ? activeTab === "bookings" : true;
+              const showHotels =
+                currentUser.role === "guest" ? activeTab === "hotels" : true;
 
-              {/* Карточки отелей для выбора - показываем в зависимости от вкладки */}
-              {showHotels && hotels.length > 0 && (
-              <div className="space-y-6">
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Выберите отель</h1>
-                  <p className="text-gray-600">Выберите отель для просмотра доступных номеров</p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:gap-6">
-                  {hotels.map(hotel => {
-                    const minPrice = getHotelMinPrice(hotel.id);
-                    const hotelRoomsCount = rooms.filter(r => r.hotelId === hotel.id && !r.isCommon).length;
-                    const availableCount = rooms.filter(r => r.hotelId === hotel.id && !r.booking && !r.isCommon).length;
-                    
-                    return (
-                      <div
-                        key={hotel.id}
-                        onClick={() => setSelectedHotel(hotel.id)}
-                        className="bg-white border-2 border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 hover:shadow-lg transition-all cursor-pointer"
-                      >
-                        <div className="flex flex-col sm:flex-row">
-                          {/* Фото отеля */}
-                          <div className="w-full sm:w-64 h-48 sm:h-auto flex-shrink-0">
-                            {hotel.image ? (
-                              <img
-                                src={hotel.image}
-                                alt={hotel.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                                <Building2 className="w-16 h-16 text-gray-400" />
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Информация об отеле */}
-                          <div className="flex-1 p-4 sm:p-6 flex flex-col justify-between">
-                            <div>
-                              <div className="flex justify-between items-start mb-2">
-                                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 pr-4">
-                                  {hotel.name}
-                                </h3>
-                                {minPrice > 0 && (
-                                  <div className="text-right flex-shrink-0">
-                                    <div className="text-lg sm:text-xl font-bold text-gray-900">
-                                      От € {minPrice}
+              return (
+                <div className="space-y-6">
+                  {/* Мои бронирования - показываем в зависимости от вкладки */}
+                  {showBookings && (
+                    <BookingsView
+                      currentUser={currentUser}
+                      bookings={bookings}
+                      bookingsLoading={bookingsLoading}
+                      rooms={rooms}
+                      hotels={hotels}
+                      filterBookedBy={filterBookedBy}
+                      setFilterBookedBy={setFilterBookedBy}
+                      filterRoomNumber={filterRoomNumber}
+                      setFilterRoomNumber={setFilterRoomNumber}
+                      filterDateFrom={filterDateFrom}
+                      setFilterDateFrom={setFilterDateFrom}
+                      filterDateTo={filterDateTo}
+                      setFilterDateTo={setFilterDateTo}
+                      showBookingsFilters={showBookingsFilters}
+                      setShowBookingsFilters={setShowBookingsFilters}
+                      bookingsSortBy={bookingsSortBy}
+                      setBookingsSortBy={setBookingsSortBy}
+                      bookingsSortDirection={bookingsSortDirection}
+                      setBookingsSortDirection={setBookingsSortDirection}
+                      onCancelBooking={async (bookingId: string) => {
+                        try {
+                          await api.deleteBooking(bookingId);
+                          await loadBookings();
+                        } catch (error) {
+                          console.error("Error canceling booking:", error);
+                          alert("Ошибка при отмене бронирования");
+                        }
+                      }}
+                      onUpdateBooking={async () => {
+                        await loadBookings();
+                      }}
+                    />
+                  )}
+
+                  {/* Карточки отелей для выбора - показываем в зависимости от вкладки */}
+                  {showHotels && hotels.length > 0 && (
+                    <div className="space-y-6">
+                      <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                          Выберите отель
+                        </h1>
+                        <p className="light:text-gray-600 dark:text-gray-600">
+                          Выберите отель для просмотра доступных номеров
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:gap-6">
+                        {hotels.map((hotel) => {
+                          const minPrice = getHotelMinPrice(hotel.id);
+                          const hotelRoomsCount = rooms.filter(
+                            (r) => r.hotelId === hotel.id && !r.isCommon
+                          ).length;
+                          const availableCount = rooms.filter(
+                            (r) =>
+                              r.hotelId === hotel.id &&
+                              !r.booking &&
+                              !r.isCommon
+                          ).length;
+
+                          return (
+                            <div
+                              key={hotel.id}
+                              onClick={() => setSelectedHotel(hotel.id)}
+                              className="bg-white dark:bg-card border-2 border-gray-200 dark:border-border rounded-lg overflow-hidden hover:border-gray-300 dark:hover:border-accent hover:shadow-lg transition-all cursor-pointer"
+                            >
+                              <div className="flex flex-col sm:flex-row">
+                                {/* Фото отеля */}
+                                <div className="w-full sm:w-64 h-48 sm:h-auto flex-shrink-0">
+                                  {hotel.image ? (
+                                    <img
+                                      src={hotel.image}
+                                      alt={hotel.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                                      <Building2 className="w-16 h-16 text-gray-400" />
                                     </div>
-                                    <div className="text-xs text-gray-500">за ночь</div>
-                                  </div>
-                                )}
-                              </div>
-                              <p className="text-sm sm:text-base text-gray-600 mb-2">{hotel.address}</p>
-                              {hotel.description && (
-                                <p className="text-sm text-gray-500 mb-3 line-clamp-2">{hotel.description}</p>
-                              )}
-                              <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-gray-600">
-                                {hotel.floors && (
-                                  <div className="flex items-center gap-1">
-                                    <Building2 className="w-4 h-4" />
-                                    <span>{hotel.floors} {hotel.floors === 1 ? 'этаж' : hotel.floors < 5 ? 'этажа' : 'этажей'}</span>
-                                  </div>
-                                )}
-                                <div className="flex items-center gap-1">
-                                  <Bed className="w-4 h-4" />
-                                  <span>{hotelRoomsCount} {hotelRoomsCount === 1 ? 'номер' : hotelRoomsCount < 5 ? 'номера' : 'номеров'}</span>
+                                  )}
                                 </div>
-                                {availableCount > 0 && (
-                                  <div className="flex items-center gap-1 text-emerald-600">
-                                    <span className="font-semibold">{availableCount} свободно</span>
+
+                                {/* Информация об отеле */}
+                                <div className="flex-1 p-4 sm:p-6 flex flex-col justify-between">
+                                  <div>
+                                    <div className="flex justify-between items-start mb-2">
+                                      <h3 className="text-xl sm:text-2xl font-bold text-gray-900 pr-4">
+                                        {hotel.name}
+                                      </h3>
+                                      {minPrice > 0 && (
+                                        <div className="text-right flex-shrink-0">
+                                          <div className="text-lg sm:text-xl font-bold text-gray-900">
+                                            От € {minPrice}
+                                          </div>
+                                          <div className="text-xs text-gray-500">
+                                            за ночь
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <p className="text-sm sm:text-base light:text-gray-600 dark:text-gray-600 mb-2">
+                                      {hotel.address}
+                                    </p>
+                                    {hotel.description && (
+                                      <p className="text-sm text-gray-500 mb-3 line-clamp-2">
+                                        {hotel.description}
+                                      </p>
+                                    )}
+                                    <div className="flex flex-wrap gap-3 text-xs sm:text-sm light:text-gray-600 dark:text-gray-600">
+                                      {hotel.floors && (
+                                        <div className="flex items-center gap-1">
+                                          <Building2 className="w-4 h-4" />
+                                          <span>
+                                            {hotel.floors}{" "}
+                                            {hotel.floors === 1
+                                              ? "этаж"
+                                              : hotel.floors < 5
+                                              ? "этажа"
+                                              : "этажей"}
+                                          </span>
+                                        </div>
+                                      )}
+                                      <div className="flex items-center gap-1">
+                                        <Bed className="w-4 h-4" />
+                                        <span>
+                                          {hotelRoomsCount}{" "}
+                                          {hotelRoomsCount === 1
+                                            ? "номер"
+                                            : hotelRoomsCount < 5
+                                            ? "номера"
+                                            : "номеров"}
+                                        </span>
+                                      </div>
+                                      {availableCount > 0 && (
+                                        <div className="flex items-center gap-1 text-emerald-600">
+                                          <span className="font-semibold">
+                                            {availableCount} свободно
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedHotel(hotel.id);
+                                    }}
+                                    className="mt-4 bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors w-full sm:w-auto"
+                                  >
+                                    Выбрать отель
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedHotel(hotel.id);
-                              }}
-                              className="mt-4 bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors w-full sm:w-auto"
-                            >
-                              Выбрать отель
-                            </button>
-                          </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+          {viewMode === "plan" && selectedHotel && (
+            <div className="space-y-6">
+              {/* План этажа */}
+              <div>
+                <FloorPlan
+                  rooms={floorRooms}
+                  floor={selectedFloor}
+                  onRoomClick={handleRoomClick}
+                  onRoomUpdate={
+                    isManagerOrDeveloper(currentUser)
+                      ? handleRoomUpdate
+                      : undefined
+                  }
+                  onRoomCreate={
+                    isManagerOrDeveloper(currentUser)
+                      ? handleRoomCreate
+                      : undefined
+                  }
+                  onCancelBooking={(bookingId) =>
+                    handleCancelBooking(bookingId)
+                  }
+                  currentUser={currentUser.name}
+                  isManager={isManagerOrDeveloper(currentUser)}
+                  stairs={stairs.filter(
+                    (s: Stairs) => s.hotelId === selectedHotel
+                  )}
+                  onStairsUpdate={
+                    isManagerOrDeveloper(currentUser)
+                      ? handleStairsUpdate
+                      : undefined
+                  }
+                  hotelId={selectedHotel}
+                  dateFilterEnabled={dateFilterEnabled}
+                  checkInDate={checkInDate}
+                  checkOutDate={checkOutDate}
+                  loadingAvailability={loadingAvailability}
+                  roomsAvailability={roomsAvailability}
+                />
+              </div>
+
+              {/* Список комнат с фильтрами - только для менеджеров и разработчиков */}
+              {isManagerOrDeveloper(currentUser) && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                      Комнаты этажа {selectedFloor}
+                    </h2>
+
+                    {isManagerOrDeveloper(currentUser) && (
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <button
+                          onClick={() => setShowFilters(!showFilters)}
+                          className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                            showFilters
+                              ? "bg-gray-900 text-white"
+                              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden sm:inline">Фильтры</span>
+                        </button>
+
+                        <select
+                          value={sortBy}
+                          onChange={(e) =>
+                            setSortBy(
+                              e.target.value as "price" | "capacity" | "number"
+                            )
+                          }
+                          className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold border border-gray-200 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                        >
+                          <option value="number">По номеру</option>
+                          <option value="price">По цене</option>
+                          <option value="capacity">По вместимости</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Панель фильтров */}
+                  {showFilters && (
+                    <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Тип
+                          </label>
+                          <select
+                            value={filterType}
+                            onChange={(e) =>
+                              setFilterType(
+                                e.target.value as
+                                  | "all"
+                                  | "FZ"
+                                  | "DZ"
+                                  | "EZ"
+                                  | "MZ"
+                                  | "App"
+                              )
+                            }
+                            className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          >
+                            <option value="all">Все</option>
+                            <option value="FZ">FZ</option>
+                            <option value="DZ">DZ</option>
+                            <option value="EZ">EZ</option>
+                            <option value="MZ">MZ</option>
+                            <option value="App">App</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Цена от
+                          </label>
+                          <input
+                            type="number"
+                            value={filterPriceMin}
+                            onChange={(e) =>
+                              setFilterPriceMin(Number(e.target.value))
+                            }
+                            className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                            min="0"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Цена до
+                          </label>
+                          <input
+                            type="number"
+                            value={filterPriceMax}
+                            onChange={(e) =>
+                              setFilterPriceMax(Number(e.target.value))
+                            }
+                            className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                            min="0"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Вместимость мин.
+                          </label>
+                          <input
+                            type="number"
+                            value={filterCapacity}
+                            onChange={(e) =>
+                              setFilterCapacity(Number(e.target.value))
+                            }
+                            className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                            min="0"
+                          />
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-              )}
-            </div>
-          );
-        })()}
 
-        {viewMode === 'plan' && selectedHotel && (
-          <div className="space-y-6">
-            {/* План этажа */}
-            <div>
-              <FloorPlan
-                rooms={floorRooms}
-                floor={selectedFloor}
-                onRoomClick={handleRoomClick}
-                onRoomUpdate={isManagerOrDeveloper(currentUser) ? handleRoomUpdate : undefined}
-                onRoomCreate={isManagerOrDeveloper(currentUser) ? handleRoomCreate : undefined}
-                onCancelBooking={(bookingId) => handleCancelBooking(bookingId)}
-                currentUser={currentUser.name}
-                isManager={isManagerOrDeveloper(currentUser)}
-                stairs={stairs.filter((s: Stairs) => s.hotelId === selectedHotel)}
-                onStairsUpdate={isManagerOrDeveloper(currentUser) ? handleStairsUpdate : undefined}
-                hotelId={selectedHotel}
-                dateFilterEnabled={dateFilterEnabled}
-                checkInDate={checkInDate}
-                checkOutDate={checkOutDate}
-              />
-            </div>
-
-            {/* Список комнат с фильтрами - только для менеджеров и разработчиков */}
-            {isManagerOrDeveloper(currentUser) && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                  Комнаты этажа {selectedFloor}
-                </h2>
-                
-                {isManagerOrDeveloper(currentUser) && (
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <button
-                      onClick={() => setShowFilters(!showFilters)}
-                      className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
-                        showFilters
-                          ? 'bg-gray-900 text-white'
-                          : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span className="hidden sm:inline">Фильтры</span>
-                    </button>
-                    
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as 'price' | 'capacity' | 'number')}
-                      className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold border border-gray-200 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                    >
-                      <option value="number">По номеру</option>
-                      <option value="price">По цене</option>
-                      <option value="capacity">По вместимости</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              {/* Панель фильтров */}
-              {showFilters && (
-                <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Тип</label>
-                      <select
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ' | 'MZ' | 'App')}
-                        className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                      >
-                        <option value="all">Все</option>
-                        <option value="FZ">FZ</option>
-                        <option value="DZ">DZ</option>
-                        <option value="EZ">EZ</option>
-                        <option value="MZ">MZ</option>
-                        <option value="App">App</option>
-                      </select>
+                      <div className="mt-3 flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="availableOnly"
+                          checked={filterAvailableOnly}
+                          onChange={(e) =>
+                            setFilterAvailableOnly(e.target.checked)
+                          }
+                          className="w-4 h-4 text-gray-700 border-gray-300 rounded focus:ring-gray-500"
+                        />
+                        <label
+                          htmlFor="availableOnly"
+                          className="text-xs sm:text-sm text-gray-700 cursor-pointer font-semibold"
+                        >
+                          Только свободные комнаты
+                        </label>
+                      </div>
                     </div>
+                  )}
 
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Цена от</label>
-                      <input
-                        type="number"
-                        value={filterPriceMin}
-                        onChange={(e) => setFilterPriceMin(Number(e.target.value))}
-                        className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                        min="0"
-                      />
-                    </div>
+                  {/* Список комнат */}
+                  <div className="space-y-2">
+                    {filteredAndSortedRooms.filter(
+                      (r) => r.floor === selectedFloor
+                    ).length === 0 ? (
+                      <div className="text-center py-8 text-gray-500 text-sm">
+                        Комнаты не найдены
+                      </div>
+                    ) : (
+                      filteredAndSortedRooms
+                        .filter((r) => r.floor === selectedFloor)
+                        .map((room) => (
+                          <div
+                            key={room.id}
+                            className={`flex items-center justify-between p-3 sm:p-4 rounded-lg border transition-colors ${
+                              (room.bookings && room.bookings.length > 0) ||
+                              room.booking
+                                ? (
+                                    room.bookings ||
+                                    (room.booking ? [room.booking] : [])
+                                  ).some((b) => b.bookedBy === currentUser.name)
+                                  ? "bg-emerald-50 border-emerald-200"
+                                  : "bg-gray-50 border-gray-200"
+                                : "bg-white border-gray-200 hover:border-gray-300"
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <div className="text-lg sm:text-xl font-bold text-gray-900">
+                                  {room.number}
+                                </div>
+                                {room.name && (
+                                  <div className="text-sm font-semibold text-gray-700 truncate">
+                                    {room.name}
+                                  </div>
+                                )}
+                                <div className="text-xs text-gray-500">
+                                  {room.type}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 sm:gap-4 mt-1.5 text-xs sm:text-sm light:text-gray-600 dark:text-gray-600">
+                                <span className="flex items-center gap-1">
+                                  <Users className="w-3 h-3" />
+                                  {room.capacity}
+                                </span>
+                                {!room.isCommon && room.price > 0 && (
+                                  <span className="font-semibold text-gray-700">
+                                    {room.price}€
+                                    {room.pricePerPerson ? "/Per" : ""}/ночь
+                                  </span>
+                                )}
+                              </div>
+                              {room.bookings && room.bookings.length > 0 && (
+                                <div className="mt-1.5 space-y-1">
+                                  {room.bookings
+                                    .slice(0, 2)
+                                    .map((booking, idx) => (
+                                      <div
+                                        key={booking.id || idx}
+                                        className="text-xs text-gray-500"
+                                      >
+                                        {booking.bookedBy} ·{" "}
+                                        {new Date(
+                                          booking.checkIn
+                                        ).toLocaleDateString()}{" "}
+                                        -{" "}
+                                        {new Date(
+                                          booking.checkOut
+                                        ).toLocaleDateString()}
+                                      </div>
+                                    ))}
+                                  {room.bookings.length > 2 && (
+                                    <div className="text-xs text-gray-400">
+                                      +{room.bookings.length - 2} еще
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {!room.bookings && room.booking && (
+                                <div className="mt-1.5 text-xs text-gray-500">
+                                  {room.booking.bookedBy} ·{" "}
+                                  {new Date(
+                                    room.booking.checkIn
+                                  ).toLocaleDateString()}{" "}
+                                  -{" "}
+                                  {new Date(
+                                    room.booking.checkOut
+                                  ).toLocaleDateString()}
+                                </div>
+                              )}
+                            </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Цена до</label>
-                      <input
-                        type="number"
-                        value={filterPriceMax}
-                        onChange={(e) => setFilterPriceMax(Number(e.target.value))}
-                        className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                        min="0"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Вместимость мин.</label>
-                      <input
-                        type="number"
-                        value={filterCapacity}
-                        onChange={(e) => setFilterCapacity(Number(e.target.value))}
-                        className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                        min="0"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="availableOnly"
-                      checked={filterAvailableOnly}
-                      onChange={(e) => setFilterAvailableOnly(e.target.checked)}
-                      className="w-4 h-4 text-gray-700 border-gray-300 rounded focus:ring-gray-500"
-                    />
-                    <label htmlFor="availableOnly" className="text-xs sm:text-sm text-gray-700 cursor-pointer font-semibold">
-                      Только свободные комнаты
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {/* Список комнат */}
-              <div className="space-y-2">
-                {filteredAndSortedRooms.filter(r => r.floor === selectedFloor).length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 text-sm">
-                    Комнаты не найдены
-                  </div>
-                ) : (
-                  filteredAndSortedRooms
-                    .filter(r => r.floor === selectedFloor)
-                    .map(room => (
-                      <div
-                        key={room.id}
-                        className={`flex items-center justify-between p-3 sm:p-4 rounded-lg border transition-colors ${
-                          (room.bookings && room.bookings.length > 0) || room.booking
-                            ? (room.bookings || (room.booking ? [room.booking] : [])).some(b => b.bookedBy === currentUser.name)
-                              ? 'bg-emerald-50 border-emerald-200'
-                              : 'bg-gray-50 border-gray-200'
-                            : 'bg-white border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 sm:gap-3">
-                            <div className="text-lg sm:text-xl font-bold text-gray-900">{room.number}</div>
-                            {room.name && (
-                              <div className="text-sm font-semibold text-gray-700 truncate">{room.name}</div>
-                            )}
-                            <div className="text-xs text-gray-500">
-                              {room.type}
+                            <div className="flex items-center gap-2 ml-4">
+                              {!room.isCommon && (
+                                <Link
+                                  href={`/booking/${room.id}`}
+                                  prefetch={false}
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap"
+                                >
+                                  Забронировать
+                                </Link>
+                              )}
+                              {/* Кнопка отмены бронирования теперь в FloorPlan, так как нужен bookingId */}
+                              {isManagerOrDeveloper(currentUser) && (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setEditingRoom(room);
+                                      setShowRoomModal(true);
+                                    }}
+                                    className="p-1.5 light:text-gray-600 dark:text-gray-600 hover:text-gray-900"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteRoom(room.id)}
+                                    className="p-1.5 text-red-500 hover:text-red-700"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-3 sm:gap-4 mt-1.5 text-xs sm:text-sm text-gray-600">
-                            <span className="flex items-center gap-1">
+                        ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Таблица всех комнат отеля - показывается только в режиме списка */}
+          {viewMode === "list" && selectedHotel && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4">
+                  <div>
+                    {currentHotel && (
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
+                        {currentHotel?.name}
+                      </h2>
+                    )}
+                    <p className="text-sm light:text-gray-600 dark:text-gray-600">
+                      {currentUser.role === "guest"
+                        ? "Доступные комнаты"
+                        : filterAvailableOnly
+                        ? "Свободные комнаты"
+                        : "Все комнаты отеля"}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+                    {isManagerOrDeveloper(currentUser) && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditingRoom(null);
+                            setShowRoomModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5"
+                        >
+                          <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden sm:inline">Добавить</span>
+                        </button>
+
+                        {hasActiveFilters && (
+                          <button
+                            onClick={resetFilters}
+                            className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                            title="Сбросить фильтры"
+                          >
+                            <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Сбросить</span>
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => setShowFilters(!showFilters)}
+                          className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                            showFilters
+                              ? "bg-gray-900 text-white"
+                              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden sm:inline">Фильтры</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Панель фильтров (только для менеджера) */}
+                {showFilters && isManagerOrDeveloper(currentUser) && (
+                  <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Тип
+                        </label>
+                        <select
+                          value={filterType}
+                          onChange={(e) =>
+                            setFilterType(
+                              e.target.value as
+                                | "all"
+                                | "FZ"
+                                | "DZ"
+                                | "EZ"
+                                | "MZ"
+                                | "App"
+                            )
+                          }
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                        >
+                          <option value="all">Все</option>
+                          <option value="FZ">FZ</option>
+                          <option value="DZ">DZ</option>
+                          <option value="EZ">EZ</option>
+                          <option value="MZ">MZ</option>
+                          <option value="App">App</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Цена от
+                        </label>
+                        <input
+                          type="number"
+                          value={filterPriceMin}
+                          onChange={(e) =>
+                            setFilterPriceMin(Number(e.target.value))
+                          }
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          min="0"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Цена до
+                        </label>
+                        <input
+                          type="number"
+                          value={filterPriceMax}
+                          onChange={(e) =>
+                            setFilterPriceMax(Number(e.target.value))
+                          }
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          min="0"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Вместимость мин.
+                        </label>
+                        <input
+                          type="number"
+                          value={filterCapacity}
+                          onChange={(e) =>
+                            setFilterCapacity(Number(e.target.value))
+                          }
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="availableOnlyRooms"
+                        checked={filterAvailableOnly}
+                        onChange={(e) =>
+                          setFilterAvailableOnly(e.target.checked)
+                        }
+                        className="w-4 h-4 text-gray-700 border-gray-300 rounded focus:ring-gray-500"
+                      />
+                      <label
+                        htmlFor="availableOnlyRooms"
+                        className="text-xs sm:text-sm text-gray-700 cursor-pointer font-semibold"
+                      >
+                        Только свободные комнаты
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Таблица комнат */}
+                <div className="overflow-x-auto">
+                  {filteredAndSortedRooms.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 text-sm">
+                      Комнаты не найдены
+                      {isManagerOrDeveloper(currentUser) && (
+                        <button
+                          onClick={() => {
+                            setEditingRoom(null);
+                            setShowRoomModal(true);
+                          }}
+                          className="block mt-4 mx-auto bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+                        >
+                          Добавить первую комнату
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-gray-50 hover:bg-transparent border-b border-gray-200">
+                          <TableHead
+                            className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("number")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Номер
+                              {sortBy === "number" &&
+                                (sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                              {sortBy !== "number" && (
+                                <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("floor")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Этаж
+                              {sortBy === "floor" &&
+                                (sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                              {sortBy !== "floor" && (
+                                <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("type")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Тип
+                              {sortBy === "type" &&
+                                (sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                              {sortBy !== "type" && (
+                                <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("capacity")}
+                          >
+                            <div className="flex items-center gap-1">
                               <Users className="w-3 h-3" />
-                              {room.capacity}
-                            </span>
-                            {!room.isCommon && room.price > 0 && (
-                              <span className="font-semibold text-gray-700">{room.price}€{room.pricePerPerson ? '/Per' : ''}/ночь</span>
-                            )}
-                          </div>
-                          {(room.bookings && room.bookings.length > 0) && (
-                            <div className="mt-1.5 space-y-1">
-                              {room.bookings.slice(0, 2).map((booking, idx) => (
-                                <div key={booking.id || idx} className="text-xs text-gray-500">
-                                  {booking.bookedBy} · {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
-                                </div>
-                              ))}
-                              {room.bookings.length > 2 && (
-                                <div className="text-xs text-gray-400">
-                                  +{room.bookings.length - 2} еще
-                                </div>
+                              Вместимость
+                              {sortBy === "capacity" &&
+                                (sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                              {sortBy !== "capacity" && (
+                                <ArrowUpDown className="w-3 h-3 text-gray-400" />
                               )}
                             </div>
-                          )}
-                          {!room.bookings && room.booking && (
-                            <div className="mt-1.5 text-xs text-gray-500">
-                              {room.booking.bookedBy} · {new Date(room.booking.checkIn).toLocaleDateString()} - {new Date(room.booking.checkOut).toLocaleDateString()}
+                          </TableHead>
+                          <TableHead
+                            className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("price")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Цена
+                              {sortBy === "price" &&
+                                (sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                              {sortBy !== "price" && (
+                                <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                              )}
                             </div>
+                          </TableHead>
+                          <TableHead
+                            className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("status")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Статус
+                              {sortBy === "status" &&
+                                (sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                              {sortBy !== "status" && (
+                                <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                              )}
+                            </div>
+                          </TableHead>
+                          {(isManagerOrDeveloper(currentUser) ||
+                            filteredAndSortedRooms.some(
+                              (r) =>
+                                !r.isCommon &&
+                                (!r.booking ||
+                                  r.booking.bookedBy === currentUser?.name)
+                            )) && (
+                            <TableHead className="text-xs font-semibold text-gray-700">
+                              Действия
+                            </TableHead>
                           )}
-                        </div>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredAndSortedRooms.map((room) => (
+                          <TableRow
+                            key={room.id}
+                            className={`${
+                              room.booking
+                                ? room.booking.bookedBy === currentUser?.name
+                                  ? "bg-blue-50/50 hover:bg-blue-50"
+                                  : "bg-gray-50/50 hover:bg-gray-50"
+                                : ""
+                            }`}
+                          >
+                            <TableCell className="py-2.5">
+                              <div className="font-semibold text-gray-900">
+                                {room.number}
+                              </div>
+                              {room.name && (
+                                <div className="text-xs light:text-gray-600 dark:text-gray-600 mt-0.5">
+                                  {room.name}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-2.5 text-sm text-gray-700">
+                              {room.floor}
+                            </TableCell>
+                            <TableCell className="py-2.5 text-sm text-gray-700">
+                              {room.type}
+                            </TableCell>
+                            <TableCell className="py-2.5 text-sm text-gray-700">
+                              {room.capacity}
+                            </TableCell>
+                            <TableCell className="py-2.5 text-sm font-semibold text-gray-700">
+                              {!room.isCommon && room.price > 0
+                                ? `${room.price}€${
+                                    room.pricePerPerson ? "/Per" : ""
+                                  }`
+                                : "-"}
+                            </TableCell>
+                            <TableCell className="py-2.5">
+                              {room.booking ? (
+                                <div className="text-xs">
+                                  {isManagerOrDeveloper(currentUser) && (
+                                    <div className="font-semibold text-gray-700">
+                                      {room.booking.bookedBy}
+                                    </div>
+                                  )}
+                                  <div className="text-gray-500">
+                                    {new Date(
+                                      room.booking.checkIn
+                                    ).toLocaleDateString("ru-RU")}{" "}
+                                    -{" "}
+                                    {new Date(
+                                      room.booking.checkOut
+                                    ).toLocaleDateString("ru-RU")}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-green-600 font-semibold">
+                                  Свободна
+                                </span>
+                              )}
+                            </TableCell>
+                            {(isManagerOrDeveloper(currentUser) ||
+                              (!room.isCommon &&
+                                (!room.booking ||
+                                  room.booking.bookedBy ===
+                                    currentUser?.name))) && (
+                              <TableCell className="py-2.5">
+                                <div className="flex items-center gap-2">
+                                  {!room.booking && !room.isCommon && (
+                                    <Link
+                                      href={`/booking/${room.id}`}
+                                      prefetch={false}
+                                      className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                    >
+                                      Забронировать
+                                    </Link>
+                                  )}
+                                  {room.booking &&
+                                    (room.booking.bookedBy ===
+                                      currentUser?.name ||
+                                      isManagerOrDeveloper(currentUser)) && (
+                                      <button
+                                        onClick={() =>
+                                          handleCancelBooking(room.id)
+                                        }
+                                        className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                        title="Отменить бронирование"
+                                      >
+                                        Отменить
+                                      </button>
+                                    )}
+                                  {isManagerOrDeveloper(currentUser) && (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          setEditingRoom(room);
+                                          setShowRoomModal(true);
+                                        }}
+                                        className="p-1 light:text-gray-600 dark:text-gray-600 hover:text-gray-900"
+                                        title="Редактировать"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleDeleteRoom(room.id)
+                                        }
+                                        className="p-1 text-red-500 hover:text-red-700"
+                                        title="Удалить"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
-                        <div className="flex items-center gap-2 ml-4">
-                          {!room.isCommon && (
-                            <Link
-                              href={`/booking/${room.id}`}
-                              prefetch={false}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap"
-                            >
-                              Забронировать
-                            </Link>
-                          )}
-                          {/* Кнопка отмены бронирования теперь в FloorPlan, так как нужен bookingId */}
-                          {isManagerOrDeveloper(currentUser) && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setEditingRoom(room);
-                                  setShowRoomModal(true);
-                                }}
-                                className="p-1.5 text-gray-600 hover:text-gray-900"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteRoom(room.id)}
-                                className="p-1.5 text-red-500 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                        </div>
+          {/* Режим списка - показываем только таблицу всех комнат (дубликат удален) */}
+          {false && viewMode === "list" && selectedHotel && (
+            <div className="space-y-6">
+              {/* Таблица всех комнат отеля */}
+              <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4">
+                  <div>
+                    {currentHotel && (
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
+                        {currentHotel?.name}
+                      </h2>
+                    )}
+                    <p className="text-sm light:text-gray-600 dark:text-gray-600">
+                      {currentUser?.role === "guest"
+                        ? "Доступные комнаты"
+                        : filterAvailableOnly
+                        ? "Свободные комнаты"
+                        : "Все комнаты отеля"}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+                    {isManagerOrDeveloper(currentUser) && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditingRoom(null);
+                            setShowRoomModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5"
+                        >
+                          <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden sm:inline">Добавить</span>
+                        </button>
+
+                        {hasActiveFilters && (
+                          <button
+                            onClick={resetFilters}
+                            className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                            title="Сбросить фильтры"
+                          >
+                            <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Сбросить</span>
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => setShowFilters(!showFilters)}
+                          className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                            showFilters
+                              ? "bg-gray-900 text-white"
+                              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden sm:inline">Фильтры</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Панель фильтров (только для менеджера) */}
+                {showFilters && isManagerOrDeveloper(currentUser) && (
+                  <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Тип
+                        </label>
+                        <select
+                          value={filterType}
+                          onChange={(e) =>
+                            setFilterType(
+                              e.target.value as
+                                | "all"
+                                | "FZ"
+                                | "DZ"
+                                | "EZ"
+                                | "MZ"
+                                | "App"
+                            )
+                          }
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                        >
+                          <option value="all">Все</option>
+                          <option value="FZ">FZ</option>
+                          <option value="DZ">DZ</option>
+                          <option value="EZ">EZ</option>
+                          <option value="MZ">MZ</option>
+                          <option value="App">App</option>
+                        </select>
                       </div>
-                    ))
-                )}
-              </div>
-            </div>
-            )}
-          </div>
-        )}
 
-        {/* Таблица всех комнат отеля - показывается только в режиме списка */}
-        {viewMode === 'list' && selectedHotel && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4">
-                <div>
-                  {currentHotel && (
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">{currentHotel?.name}</h2>
-                  )}
-                  <p className="text-sm text-gray-600">
-                    {currentUser.role === 'guest' 
-                      ? 'Доступные комнаты' 
-                      : filterAvailableOnly ? 'Свободные комнаты' : 'Все комнаты отеля'}
-                  </p>
-                </div>
-                
-                <div className="flex gap-2 w-full sm:w-auto flex-wrap">
-                  {isManagerOrDeveloper(currentUser) && (
-                    <>
-                      <button
-                        onClick={() => {
-                          setEditingRoom(null);
-                          setShowRoomModal(true);
-                        }}
-                        className="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5"
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Цена от
+                        </label>
+                        <input
+                          type="number"
+                          value={filterPriceMin}
+                          onChange={(e) =>
+                            setFilterPriceMin(Number(e.target.value))
+                          }
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          min="0"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Цена до
+                        </label>
+                        <input
+                          type="number"
+                          value={filterPriceMax}
+                          onChange={(e) =>
+                            setFilterPriceMax(Number(e.target.value))
+                          }
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          min="0"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Вместимость мин.
+                        </label>
+                        <input
+                          type="number"
+                          value={filterCapacity}
+                          onChange={(e) =>
+                            setFilterCapacity(Number(e.target.value))
+                          }
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="availableOnlyRoomsList"
+                        checked={filterAvailableOnly}
+                        onChange={(e) =>
+                          setFilterAvailableOnly(e.target.checked)
+                        }
+                        className="w-4 h-4 text-gray-700 border-gray-300 rounded focus:ring-gray-500"
+                      />
+                      <label
+                        htmlFor="availableOnlyRoomsList"
+                        className="text-xs sm:text-sm text-gray-700 cursor-pointer font-semibold"
                       >
-                        <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span className="hidden sm:inline">Добавить</span>
-                      </button>
-                      
-                      {hasActiveFilters && (
+                        Только свободные комнаты
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Таблица комнат */}
+                <div className="overflow-x-auto">
+                  {filteredAndSortedRooms.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 text-sm">
+                      Комнаты не найдены
+                      {isManagerOrDeveloper(currentUser) && (
                         <button
-                          onClick={resetFilters}
-                          className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
-                          title="Сбросить фильтры"
+                          onClick={() => {
+                            setEditingRoom(null);
+                            setShowRoomModal(true);
+                          }}
+                          className="block mt-4 mx-auto bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold"
                         >
-                          <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span className="hidden sm:inline">Сбросить</span>
+                          Добавить первую комнату
                         </button>
                       )}
-                      
-                      <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
-                          showFilters
-                            ? 'bg-gray-900 text-white'
-                            : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span className="hidden sm:inline">Фильтры</span>
-                      </button>
-                    </>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-gray-50 hover:bg-transparent border-b border-gray-200">
+                          <TableHead
+                            className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("number")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Номер
+                              {sortBy === "number" &&
+                                (sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                              {sortBy !== "number" && (
+                                <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("floor")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Этаж
+                              {sortBy === "floor" &&
+                                (sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                              {sortBy !== "floor" && (
+                                <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("type")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Тип
+                              {sortBy === "type" &&
+                                (sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                              {sortBy !== "type" && (
+                                <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("capacity")}
+                          >
+                            <div className="flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              Вместимость
+                              {sortBy === "capacity" &&
+                                (sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                              {sortBy !== "capacity" && (
+                                <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("price")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Цена
+                              {sortBy === "price" &&
+                                (sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                              {sortBy !== "price" && (
+                                <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("status")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Статус
+                              {sortBy === "status" &&
+                                (sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDown className="w-3 h-3" />
+                                ))}
+                              {sortBy !== "status" && (
+                                <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                              )}
+                            </div>
+                          </TableHead>
+                          {(isManagerOrDeveloper(currentUser) ||
+                            filteredAndSortedRooms.some(
+                              (r) =>
+                                !r.isCommon &&
+                                (!r.booking ||
+                                  r.booking.bookedBy === currentUser?.name)
+                            )) && (
+                            <TableHead className="text-xs font-semibold text-gray-700">
+                              Действия
+                            </TableHead>
+                          )}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredAndSortedRooms.map((room) => (
+                          <TableRow
+                            key={room.id}
+                            className={`${
+                              room.booking
+                                ? room.booking.bookedBy === currentUser?.name
+                                  ? "bg-blue-50/50 hover:bg-blue-50"
+                                  : "bg-gray-50/50 hover:bg-gray-50"
+                                : ""
+                            }`}
+                          >
+                            <TableCell className="py-2.5">
+                              <div className="font-semibold text-gray-900">
+                                {room.number}
+                              </div>
+                              {room.name && (
+                                <div className="text-xs light:text-gray-600 dark:text-gray-600 mt-0.5">
+                                  {room.name}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-2.5 text-sm text-gray-700">
+                              {room.floor}
+                            </TableCell>
+                            <TableCell className="py-2.5 text-sm text-gray-700">
+                              {room.type}
+                            </TableCell>
+                            <TableCell className="py-2.5 text-sm text-gray-700">
+                              {room.capacity}
+                            </TableCell>
+                            <TableCell className="py-2.5 text-sm font-semibold text-gray-700">
+                              {!room.isCommon && room.price > 0
+                                ? `${room.price}€${
+                                    room.pricePerPerson ? "/Per" : ""
+                                  }`
+                                : "-"}
+                            </TableCell>
+                            <TableCell className="py-2.5">
+                              {room.booking ? (
+                                <div className="text-xs">
+                                  {isManagerOrDeveloper(currentUser) && (
+                                    <div className="font-semibold text-gray-700">
+                                      {room.booking.bookedBy}
+                                    </div>
+                                  )}
+                                  <div className="text-gray-500">
+                                    {new Date(
+                                      room.booking.checkIn
+                                    ).toLocaleDateString("ru-RU")}{" "}
+                                    -{" "}
+                                    {new Date(
+                                      room.booking.checkOut
+                                    ).toLocaleDateString("ru-RU")}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-green-600 font-semibold">
+                                  Свободна
+                                </span>
+                              )}
+                            </TableCell>
+                            {(isManagerOrDeveloper(currentUser) ||
+                              (!room.isCommon &&
+                                (!room.booking ||
+                                  room.booking.bookedBy ===
+                                    currentUser?.name))) && (
+                              <TableCell className="py-2.5">
+                                <div className="flex items-center gap-2">
+                                  {!room.booking && !room.isCommon && (
+                                    <Link
+                                      href={`/booking/${room.id}`}
+                                      prefetch={false}
+                                      className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                    >
+                                      Забронировать
+                                    </Link>
+                                  )}
+                                  {room.booking &&
+                                    (room.booking.bookedBy ===
+                                      currentUser?.name ||
+                                      isManagerOrDeveloper(currentUser)) && (
+                                      <button
+                                        onClick={() =>
+                                          handleCancelBooking(room.id)
+                                        }
+                                        className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                        title="Отменить бронирование"
+                                      >
+                                        Отменить
+                                      </button>
+                                    )}
+                                  {isManagerOrDeveloper(currentUser) && (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          setEditingRoom(room);
+                                          setShowRoomModal(true);
+                                        }}
+                                        className="p-1 light:text-gray-600 dark:text-gray-600 hover:text-gray-900"
+                                        title="Редактировать"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleDeleteRoom(room.id)
+                                        }
+                                        className="p-1 text-red-500 hover:text-red-700"
+                                        title="Удалить"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   )}
                 </div>
-              </div>
-
-              {/* Панель фильтров (только для менеджера) */}
-              {showFilters && isManagerOrDeveloper(currentUser) && (
-                <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Тип</label>
-                      <select
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ' | 'MZ' | 'App')}
-                        className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                      >
-                        <option value="all">Все</option>
-                        <option value="FZ">FZ</option>
-                        <option value="DZ">DZ</option>
-                        <option value="EZ">EZ</option>
-                        <option value="MZ">MZ</option>
-                        <option value="App">App</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Цена от</label>
-                      <input
-                        type="number"
-                        value={filterPriceMin}
-                        onChange={(e) => setFilterPriceMin(Number(e.target.value))}
-                        className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                        min="0"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Цена до</label>
-                      <input
-                        type="number"
-                        value={filterPriceMax}
-                        onChange={(e) => setFilterPriceMax(Number(e.target.value))}
-                        className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                        min="0"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Вместимость мин.</label>
-                      <input
-                        type="number"
-                        value={filterCapacity}
-                        onChange={(e) => setFilterCapacity(Number(e.target.value))}
-                        className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                        min="0"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="availableOnlyRooms"
-                      checked={filterAvailableOnly}
-                      onChange={(e) => setFilterAvailableOnly(e.target.checked)}
-                      className="w-4 h-4 text-gray-700 border-gray-300 rounded focus:ring-gray-500"
-                    />
-                    <label htmlFor="availableOnlyRooms" className="text-xs sm:text-sm text-gray-700 cursor-pointer font-semibold">
-                      Только свободные комнаты
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {/* Таблица комнат */}
-              <div className="overflow-x-auto">
-                {filteredAndSortedRooms.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 text-sm">
-                    Комнаты не найдены
-                    {isManagerOrDeveloper(currentUser) && (
-                      <button
-                        onClick={() => {
-                          setEditingRoom(null);
-                          setShowRoomModal(true);
-                        }}
-                        className="block mt-4 mx-auto bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold"
-                      >
-                        Добавить первую комнату
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b border-gray-200 bg-gray-50">
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('number')}
-                        >
-                          <div className="flex items-center gap-1">
-                            Номер
-                            {sortBy === 'number' && (
-                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                            )}
-                            {sortBy !== 'number' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('floor')}
-                        >
-                          <div className="flex items-center gap-1">
-                            Этаж
-                            {sortBy === 'floor' && (
-                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                            )}
-                            {sortBy !== 'floor' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('type')}
-                        >
-                          <div className="flex items-center gap-1">
-                            Тип
-                            {sortBy === 'type' && (
-                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                            )}
-                            {sortBy !== 'type' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('capacity')}
-                        >
-                          <div className="flex items-center gap-1">
-                            <Users className="w-3 h-3" />
-                            Вместимость
-                            {sortBy === 'capacity' && (
-                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                            )}
-                            {sortBy !== 'capacity' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('price')}
-                        >
-                          <div className="flex items-center gap-1">
-                            Цена
-                            {sortBy === 'price' && (
-                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                            )}
-                            {sortBy !== 'price' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('status')}
-                        >
-                          <div className="flex items-center gap-1">
-                            Статус
-                            {sortBy === 'status' && (
-                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                            )}
-                            {sortBy !== 'status' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                        </th>
-                        {(isManagerOrDeveloper(currentUser) || filteredAndSortedRooms.some(r => !r.isCommon && (!r.booking || r.booking.bookedBy === currentUser?.name))) && (
-                          <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Действия</th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredAndSortedRooms.map(room => (
-                        <tr
-                          key={room.id}
-                          className={`border-b border-gray-100 transition-colors ${
-                            room.booking
-                              ? room.booking.bookedBy === currentUser?.name
-                                ? 'bg-blue-50/50 hover:bg-blue-50'
-                                : 'bg-gray-50/50 hover:bg-gray-50'
-                              : 'hover:bg-gray-50'
-                          }`}
-                        >
-                          <td className="px-3 py-2.5">
-                            <div className="font-semibold text-gray-900">{room.number}</div>
-                            {room.name && (
-                              <div className="text-xs text-gray-600 mt-0.5">{room.name}</div>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5 text-sm text-gray-700">{room.floor}</td>
-                          <td className="px-3 py-2.5 text-sm text-gray-700">
-                            {room.type}
-                          </td>
-                          <td className="px-3 py-2.5 text-sm text-gray-700">{room.capacity}</td>
-                          <td className="px-3 py-2.5 text-sm font-semibold text-gray-700">
-                            {!room.isCommon && room.price > 0 ? `${room.price}€${room.pricePerPerson ? '/Per' : ''}` : '-'}
-                          </td>
-                          <td className="px-3 py-2.5">
-                            {room.booking ? (
-                              <div className="text-xs">
-                                {isManagerOrDeveloper(currentUser) && (
-                                  <div className="font-semibold text-gray-700">{room.booking.bookedBy}</div>
-                                )}
-                                <div className="text-gray-500">
-                                  {new Date(room.booking.checkIn).toLocaleDateString('ru-RU')} - {new Date(room.booking.checkOut).toLocaleDateString('ru-RU')}
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-green-600 font-semibold">Свободна</span>
-                            )}
-                          </td>
-                          {(isManagerOrDeveloper(currentUser) || (!room.isCommon && (!room.booking || room.booking.bookedBy === currentUser?.name))) && (
-                            <td className="px-3 py-2.5">
-                              <div className="flex items-center gap-2">
-                                {!room.booking && !room.isCommon && (
-                                  <Link
-                                    href={`/booking/${room.id}`}
-                                    prefetch={false}
-                                    className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold whitespace-nowrap"
-                                  >
-                                    Забронировать
-                                  </Link>
-                                )}
-                                {room.booking && (room.booking.bookedBy === currentUser?.name || isManagerOrDeveloper(currentUser)) && (
-                                  <button
-                                    onClick={() => handleCancelBooking(room.id)}
-                                    className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
-                                    title="Отменить бронирование"
-                                  >
-                                    Отменить
-                                  </button>
-                                )}
-                                {isManagerOrDeveloper(currentUser) && (
-                                  <>
-                                    <button
-                                      onClick={() => {
-                                        setEditingRoom(room);
-                                        setShowRoomModal(true);
-                                      }}
-                                      className="p-1 text-gray-600 hover:text-gray-900"
-                                      title="Редактировать"
-                                    >
-                                      <Edit className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteRoom(room.id)}
-                                      className="p-1 text-red-500 hover:text-red-700"
-                                      title="Удалить"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Режим списка - показываем только таблицу всех комнат (дубликат удален) */}
-        {false && viewMode === 'list' && selectedHotel && (
-          <div className="space-y-6">
-            {/* Таблица всех комнат отеля */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4">
-                <div>
-                  {currentHotel && (
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">{currentHotel?.name}</h2>
-                  )}
-                  <p className="text-sm text-gray-600">
-                    {currentUser?.role === 'guest' 
-                      ? 'Доступные комнаты' 
-                      : filterAvailableOnly ? 'Свободные комнаты' : 'Все комнаты отеля'}
-                  </p>
-                </div>
-                
-                <div className="flex gap-2 w-full sm:w-auto flex-wrap">
-                  {isManagerOrDeveloper(currentUser) && (
-                    <>
-                      <button
-                        onClick={() => {
-                          setEditingRoom(null);
-                          setShowRoomModal(true);
-                        }}
-                        className="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5"
-                      >
-                        <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span className="hidden sm:inline">Добавить</span>
-                      </button>
-                      
-                      {hasActiveFilters && (
-                        <button
-                          onClick={resetFilters}
-                          className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
-                          title="Сбросить фильтры"
-                        >
-                          <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span className="hidden sm:inline">Сбросить</span>
-                        </button>
-                      )}
-                      
-                      <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
-                          showFilters
-                            ? 'bg-gray-900 text-white'
-                            : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span className="hidden sm:inline">Фильтры</span>
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Панель фильтров (только для менеджера) */}
-              {showFilters && isManagerOrDeveloper(currentUser) && (
-                <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Тип</label>
-                      <select
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value as 'all' | 'FZ' | 'DZ' | 'EZ' | 'MZ' | 'App')}
-                        className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                      >
-                        <option value="all">Все</option>
-                        <option value="FZ">FZ</option>
-                        <option value="DZ">DZ</option>
-                        <option value="EZ">EZ</option>
-                        <option value="MZ">MZ</option>
-                        <option value="App">App</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Цена от</label>
-                      <input
-                        type="number"
-                        value={filterPriceMin}
-                        onChange={(e) => setFilterPriceMin(Number(e.target.value))}
-                        className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                        min="0"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Цена до</label>
-                      <input
-                        type="number"
-                        value={filterPriceMax}
-                        onChange={(e) => setFilterPriceMax(Number(e.target.value))}
-                        className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                        min="0"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Вместимость мин.</label>
-                      <input
-                        type="number"
-                        value={filterCapacity}
-                        onChange={(e) => setFilterCapacity(Number(e.target.value))}
-                        className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
-                        min="0"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="availableOnlyRoomsList"
-                      checked={filterAvailableOnly}
-                      onChange={(e) => setFilterAvailableOnly(e.target.checked)}
-                      className="w-4 h-4 text-gray-700 border-gray-300 rounded focus:ring-gray-500"
-                    />
-                    <label htmlFor="availableOnlyRoomsList" className="text-xs sm:text-sm text-gray-700 cursor-pointer font-semibold">
-                      Только свободные комнаты
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {/* Таблица комнат */}
-              <div className="overflow-x-auto">
-                {filteredAndSortedRooms.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 text-sm">
-                    Комнаты не найдены
-                    {isManagerOrDeveloper(currentUser) && (
-                      <button
-                        onClick={() => {
-                          setEditingRoom(null);
-                          setShowRoomModal(true);
-                        }}
-                        className="block mt-4 mx-auto bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold"
-                      >
-                        Добавить первую комнату
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b border-gray-200 bg-gray-50">
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('number')}
-                        >
-                          <div className="flex items-center gap-1">
-                            Номер
-                            {sortBy === 'number' && (
-                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                            )}
-                            {sortBy !== 'number' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('floor')}
-                        >
-                          <div className="flex items-center gap-1">
-                            Этаж
-                            {sortBy === 'floor' && (
-                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                            )}
-                            {sortBy !== 'floor' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('type')}
-                        >
-                          <div className="flex items-center gap-1">
-                            Тип
-                            {sortBy === 'type' && (
-                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                            )}
-                            {sortBy !== 'type' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('capacity')}
-                        >
-                          <div className="flex items-center gap-1">
-                            <Users className="w-3 h-3" />
-                            Вместимость
-                            {sortBy === 'capacity' && (
-                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                            )}
-                            {sortBy !== 'capacity' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('price')}
-                        >
-                          <div className="flex items-center gap-1">
-                            Цена
-                            {sortBy === 'price' && (
-                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                            )}
-                            {sortBy !== 'price' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('status')}
-                        >
-                          <div className="flex items-center gap-1">
-                            Статус
-                            {sortBy === 'status' && (
-                              sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                            )}
-                            {sortBy !== 'status' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                        </th>
-                        {(isManagerOrDeveloper(currentUser) || filteredAndSortedRooms.some(r => !r.isCommon && (!r.booking || r.booking.bookedBy === currentUser?.name))) && (
-                          <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Действия</th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredAndSortedRooms.map(room => (
-                        <tr
-                          key={room.id}
-                          className={`border-b border-gray-100 transition-colors ${
-                            room.booking
-                              ? room.booking.bookedBy === currentUser?.name
-                                ? 'bg-blue-50/50 hover:bg-blue-50'
-                                : 'bg-gray-50/50 hover:bg-gray-50'
-                              : 'hover:bg-gray-50'
-                          }`}
-                        >
-                          <td className="px-3 py-2.5">
-                            <div className="font-semibold text-gray-900">{room.number}</div>
-                            {room.name && (
-                              <div className="text-xs text-gray-600 mt-0.5">{room.name}</div>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5 text-sm text-gray-700">{room.floor}</td>
-                          <td className="px-3 py-2.5 text-sm text-gray-700">
-                            {room.type}
-                          </td>
-                          <td className="px-3 py-2.5 text-sm text-gray-700">{room.capacity}</td>
-                          <td className="px-3 py-2.5 text-sm font-semibold text-gray-700">
-                            {!room.isCommon && room.price > 0 ? `${room.price}€${room.pricePerPerson ? '/Per' : ''}` : '-'}
-                          </td>
-                          <td className="px-3 py-2.5">
-                            {room.booking ? (
-                              <div className="text-xs">
-                                {isManagerOrDeveloper(currentUser) && (
-                                  <div className="font-semibold text-gray-700">{room.booking.bookedBy}</div>
-                                )}
-                                <div className="text-gray-500">
-                                  {new Date(room.booking.checkIn).toLocaleDateString('ru-RU')} - {new Date(room.booking.checkOut).toLocaleDateString('ru-RU')}
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-green-600 font-semibold">Свободна</span>
-                            )}
-                          </td>
-                          {(isManagerOrDeveloper(currentUser) || (!room.isCommon && (!room.booking || room.booking.bookedBy === currentUser?.name))) && (
-                            <td className="px-3 py-2.5">
-                              <div className="flex items-center gap-2">
-                                {!room.booking && !room.isCommon && (
-                                  <Link
-                                    href={`/booking/${room.id}`}
-                                    prefetch={false}
-                                    className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold whitespace-nowrap"
-                                  >
-                                    Забронировать
-                                  </Link>
-                                )}
-                                {room.booking && (room.booking.bookedBy === currentUser?.name || isManagerOrDeveloper(currentUser)) && (
-                                  <button
-                                    onClick={() => handleCancelBooking(room.id)}
-                                    className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
-                                    title="Отменить бронирование"
-                                  >
-                                    Отменить
-                                  </button>
-                                )}
-                                {isManagerOrDeveloper(currentUser) && (
-                                  <>
-                                    <button
-                                      onClick={() => {
-                                        setEditingRoom(room);
-                                        setShowRoomModal(true);
-                                      }}
-                                      className="p-1 text-gray-600 hover:text-gray-900"
-                                      title="Редактировать"
-                                    >
-                                      <Edit className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteRoom(room.id)}
-                                      className="p-1 text-red-500 hover:text-red-700"
-                                      title="Удалить"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-
-
-        {/* Бронирования вынесены в отдельную страницу /bookings */}
+          {/* Бронирования вынесены в отдельную страницу /bookings */}
         </main>
 
         {/* Room Modal */}
@@ -2181,66 +2623,81 @@ export default function Dashboard() {
             }}
           />
         )}
-      </div>
 
-      {/* Bottom Navigation Menu для мобильных устройств (только для гостей) */}
-      {currentUser.role === 'guest' && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[100] shadow-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-          <div className="flex items-center justify-around h-16">
-            {/* Отели - список всех отелей */}
-            <button
-              onClick={() => {
-                setSelectedHotel(''); // Сбрасываем выбор отеля
-                setActiveTab('hotels'); // Переключаемся на вкладку отелей
-              }}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-                !selectedHotel && activeTab === 'hotels'
-                  ? 'text-gray-900 bg-gray-50'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+          {/* Bottom Navigation Menu для мобильных устройств (только для гостей) */}
+          {currentUser.role === "guest" && (
+            <nav
+              className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-card border-t border-gray-200 dark:border-border z-[100] shadow-lg"
+              style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
             >
-              <Building2 className={`w-5 h-5 ${!selectedHotel && activeTab === 'hotels' ? 'text-gray-900' : 'text-gray-500'}`} />
-              <span className="text-xs font-semibold">Отели</span>
-            </button>
+              <div className="flex items-center justify-around h-16">
+                {/* Отели - список всех отелей */}
+                <button
+                  onClick={() => {
+                    setSelectedHotel(""); // Сбрасываем выбор отеля
+                    setActiveTab("hotels"); // Переключаемся на вкладку отелей
+                  }}
+                  className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+                    !selectedHotel && activeTab === "hotels"
+                      ? "text-gray-900 dark:text-foreground bg-gray-50 dark:bg-muted"
+                      : "text-gray-600 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground"
+                  }`}
+                >
+                  <Building2
+                    className={`w-5 h-5 ${
+                      !selectedHotel && activeTab === "hotels"
+                        ? "text-gray-900 dark:text-foreground"
+                        : "text-gray-500 dark:text-muted-foreground"
+                    }`}
+                  />
+                  <span className="text-xs font-semibold">Отели</span>
+                </button>
 
-            {/* Бронирования - показываем на главной странице */}
-            <button
-              onClick={() => {
-                setSelectedHotel(''); // Сбрасываем выбор отеля
-                setActiveTab('bookings'); // Переключаемся на вкладку бронирований
-              }}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${
-                !selectedHotel && activeTab === 'bookings'
-                  ? 'text-gray-900 bg-gray-50'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <div className="relative">
-                <BookOpen className={`w-5 h-5 ${!selectedHotel && activeTab === 'bookings' ? 'text-gray-900' : 'text-gray-500'}`} />
+                {/* Бронирования - показываем на главной странице */}
+                <button
+                  onClick={() => {
+                    setSelectedHotel(""); // Сбрасываем выбор отеля
+                    setActiveTab("bookings"); // Переключаемся на вкладку бронирований
+                  }}
+                  className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${
+                    !selectedHotel && activeTab === "bookings"
+                      ? "text-gray-900 dark:text-foreground bg-gray-50 dark:bg-muted"
+                      : "text-gray-600 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground"
+                  }`}
+                >
+                  <div className="relative">
+                    <BookOpen
+                      className={`w-5 h-5 ${
+                        !selectedHotel && activeTab === "bookings"
+                          ? "text-gray-900 dark:text-foreground"
+                          : "text-gray-500 dark:text-muted-foreground"
+                      }`}
+                    />
+                  </div>
+                  <span className="text-xs font-semibold">Бронирования</span>
+                </button>
+
+                {/* Выйти */}
+                <button
+                  onClick={handleLogout}
+                  className="flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors text-gray-600 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground"
+                >
+                  <LogOut className="w-5 h-5 text-gray-500 dark:text-muted-foreground" />
+                  <span className="text-xs font-semibold">Выйти</span>
+                </button>
               </div>
-              <span className="text-xs font-semibold">Бронирования</span>
-            </button>
+            </nav>
+          )}
 
-            {/* Выйти */}
-            <button
-              onClick={handleLogout}
-              className="flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors text-gray-600 hover:text-gray-900"
-            >
-              <LogOut className="w-5 h-5 text-gray-500" />
-              <span className="text-xs font-semibold">Выйти</span>
-            </button>
-          </div>
-        </nav>
-      )}
-
-      {/* Форма обратной связи */}
-      {showFeedbackForm && currentUser && (
-        <FeedbackForm
-          currentUser={currentUser}
-          onClose={() => setShowFeedbackForm(false)}
-        />
-      )}
-    </div>
+          {/* Форма обратной связи */}
+          {showFeedbackForm && currentUser && (
+            <FeedbackForm
+              currentUser={currentUser}
+              onClose={() => setShowFeedbackForm(false)}
+            />
+          )}
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
@@ -2249,7 +2706,14 @@ interface RoomModalProps {
   room: Room | null;
   hotels: Hotel[];
   rooms: Room[];
-  onSave: (roomData: Partial<Room> & { number: string; hotelId: string; type: Room['type']; floor: Room['floor'] }) => void;
+  onSave: (
+    roomData: Partial<Room> & {
+      number: string;
+      hotelId: string;
+      type: Room["type"];
+      floor: Room["floor"];
+    }
+  ) => void;
   onClose: () => void;
 }
 
@@ -2257,49 +2721,57 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
   // Определяем доступные этажи для выбранного отеля на основе настройки hasEGFloor
   // Если hasEGFloor = true - показываем EG, 1OG, 2OG (EG - первый этаж)
   // Если hasEGFloor = false - показываем 1OG, 2OG, 3OG (1OG становится первым этажом)
-  const getAvailableFloorsForHotel = (hotelId: string): ('EG' | '1OG' | '2OG' | '3OG')[] => {
-    const hotel = hotels.find(h => h.id === hotelId);
-    const hotelRooms = rooms.filter(r => r.hotelId === hotelId);
-    
+  const getAvailableFloorsForHotel = (
+    hotelId: string
+  ): ("EG" | "1OG" | "2OG" | "3OG")[] => {
+    const hotel = hotels.find((h) => h.id === hotelId);
+    const hotelRooms = rooms.filter((r) => r.hotelId === hotelId);
+
     // Используем настройку отеля hasEGFloor, если она есть
     const hasEG = hotel?.hasEGFloor !== false;
-    
+
     if (hasEG) {
       // Если есть EG, возвращаем EG, 1OG, 2OG
       if (hotelRooms.length > 0) {
-        const floorsSet = new Set(hotelRooms.map(r => r.floor));
-        const floorOptions: ('EG' | '1OG' | '2OG')[] = ['EG', '1OG', '2OG'];
-        const available = floorOptions.filter((f): f is 'EG' | '1OG' | '2OG' => floorsSet.has(f));
-        return available.length > 0 ? available : ['EG', '1OG', '2OG'];
+        const floorsSet = new Set(hotelRooms.map((r) => r.floor));
+        const floorOptions: ("EG" | "1OG" | "2OG")[] = ["EG", "1OG", "2OG"];
+        const available = floorOptions.filter((f): f is "EG" | "1OG" | "2OG" =>
+          floorsSet.has(f)
+        );
+        return available.length > 0 ? available : ["EG", "1OG", "2OG"];
       }
-      return ['EG', '1OG', '2OG'];
+      return ["EG", "1OG", "2OG"];
     } else {
       // Если нет EG, возвращаем 1OG, 2OG, 3OG
       if (hotelRooms.length > 0) {
-        const floorsSet = new Set(hotelRooms.map(r => r.floor));
-        const floorOptions: ('1OG' | '2OG' | '3OG')[] = ['1OG', '2OG', '3OG'];
-        const available = floorOptions.filter((f): f is '1OG' | '2OG' | '3OG' => floorsSet.has(f));
-        return available.length > 0 ? available : ['1OG', '2OG', '3OG'];
+        const floorsSet = new Set(hotelRooms.map((r) => r.floor));
+        const floorOptions: ("1OG" | "2OG" | "3OG")[] = ["1OG", "2OG", "3OG"];
+        const available = floorOptions.filter((f): f is "1OG" | "2OG" | "3OG" =>
+          floorsSet.has(f)
+        );
+        return available.length > 0 ? available : ["1OG", "2OG", "3OG"];
       }
-      return ['1OG', '2OG', '3OG'];
+      return ["1OG", "2OG", "3OG"];
     }
   };
 
   const [formData, setFormData] = useState({
-    number: room?.number || '',
-    name: room?.name || '',
-    type: room?.type || 'DZ',
-    capacity: room?.capacity || '2 чел.',
+    number: room?.number || "",
+    name: room?.name || "",
+    type: room?.type || "DZ",
+    capacity: room?.capacity || "2 чел.",
     maxCapacity: room?.maxCapacity || 2,
-    beds: room?.beds?.join(', ') || '',
-    floor: room?.floor || (() => {
-      const hotelId = room?.hotelId || hotels[0]?.id || '';
-      const availableFloors = getAvailableFloorsForHotel(hotelId);
-      return availableFloors.length > 0 ? availableFloors[0] : '1OG';
-    })(),
+    beds: room?.beds?.join(", ") || "",
+    floor:
+      room?.floor ||
+      (() => {
+        const hotelId = room?.hotelId || hotels[0]?.id || "";
+        const availableFloors = getAvailableFloorsForHotel(hotelId);
+        return availableFloors.length > 0 ? availableFloors[0] : "1OG";
+      })(),
     price: room?.price || 0,
-    hotelId: room?.hotelId || hotels[0]?.id || '',
-    description: room?.description || '',
+    hotelId: room?.hotelId || hotels[0]?.id || "",
+    description: room?.description || "",
     isCommon: room?.isCommon || false,
     pricePerPerson: room?.pricePerPerson || false,
     textVertical: room?.textVertical || false,
@@ -2307,15 +2779,18 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const bedsArray = formData.beds.split(',').map((b: string) => b.trim()).filter((b: string) => b);
-    
+    const bedsArray = formData.beds
+      .split(",")
+      .map((b: string) => b.trim())
+      .filter((b: string) => b);
+
     onSave({
       ...formData,
       beds: bedsArray,
       position: room?.position || { x: 0, y: 0 },
       width: room?.width || 120,
       height: room?.height || 100,
-      textVertical: formData.type === 'COMMON' ? formData.textVertical : false,
+      textVertical: formData.type === "COMMON" ? formData.textVertical : false,
     });
   };
 
@@ -2324,30 +2799,40 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-4 sm:p-6">
           <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
-            {room ? 'Редактировать комнату' : 'Создать комнату'}
+            {room ? "Редактировать комнату" : "Создать комнату"}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-semibold mb-2">Номер комнаты *</label>
+                <label className="block text-sm font-semibold mb-2">
+                  Номер комнаты *
+                </label>
                 <input
                   type="text"
                   value={formData.number}
-                  onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, number: e.target.value })
+                  }
                   className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-2">Отель *</label>
+                <label className="block text-sm font-semibold mb-2">
+                  Отель *
+                </label>
                 <select
                   value={formData.hotelId}
-                  onChange={(e) => setFormData({ ...formData, hotelId: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, hotelId: e.target.value })
+                  }
                   className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
                   required
                 >
                   {hotels.map((h: Hotel) => (
-                    <option key={h.id} value={h.id}>{h.name}</option>
+                    <option key={h.id} value={h.id}>
+                      {h.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -2355,10 +2840,17 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold mb-2">Тип комнаты *</label>
+                <label className="block text-sm font-semibold mb-2">
+                  Тип комнаты *
+                </label>
                 <select
                   value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as Room['type'] })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      type: e.target.value as Room["type"],
+                    })
+                  }
                   className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
                 >
                   <option value="FZ">FZ</option>
@@ -2370,22 +2862,33 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-2">Этаж *</label>
+                <label className="block text-sm font-semibold mb-2">
+                  Этаж *
+                </label>
                 <select
                   value={formData.floor}
-                  onChange={(e) => setFormData({ ...formData, floor: e.target.value as Room['floor'] })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      floor: e.target.value as Room["floor"],
+                    })
+                  }
                   className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
                 >
                   {(() => {
-                    const availableFloors = getAvailableFloorsForHotel(formData.hotelId);
+                    const availableFloors = getAvailableFloorsForHotel(
+                      formData.hotelId
+                    );
                     const floorLabels: Record<string, string> = {
-                      'EG': 'EG (Первый этаж)',
-                      '1OG': '1OG',
-                      '2OG': '2OG',
-                      '3OG': '3OG'
+                      EG: "EG (Первый этаж)",
+                      "1OG": "1OG",
+                      "2OG": "2OG",
+                      "3OG": "3OG",
                     };
-                    return availableFloors.map(floor => (
-                      <option key={floor} value={floor}>{floorLabels[floor] || floor}</option>
+                    return availableFloors.map((floor) => (
+                      <option key={floor} value={floor}>
+                        {floorLabels[floor] || floor}
+                      </option>
                     ));
                   })()}
                 </select>
@@ -2394,20 +2897,31 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold mb-2">Вместимость</label>
+                <label className="block text-sm font-semibold mb-2">
+                  Вместимость
+                </label>
                 <input
                   type="text"
                   value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, capacity: e.target.value })
+                  }
                   className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-2">Максимальная вместимость</label>
+                <label className="block text-sm font-semibold mb-2">
+                  Максимальная вместимость
+                </label>
                 <input
                   type="number"
                   value={formData.maxCapacity}
-                  onChange={(e) => setFormData({ ...formData, maxCapacity: parseInt(e.target.value) || 1 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      maxCapacity: parseInt(e.target.value) || 1,
+                    })
+                  }
                   min="1"
                   className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
                 />
@@ -2415,22 +2929,33 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-2">Кровати (через запятую)</label>
+              <label className="block text-sm font-semibold mb-2">
+                Кровати (через запятую)
+              </label>
               <input
                 type="text"
                 value={formData.beds}
-                onChange={(e) => setFormData({ ...formData, beds: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, beds: e.target.value })
+                }
                 placeholder="1-DB, 1-HB"
                 className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-2">Цена за ночь (€)</label>
+              <label className="block text-sm font-semibold mb-2">
+                Цена за ночь (€)
+              </label>
               <input
                 type="number"
                 value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    price: parseInt(e.target.value) || 0,
+                  })
+                }
                 min="0"
                 className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
               />
@@ -2439,25 +2964,38 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
                   type="checkbox"
                   id="pricePerPerson"
                   checked={formData.pricePerPerson}
-                  onChange={(e) => setFormData({ ...formData, pricePerPerson: e.target.checked })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      pricePerPerson: e.target.checked,
+                    })
+                  }
                   className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <label htmlFor="pricePerPerson" className="text-sm font-semibold cursor-pointer">
+                <label
+                  htmlFor="pricePerPerson"
+                  className="text-sm font-semibold cursor-pointer"
+                >
                   Цена за одного человека
                 </label>
               </div>
             </div>
 
-            {formData.type === 'COMMON' && (
+            {formData.type === "COMMON" && (
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="textVertical"
                   checked={formData.textVertical}
-                  onChange={(e) => setFormData({ ...formData, textVertical: e.target.checked })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, textVertical: e.target.checked })
+                  }
                   className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <label htmlFor="textVertical" className="text-sm font-semibold cursor-pointer">
+                <label
+                  htmlFor="textVertical"
+                  className="text-sm font-semibold cursor-pointer"
+                >
                   Расположить текст вертикально
                 </label>
               </div>
@@ -2487,19 +3025,23 @@ function RoomModal({ room, hotels, rooms, onSave, onClose }: RoomModalProps) {
 
 interface HotelModalProps {
   hotel: Hotel | null;
-  onSave: (hotelData: Partial<Hotel> & { name: string; address: string }) => void;
+  onSave: (
+    hotelData: Partial<Hotel> & { name: string; address: string }
+  ) => void;
   onClose: () => void;
 }
 
 function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
   const [formData, setFormData] = useState({
-    name: hotel?.name || '',
-    address: hotel?.address || '',
-    description: hotel?.description || '',
+    name: hotel?.name || "",
+    address: hotel?.address || "",
+    description: hotel?.description || "",
     floors: hotel?.floors || 3,
-    image: hotel?.image || '',
+    image: hotel?.image || "",
   });
-  const [imagePreview, setImagePreview] = useState<string | null>(hotel?.image || null);
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    hotel?.image || null
+  );
   const [uploading, setUploading] = useState(false);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2507,44 +3049,44 @@ function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
     if (!file) return;
 
     // Проверка типа файла
-    if (!file.type.startsWith('image/')) {
-      alert('Пожалуйста, выберите изображение');
+    if (!file.type.startsWith("image/")) {
+      alert("Пожалуйста, выберите изображение");
       return;
     }
 
     // Проверка размера (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert('Размер файла должен быть меньше 5MB');
+      alert("Размер файла должен быть меньше 5MB");
       return;
     }
 
     setUploading(true);
     try {
       const uploadFormData = new FormData();
-      uploadFormData.append('file', file);
+      uploadFormData.append("file", file);
 
-      const response = await fetch('/api/hotels/upload', {
-        method: 'POST',
+      const response = await fetch("/api/hotels/upload", {
+        method: "POST",
         body: uploadFormData,
       });
 
       if (!response.ok) {
-        throw new Error('Ошибка при загрузке изображения');
+        throw new Error("Ошибка при загрузке изображения");
       }
 
       const data = await response.json();
       setFormData({ ...formData, image: data.path });
       setImagePreview(data.path);
     } catch (error) {
-      console.error('Upload error:', error);
-      alert('Ошибка при загрузке изображения');
+      console.error("Upload error:", error);
+      alert("Ошибка при загрузке изображения");
     } finally {
       setUploading(false);
     }
   };
 
   const handleRemoveImage = () => {
-    setFormData({ ...formData, image: '' });
+    setFormData({ ...formData, image: "" });
     setImagePreview(null);
   };
 
@@ -2558,34 +3100,46 @@ function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
       <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="p-4 sm:p-6">
           <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
-            {hotel ? 'Редактировать отель' : 'Создать отель'}
+            {hotel ? "Редактировать отель" : "Создать отель"}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div>
-              <label className="block text-sm font-semibold mb-2">Название *</label>
+              <label className="block text-sm font-semibold mb-2">
+                Название *
+              </label>
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-2">Адрес *</label>
+              <label className="block text-sm font-semibold mb-2">
+                Адрес *
+              </label>
               <input
                 type="text"
                 value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
                 className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-2">Описание</label>
+              <label className="block text-sm font-semibold mb-2">
+                Описание
+              </label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 rows={3}
                 className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
               />
@@ -2596,7 +3150,12 @@ function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
               </label>
               <select
                 value={formData.floors}
-                onChange={(e) => setFormData({ ...formData, floors: parseInt(e.target.value) || 3 })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    floors: parseInt(e.target.value) || 3,
+                  })
+                }
                 className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
                 required
               >
@@ -2606,11 +3165,14 @@ function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
                 <option value={4}>4 этажа</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                Выберите количество этажей в отеле. Это определит доступные этажи для размещения комнат.
+                Выберите количество этажей в отеле. Это определит доступные
+                этажи для размещения комнат.
               </p>
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-2">Фото отеля</label>
+              <label className="block text-sm font-semibold mb-2">
+                Фото отеля
+              </label>
               {imagePreview && (
                 <div className="mb-3 relative">
                   <img
@@ -2623,8 +3185,18 @@ function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
                     onClick={handleRemoveImage}
                     className="absolute top-2 right-2 bg-pink-900 hover:bg-pink-950 text-white rounded-full p-1.5"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -2637,10 +3209,13 @@ function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
                 className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none disabled:opacity-50"
               />
               {uploading && (
-                <p className="text-xs text-gray-500 mt-1">Загрузка изображения...</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Загрузка изображения...
+                </p>
               )}
               <p className="text-xs text-gray-500 mt-1">
-                Максимальный размер файла: 5MB. Поддерживаемые форматы: JPG, PNG, GIF, WebP.
+                Максимальный размер файла: 5MB. Поддерживаемые форматы: JPG,
+                PNG, GIF, WebP.
               </p>
             </div>
             <div className="flex gap-2 sm:gap-3">
@@ -2665,10 +3240,18 @@ function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
   );
 }
 
-function StatisticsView({ selectedHotel, hotels }: { selectedHotel: string; hotels: Hotel[] }) {
+function StatisticsView({
+  selectedHotel,
+  hotels,
+}: {
+  selectedHotel: string;
+  hotels: Hotel[];
+}) {
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filterHotelId, setFilterHotelId] = useState<string>(selectedHotel || '');
+  const [filterHotelId, setFilterHotelId] = useState<string>(
+    selectedHotel || ""
+  );
 
   const loadStatistics = async (hotelId?: string) => {
     try {
@@ -2676,7 +3259,7 @@ function StatisticsView({ selectedHotel, hotels }: { selectedHotel: string; hote
       const stats = await api.getStatistics(hotelId || undefined);
       setStatistics(stats);
     } catch (error) {
-      console.error('Error loading statistics:', error);
+      console.error("Error loading statistics:", error);
     } finally {
       setLoading(false);
     }
@@ -2700,7 +3283,10 @@ function StatisticsView({ selectedHotel, hotels }: { selectedHotel: string; hote
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div
+                key={i}
+                className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-5 h-5 bg-gray-300 rounded animate-pulse"></div>
                   <div className="h-4 w-24 bg-gray-300 rounded animate-pulse"></div>
@@ -2730,25 +3316,37 @@ function StatisticsView({ selectedHotel, hotels }: { selectedHotel: string; hote
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
             <div className="flex items-center gap-2 mb-2">
               <Building2 className="w-5 h-5 text-gray-700" />
-              <span className="text-sm text-gray-700 font-semibold">Всего комнат</span>
+              <span className="text-sm text-gray-700 font-semibold">
+                Всего комнат
+              </span>
             </div>
-            <div className="text-3xl font-bold text-gray-900">{statistics.totalRooms}</div>
+            <div className="text-3xl font-bold text-gray-900">
+              {statistics.totalRooms}
+            </div>
           </div>
 
           <div className="bg-green-50 rounded-lg p-4 border border-green-200">
             <div className="flex items-center gap-2 mb-2">
               <Bed className="w-5 h-5 text-green-700" />
-              <span className="text-sm text-green-700 font-semibold">Свободно</span>
+              <span className="text-sm text-green-700 font-semibold">
+                Свободно
+              </span>
             </div>
-            <div className="text-3xl font-bold text-green-700">{statistics.availableRooms}</div>
+            <div className="text-3xl font-bold text-green-700">
+              {statistics.availableRooms}
+            </div>
           </div>
 
           <div className="bg-gray-100 rounded-lg p-4 border border-gray-300">
             <div className="flex items-center gap-2 mb-2">
               <Calendar className="w-5 h-5 text-gray-700" />
-              <span className="text-sm text-gray-700 font-semibold">Забронировано</span>
+              <span className="text-sm text-gray-700 font-semibold">
+                Забронировано
+              </span>
             </div>
-            <div className="text-3xl font-bold text-gray-700">{statistics.bookedRooms}</div>
+            <div className="text-3xl font-bold text-gray-700">
+              {statistics.bookedRooms}
+            </div>
           </div>
 
           <div className="bg-emerald-600 rounded-lg p-4 border border-emerald-700">
@@ -2756,15 +3354,21 @@ function StatisticsView({ selectedHotel, hotels }: { selectedHotel: string; hote
               <Euro className="w-5 h-5 text-white" />
               <span className="text-sm text-white font-semibold">Доход</span>
             </div>
-            <div className="text-3xl font-bold text-white">{statistics.revenue}€</div>
+            <div className="text-3xl font-bold text-white">
+              {statistics.revenue}€
+            </div>
           </div>
 
           <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
             <div className="flex items-center gap-2 mb-2">
               <CreditCard className="w-5 h-5 text-orange-700" />
-              <span className="text-sm text-orange-700 font-semibold">К оплате</span>
+              <span className="text-sm text-orange-700 font-semibold">
+                К оплате
+              </span>
             </div>
-            <div className="text-3xl font-bold text-orange-700">{statistics.amountToPay?.toFixed(2) || '0.00'}€</div>
+            <div className="text-3xl font-bold text-orange-700">
+              {statistics.amountToPay?.toFixed(2) || "0.00"}€
+            </div>
           </div>
         </div>
       </div>
@@ -2782,7 +3386,7 @@ function CashMonitoringView({ selectedHotel }: { selectedHotel: string }) {
       const data = await api.getCashMonitoring(selectedHotel || undefined);
       setCashData(data);
     } catch (error) {
-      console.error('Error loading cash monitoring:', error);
+      console.error("Error loading cash monitoring:", error);
     } finally {
       setLoading(false);
     }
@@ -2811,81 +3415,104 @@ function CashMonitoringView({ selectedHotel }: { selectedHotel: string }) {
           <div className="bg-green-50 rounded-lg p-4 border border-green-200">
             <div className="flex items-center gap-2 mb-2">
               <DollarSign className="w-5 h-5 text-green-700" />
-              <span className="text-sm text-green-700 font-semibold">Всего наличных</span>
+              <span className="text-sm text-green-700 font-semibold">
+                Всего наличных
+              </span>
             </div>
-            <div className="text-3xl font-bold text-green-700">{cashData.totalCash.toFixed(2)}€</div>
+            <div className="text-3xl font-bold text-green-700">
+              {cashData.totalCash.toFixed(2)}€
+            </div>
           </div>
 
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
             <div className="flex items-center gap-2 mb-2">
               <Calendar className="w-5 h-5 text-blue-700" />
-              <span className="text-sm text-blue-700 font-semibold">Сегодня</span>
+              <span className="text-sm text-blue-700 font-semibold">
+                Сегодня
+              </span>
             </div>
-            <div className="text-3xl font-bold text-blue-700">{cashData.cashToday.toFixed(2)}€</div>
+            <div className="text-3xl font-bold text-blue-700">
+              {cashData.cashToday.toFixed(2)}€
+            </div>
           </div>
 
           <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
             <div className="flex items-center gap-2 mb-2">
               <Calendar className="w-5 h-5 text-purple-700" />
-              <span className="text-sm text-purple-700 font-semibold">За неделю</span>
+              <span className="text-sm text-purple-700 font-semibold">
+                За неделю
+              </span>
             </div>
-            <div className="text-3xl font-bold text-purple-700">{cashData.cashThisWeek.toFixed(2)}€</div>
+            <div className="text-3xl font-bold text-purple-700">
+              {cashData.cashThisWeek.toFixed(2)}€
+            </div>
           </div>
 
           <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
             <div className="flex items-center gap-2 mb-2">
               <Calendar className="w-5 h-5 text-orange-700" />
-              <span className="text-sm text-orange-700 font-semibold">За месяц</span>
+              <span className="text-sm text-orange-700 font-semibold">
+                За месяц
+              </span>
             </div>
-            <div className="text-3xl font-bold text-orange-700">{cashData.cashThisMonth.toFixed(2)}€</div>
+            <div className="text-3xl font-bold text-orange-700">
+              {cashData.cashThisMonth.toFixed(2)}€
+            </div>
           </div>
         </div>
 
         <div className="mt-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Последние платежи наличными</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-4">
+            Последние платежи наличными
+          </h3>
           {cashData.recentCashPayments.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               Нет платежей наличными
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Дата</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Комната</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Гость</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Сумма</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50 hover:bg-gray-50">
+                    <TableHead className="text-xs font-semibold text-gray-700">
+                      Дата
+                    </TableHead>
+                    <TableHead className="text-xs font-semibold text-gray-700">
+                      Комната
+                    </TableHead>
+                    <TableHead className="text-xs font-semibold text-gray-700">
+                      Гость
+                    </TableHead>
+                    <TableHead className="text-xs font-semibold text-gray-700">
+                      Сумма
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {cashData.recentCashPayments.map((payment, index) => (
-                    <tr
-                      key={index}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-3 py-2.5 text-sm text-gray-700">
-                        {new Date(payment.date).toLocaleDateString('ru-RU', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
+                    <TableRow key={index} className="hover:bg-gray-100 transition-colors">
+                      <TableCell className="py-2.5 text-sm text-gray-700">
+                        {new Date(payment.date).toLocaleDateString("ru-RU", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
                         })}
-                      </td>
-                      <td className="px-3 py-2.5 text-sm font-semibold text-gray-900">
+                      </TableCell>
+                      <TableCell className="py-2.5 text-sm font-semibold text-gray-900">
                         #{payment.roomNumber}
-                      </td>
-                      <td className="px-3 py-2.5 text-sm text-gray-700">
+                      </TableCell>
+                      <TableCell className="py-2.5 text-sm text-gray-700">
                         {payment.bookedBy}
-                      </td>
-                      <td className="px-3 py-2.5 text-sm font-bold text-green-700">
+                      </TableCell>
+                      <TableCell className="py-2.5 text-sm font-bold text-green-700">
                         {payment.amount.toFixed(2)}€
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>
@@ -2898,7 +3525,7 @@ function InvitesView({ currentUser }: { currentUser: User }) {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newInviteName, setNewInviteName] = useState('');
+  const [newInviteName, setNewInviteName] = useState("");
   const [expiresInDays, setExpiresInDays] = useState(7);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [newInviteToken, setNewInviteToken] = useState<string | null>(null);
@@ -2914,7 +3541,7 @@ function InvitesView({ currentUser }: { currentUser: User }) {
         // Сначала разделяем на использованные и неиспользованные
         if (a.used && !b.used) return 1; // a (использованное) идет после b
         if (!a.used && b.used) return -1; // a (неиспользованное) идет перед b
-        
+
         // Если оба использованы или оба не использованы, сортируем по дате создания
         const dateA = new Date(a.createdAt).getTime();
         const dateB = new Date(b.createdAt).getTime();
@@ -2922,8 +3549,8 @@ function InvitesView({ currentUser }: { currentUser: User }) {
       });
       setInvites(sortedData);
     } catch (error) {
-      console.error('Error loading invites:', error);
-      alert('Ошибка при загрузке приглашений');
+      console.error("Error loading invites:", error);
+      alert("Ошибка при загрузке приглашений");
     } finally {
       setLoading(false);
     }
@@ -2935,19 +3562,19 @@ function InvitesView({ currentUser }: { currentUser: User }) {
 
   const getInviteStatus = (invite: Invite) => {
     if (invite.used) {
-      return { label: 'Использовано', color: 'bg-gray-500', icon: CheckCircle };
+      return { label: "Использовано", color: "bg-gray-500", icon: CheckCircle };
     }
     const now = new Date();
     const expiresAt = new Date(invite.expiresAt);
     if (now > expiresAt) {
-      return { label: 'Истекло', color: 'bg-red-500', icon: AlertCircle };
+      return { label: "Истекло", color: "bg-red-500", icon: AlertCircle };
     }
-    return { label: 'Активно', color: 'bg-green-500', icon: Clock };
+    return { label: "Активно", color: "bg-green-500", icon: Clock };
   };
 
   const handleCreateInvite = async () => {
     if (!newInviteName.trim()) {
-      alert('Введите имя пользователя');
+      alert("Введите имя пользователя");
       return;
     }
 
@@ -2957,22 +3584,29 @@ function InvitesView({ currentUser }: { currentUser: User }) {
         expiresInDays,
         currentUser.id!
       );
-      
+
       setNewInviteToken(invite.inviteUrl);
-      setNewInviteName('');
+      setNewInviteName("");
       // Автоматически копируем ссылку при создании
       await navigator.clipboard.writeText(invite.inviteUrl);
       setCopiedToken(invite.inviteUrl);
       setTimeout(() => setCopiedToken(null), 2000);
       await loadInvites();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Ошибка при создании приглашения';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Ошибка при создании приглашения";
       alert(message);
     }
   };
 
   const handleRecreateInvite = async (name: string) => {
-    if (!confirm(`Пересоздать приглашение для ${name}? Старое приглашение будет удалено.`)) {
+    if (
+      !confirm(
+        `Пересоздать приглашение для ${name}? Старое приглашение будет удалено.`
+      )
+    ) {
       return;
     }
 
@@ -2982,17 +3616,19 @@ function InvitesView({ currentUser }: { currentUser: User }) {
         expiresInDays,
         currentUser.id!
       );
-      
+
       // Сохраняем URL для этого приглашения
       await loadInvites();
       const updatedInvites = await api.getInvites();
-      const inviteId = updatedInvites.find((inv: Invite) => inv.name === name)?.id;
+      const inviteId = updatedInvites.find(
+        (inv: Invite) => inv.name === name
+      )?.id;
       if (inviteId) {
-        setInviteUrls(prev => ({ ...prev, [inviteId]: invite.inviteUrl }));
+        setInviteUrls((prev) => ({ ...prev, [inviteId]: invite.inviteUrl }));
         // Автоматически показываем ссылку после регенерации
         setVisibleInviteUrl(inviteId);
       }
-      
+
       setNewInviteToken(invite.inviteUrl);
       // Автоматически копируем ссылку при регенерации
       await navigator.clipboard.writeText(invite.inviteUrl);
@@ -3000,7 +3636,10 @@ function InvitesView({ currentUser }: { currentUser: User }) {
       setTimeout(() => setCopiedToken(null), 2000);
       await loadInvites();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Ошибка при пересоздании приглашения';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Ошибка при пересоздании приглашения";
       alert(message);
     }
   };
@@ -3045,66 +3684,88 @@ function InvitesView({ currentUser }: { currentUser: User }) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Имя</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Статус</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Создано</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Истекает</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Использовано</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Действия</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Имя
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Статус
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Создано
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Истекает
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Использовано
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Действия
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {invites.flatMap((invite) => {
                   const status = getInviteStatus(invite);
                   const StatusIcon = status.icon;
-                  
+
                   const rows = [
-                    <tr
-                      key={invite.id}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-3 py-2.5 text-sm text-gray-900 font-medium">
-                        {invite.name || <span className="text-gray-400">Не указано</span>}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold text-white ${status.color}`}>
+                    <TableRow key={invite.id} className="hover:bg-gray-100 transition-colors">
+                      <TableCell className="py-2.5 text-sm text-gray-900 font-medium">
+                        {invite.name || (
+                          <span className="text-gray-400">Не указано</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-2.5">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold text-white ${status.color}`}
+                        >
                           <StatusIcon className="w-3 h-3" />
                           {status.label}
                         </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-sm text-gray-700">
-                        {new Date(invite.createdAt).toLocaleDateString('ru-RU', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric'
-                        })}
-                      </td>
-                      <td className="px-3 py-2.5 text-sm text-gray-700">
-                        {new Date(invite.expiresAt).toLocaleDateString('ru-RU', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric'
-                        })}
-                      </td>
-                      <td className="px-3 py-2.5 text-sm text-gray-700">
+                      </TableCell>
+                      <TableCell className="py-2.5 text-sm text-gray-700">
+                        {new Date(invite.createdAt).toLocaleDateString(
+                          "ru-RU",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          }
+                        )}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-sm text-gray-700">
+                        {new Date(invite.expiresAt).toLocaleDateString(
+                          "ru-RU",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          }
+                        )}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-sm text-gray-700">
                         {invite.used ? (
                           invite.usedAt ? (
-                            new Date(invite.usedAt).toLocaleDateString('ru-RU', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric'
-                            })
+                            new Date(invite.usedAt).toLocaleDateString(
+                              "ru-RU",
+                              {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              }
+                            )
                           ) : (
-                            'Да'
+                            "Да"
                           )
                         ) : (
                           <span className="text-gray-400">Нет</span>
                         )}
-                      </td>
-                      <td className="px-3 py-2.5">
+                      </TableCell>
+                      <TableCell className="py-2.5">
                         <div className="flex items-center gap-2">
                           {/* Кнопка показать/скрыть ссылку */}
                           <button
@@ -3118,12 +3779,18 @@ function InvitesView({ currentUser }: { currentUser: User }) {
                                   setVisibleInviteUrl(invite.id);
                                 } else {
                                   // Показываем сообщение, что ссылка доступна только при создании/регенерации
-                                  alert('Ссылка доступна только при создании или регенерации приглашения. Используйте кнопку регенерации для получения новой ссылки.');
+                                  alert(
+                                    "Ссылка доступна только при создании или регенерации приглашения. Используйте кнопку регенерации для получения новой ссылки."
+                                  );
                                 }
                               }
                             }}
-                            className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
-                            title={visibleInviteUrl === invite.id ? "Скрыть ссылку" : "Показать ссылку"}
+                            className="p-1.5 light:text-gray-600 dark:text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
+                            title={
+                              visibleInviteUrl === invite.id
+                                ? "Скрыть ссылку"
+                                : "Показать ссылку"
+                            }
                           >
                             {visibleInviteUrl === invite.id ? (
                               <EyeOff className="w-4 h-4" />
@@ -3131,11 +3798,13 @@ function InvitesView({ currentUser }: { currentUser: User }) {
                               <Eye className="w-4 h-4" />
                             )}
                           </button>
-                          
+
                           {/* Кнопка копирования ссылки */}
                           {inviteUrls[invite.id] && (
                             <button
-                              onClick={() => handleCopyLink(inviteUrls[invite.id])}
+                              onClick={() =>
+                                handleCopyLink(inviteUrls[invite.id])
+                              }
                               className="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded"
                               title="Копировать ссылку"
                             >
@@ -3146,7 +3815,7 @@ function InvitesView({ currentUser }: { currentUser: User }) {
                               )}
                             </button>
                           )}
-                          
+
                           {!invite.used && invite.name && (
                             <button
                               onClick={() => handleRecreateInvite(invite.name)}
@@ -3157,25 +3826,30 @@ function InvitesView({ currentUser }: { currentUser: User }) {
                             </button>
                           )}
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>,
                   ];
-                  
+
                   // Добавляем строку с инпутом для ссылки, если она видима
                   if (visibleInviteUrl === invite.id && inviteUrls[invite.id]) {
                     rows.push(
-                      <tr key={`${invite.id}-url`}>
-                        <td colSpan={6} className="px-3 py-3 bg-gray-50">
+                      <TableRow key={`${invite.id}-url`} className="bg-gray-50">
+                        <TableCell colSpan={6} className="py-3">
                           <div className="flex gap-2 items-center">
                             <input
                               type="text"
-                              value={inviteUrls[invite.id] || ''}
+                              value={inviteUrls[invite.id] || ""}
                               readOnly
                               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-                              onClick={(e) => (e.target as HTMLInputElement).select()}
+                              onClick={(e) =>
+                                (e.target as HTMLInputElement).select()
+                              }
                             />
                             <button
-                              onClick={() => inviteUrls[invite.id] && handleCopyLink(inviteUrls[invite.id])}
+                              onClick={() =>
+                                inviteUrls[invite.id] &&
+                                handleCopyLink(inviteUrls[invite.id])
+                              }
                               className="px-3 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg flex items-center gap-2 text-sm"
                             >
                               {copiedToken === inviteUrls[invite.id] ? (
@@ -3191,15 +3865,15 @@ function InvitesView({ currentUser }: { currentUser: User }) {
                               )}
                             </button>
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   }
-                  
+
                   return rows;
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -3210,7 +3884,9 @@ function InvitesView({ currentUser }: { currentUser: User }) {
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 sm:p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl sm:text-2xl font-bold">Создать приглашение</h2>
+                <h2 className="text-xl sm:text-2xl font-bold">
+                  Создать приглашение
+                </h2>
                 <button
                   onClick={() => {
                     setShowCreateModal(false);
@@ -3227,9 +3903,13 @@ function InvitesView({ currentUser }: { currentUser: User }) {
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <CheckCircle className="w-5 h-5 text-green-600" />
-                      <span className="font-semibold text-green-800">Приглашение создано!</span>
+                      <span className="font-semibold text-green-800">
+                        Приглашение создано!
+                      </span>
                     </div>
-                    <p className="text-sm text-green-700 mb-3">Отправьте эту ссылку пользователю:</p>
+                    <p className="text-sm text-green-700 mb-3">
+                      Отправьте эту ссылку пользователю:
+                    </p>
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -3286,7 +3966,8 @@ function InvitesView({ currentUser }: { currentUser: User }) {
                       required
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Приглашение будет привязано к этому имени. Email и пароль пользователь введет сам при регистрации.
+                      Приглашение будет привязано к этому имени. Email и пароль
+                      пользователь введет сам при регистрации.
                     </p>
                   </div>
 
@@ -3297,7 +3978,9 @@ function InvitesView({ currentUser }: { currentUser: User }) {
                     <input
                       type="number"
                       value={expiresInDays}
-                      onChange={(e) => setExpiresInDays(Number(e.target.value) || 7)}
+                      onChange={(e) =>
+                        setExpiresInDays(Number(e.target.value) || 7)
+                      }
                       min="1"
                       max="365"
                       className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
@@ -3332,12 +4015,12 @@ function InvitesView({ currentUser }: { currentUser: User }) {
   );
 }
 
-function UsersView({ 
-  currentUser, 
-  selectedUserId, 
-  onSelectUser 
-}: { 
-  currentUser: User; 
+function UsersView({
+  currentUser,
+  selectedUserId,
+  onSelectUser,
+}: {
+  currentUser: User;
   selectedUserId: string | null;
   onSelectUser: (userId: string | null) => void;
 }) {
@@ -3350,8 +4033,8 @@ function UsersView({
       const data = await api.getUsers();
       setUsers(data);
     } catch (error) {
-      console.error('Error loading users:', error);
-      alert('Ошибка при загрузке пользователей');
+      console.error("Error loading users:", error);
+      alert("Ошибка при загрузке пользователей");
     } finally {
       setLoading(false);
     }
@@ -3392,41 +4075,54 @@ function UsersView({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Имя</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Email</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Телефон</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Роль</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Действия</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Имя
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Email
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Телефон
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Роль
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Действия
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {users.map((user) => (
-                  <tr
-                    key={user.id}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-3 py-2.5 text-sm text-gray-900 font-medium">
+                  <TableRow key={user.id} className="hover:bg-gray-100 transition-colors">
+                    <TableCell className="py-2.5 text-sm text-gray-900 font-medium">
                       {user.name}
-                    </td>
-                    <td className="px-3 py-2.5 text-sm text-gray-700">
+                    </TableCell>
+                    <TableCell className="py-2.5 text-sm text-gray-700">
                       {user.email}
-                    </td>
-                    <td className="px-3 py-2.5 text-sm text-gray-700">
+                    </TableCell>
+                    <TableCell className="py-2.5 text-sm text-gray-700">
                       {user.phone || <span className="text-gray-400">—</span>}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
-                        isManagerOrDeveloper(user) 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {user.role === 'developer' ? 'Разработчик' : user.role === 'manager' ? 'Менеджер' : 'Гость'}
+                    </TableCell>
+                    <TableCell className="py-2.5">
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
+                          isManagerOrDeveloper(user)
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {user.role === "developer"
+                          ? "Разработчик"
+                          : user.role === "manager"
+                          ? "Менеджер"
+                          : "Гость"}
                       </span>
-                    </td>
-                    <td className="px-3 py-2.5">
+                    </TableCell>
+                    <TableCell className="py-2.5">
                       <button
                         onClick={() => onSelectUser(user.id!)}
                         className="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5"
@@ -3434,11 +4130,11 @@ function UsersView({
                         <span>Подробнее</span>
                         <ArrowRight className="w-3 h-3" />
                       </button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -3449,14 +4145,16 @@ function UsersView({
 function UserDetailView({
   userId,
   currentUser,
-  onBack
+  onBack,
 }: {
   userId: string;
   currentUser: User;
   onBack: () => void;
 }) {
   const [user, setUser] = useState<User | null>(null);
-  const [bookings, setBookings] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string })[]>([]);
+  const [bookings, setBookings] = useState<
+    (BookingInfo & { roomNumber?: string; hotelName?: string })[]
+  >([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
@@ -3466,17 +4164,18 @@ function UserDetailView({
   const loadUserData = async () => {
     try {
       setLoading(true);
-      const [usersData, bookingsData, invitesData, roomsData, hotelsData] = await Promise.all([
-        api.getUsers(),
-        api.getBookings(),
-        api.getInvites(),
-        api.getRooms(),
-        api.getHotels()
-      ]);
+      const [usersData, bookingsData, invitesData, roomsData, hotelsData] =
+        await Promise.all([
+          api.getUsers(),
+          api.getBookings(),
+          api.getInvites(),
+          api.getRooms(),
+          api.getHotels(),
+        ]);
 
       const foundUser = usersData.find((u: User) => u.id === userId);
       if (!foundUser) {
-        alert('Пользователь не найден');
+        alert("Пользователь не найден");
         onBack();
         return;
       }
@@ -3491,18 +4190,20 @@ function UserDetailView({
           const hotel = hotelsData.find((h: Hotel) => h.id === room?.hotelId);
           return {
             ...booking,
-            roomNumber: room?.number || 'N/A',
-            hotelName: hotel?.name || 'N/A'
+            roomNumber: room?.number || "N/A",
+            hotelName: hotel?.name || "N/A",
           };
         });
       setBookings(userBookings);
 
       // Фильтруем приглашения по имени пользователя
-      const userInvites = invitesData.filter((inv: Invite) => inv.name === foundUser.name);
+      const userInvites = invitesData.filter(
+        (inv: Invite) => inv.name === foundUser.name
+      );
       setInvites(userInvites);
     } catch (error) {
-      console.error('Error loading user data:', error);
-      alert('Ошибка при загрузке данных пользователя');
+      console.error("Error loading user data:", error);
+      alert("Ошибка при загрузке данных пользователя");
     } finally {
       setLoading(false);
     }
@@ -3522,11 +4223,14 @@ function UserDetailView({
         expiresInDays,
         currentUser.id!
       );
-      
+
       setNewInviteToken(invite.inviteUrl);
       await loadUserData();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Ошибка при создании приглашения';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Ошибка при создании приглашения";
       alert(message);
     }
   };
@@ -3534,7 +4238,11 @@ function UserDetailView({
   const handleRecreateInvite = async () => {
     if (!user) return;
 
-    if (!confirm(`Пересоздать приглашение для ${user.name}? Старое приглашение будет удалено.`)) {
+    if (
+      !confirm(
+        `Пересоздать приглашение для ${user.name}? Старое приглашение будет удалено.`
+      )
+    ) {
       return;
     }
 
@@ -3544,11 +4252,14 @@ function UserDetailView({
         expiresInDays,
         currentUser.id!
       );
-      
+
       setNewInviteToken(invite.inviteUrl);
       await loadUserData();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Ошибка при пересоздании приглашения';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Ошибка при пересоздании приглашения";
       alert(message);
     }
   };
@@ -3556,7 +4267,11 @@ function UserDetailView({
   const handleResetPassword = async () => {
     if (!user) return;
 
-    if (!confirm(`Создать ссылку для сброса пароля для ${user.name}? Пользователь сможет использовать её для входа или смены пароля.`)) {
+    if (
+      !confirm(
+        `Создать ссылку для сброса пароля для ${user.name}? Пользователь сможет использовать её для входа или смены пароля.`
+      )
+    ) {
       return;
     }
 
@@ -3567,11 +4282,14 @@ function UserDetailView({
         1, // Короткий срок для сброса пароля - 1 день
         currentUser.id!
       );
-      
+
       setNewInviteToken(invite.inviteUrl);
       await loadUserData();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Ошибка при создании ссылки для сброса пароля';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Ошибка при создании ссылки для сброса пароля";
       alert(message);
     }
   };
@@ -3584,17 +4302,19 @@ function UserDetailView({
 
   const getInviteStatus = (invite: Invite) => {
     if (invite.used) {
-      return { label: 'Использовано', color: 'bg-gray-500', icon: CheckCircle };
+      return { label: "Использовано", color: "bg-gray-500", icon: CheckCircle };
     }
     const now = new Date();
     const expiresAt = new Date(invite.expiresAt);
     if (now > expiresAt) {
-      return { label: 'Истекло', color: 'bg-red-500', icon: AlertCircle };
+      return { label: "Истекло", color: "bg-red-500", icon: AlertCircle };
     }
-    return { label: 'Активно', color: 'bg-green-500', icon: Clock };
+    return { label: "Активно", color: "bg-green-500", icon: Clock };
   };
 
-  const activeInvite = invites.find(inv => !inv.used && new Date(inv.expiresAt) > new Date());
+  const activeInvite = invites.find(
+    (inv) => !inv.used && new Date(inv.expiresAt) > new Date()
+  );
 
   if (loading) {
     return <div className="text-center py-12">Загрузка...</div>;
@@ -3620,7 +4340,7 @@ function UserDetailView({
       <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200">
         <button
           onClick={onBack}
-          className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900 font-semibold"
+          className="mb-4 flex items-center gap-2 light:text-gray-600 dark:text-gray-600 hover:text-gray-900 font-semibold"
         >
           <ArrowLeft className="w-4 h-4" />
           Назад к списку
@@ -3628,8 +4348,10 @@ function UserDetailView({
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{user.name}</h2>
-            <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+              {user.name}
+            </h2>
+            <div className="flex flex-wrap gap-4 text-sm light:text-gray-600 dark:text-gray-600">
               <div className="flex items-center gap-1">
                 <Mail className="w-4 h-4" />
                 <span>{user.email}</span>
@@ -3640,12 +4362,14 @@ function UserDetailView({
                   <span>{user.phone}</span>
                 </div>
               )}
-              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                user.role === 'manager' 
-                  ? 'bg-blue-100 text-blue-800' 
-                  : 'bg-gray-100 text-gray-800'
-              }`}>
-                {user.role === 'manager' ? 'Менеджер' : 'Гость'}
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                  user.role === "manager"
+                    ? "bg-blue-100 text-blue-800"
+                    : "bg-gray-100 text-gray-800"
+                }`}
+              >
+                {user.role === "manager" ? "Менеджер" : "Гость"}
               </span>
             </div>
           </div>
@@ -3683,9 +4407,13 @@ function UserDetailView({
           <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="w-5 h-5 text-green-600" />
-              <span className="font-semibold text-green-800">Ссылка создана!</span>
+              <span className="font-semibold text-green-800">
+                Ссылка создана!
+              </span>
             </div>
-            <p className="text-sm text-green-700 mb-3">Отправьте эту ссылку пользователю:</p>
+            <p className="text-sm text-green-700 mb-3">
+              Отправьте эту ссылку пользователю:
+            </p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -3732,65 +4460,81 @@ function UserDetailView({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Статус</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Создано</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Истекает</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Использовано</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Статус
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Создано
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Истекает
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Использовано
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {invites.map((invite) => {
                   const status = getInviteStatus(invite);
                   const StatusIcon = status.icon;
-                  
+
                   return (
-                    <tr
-                      key={invite.id}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-3 py-2.5">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold text-white ${status.color}`}>
+                    <TableRow key={invite.id}>
+                      <TableCell className="py-2.5">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold text-white ${status.color}`}
+                        >
                           <StatusIcon className="w-3 h-3" />
                           {status.label}
                         </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-sm text-gray-700">
-                        {new Date(invite.createdAt).toLocaleDateString('ru-RU', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric'
-                        })}
-                      </td>
-                      <td className="px-3 py-2.5 text-sm text-gray-700">
-                        {new Date(invite.expiresAt).toLocaleDateString('ru-RU', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric'
-                        })}
-                      </td>
-                      <td className="px-3 py-2.5 text-sm text-gray-700">
+                      </TableCell>
+                      <TableCell className="py-2.5 text-sm text-gray-700">
+                        {new Date(invite.createdAt).toLocaleDateString(
+                          "ru-RU",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          }
+                        )}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-sm text-gray-700">
+                        {new Date(invite.expiresAt).toLocaleDateString(
+                          "ru-RU",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          }
+                        )}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-sm text-gray-700">
                         {invite.used ? (
                           invite.usedAt ? (
-                            new Date(invite.usedAt).toLocaleDateString('ru-RU', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric'
-                            })
+                            new Date(invite.usedAt).toLocaleDateString(
+                              "ru-RU",
+                              {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              }
+                            )
                           ) : (
-                            'Да'
+                            "Да"
                           )
                         ) : (
                           <span className="text-gray-400">Нет</span>
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -3807,45 +4551,50 @@ function UserDetailView({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Отель</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Комната</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Заезд</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Выезд</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Отель
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Комната
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Заезд
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Выезд
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {bookings.map((booking) => (
-                  <tr
-                    key={booking.id}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-3 py-2.5 text-sm text-gray-900 font-medium">
+                  <TableRow key={booking.id}>
+                    <TableCell className="py-2.5 text-sm text-gray-900 font-medium">
                       {booking.hotelName}
-                    </td>
-                    <td className="px-3 py-2.5 text-sm text-gray-700">
+                    </TableCell>
+                    <TableCell className="py-2.5 text-sm text-gray-700">
                       #{booking.roomNumber}
-                    </td>
-                    <td className="px-3 py-2.5 text-sm text-gray-700">
-                      {new Date(booking.checkIn).toLocaleDateString('ru-RU', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric'
+                    </TableCell>
+                    <TableCell className="py-2.5 text-sm text-gray-700">
+                      {new Date(booking.checkIn).toLocaleDateString("ru-RU", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
                       })}
-                    </td>
-                    <td className="px-3 py-2.5 text-sm text-gray-700">
-                      {new Date(booking.checkOut).toLocaleDateString('ru-RU', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric'
+                    </TableCell>
+                    <TableCell className="py-2.5 text-sm text-gray-700">
+                      {new Date(booking.checkOut).toLocaleDateString("ru-RU", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
                       })}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -3859,6 +4608,7 @@ function BookingsView({
   bookings,
   bookingsLoading,
   rooms,
+  hotels,
   filterBookedBy,
   setFilterBookedBy,
   filterRoomNumber,
@@ -3873,12 +4623,14 @@ function BookingsView({
   setBookingsSortBy,
   bookingsSortDirection,
   setBookingsSortDirection,
-  onCancelBooking
+  onCancelBooking,
+  onUpdateBooking,
 }: {
   currentUser: User;
   bookings: (BookingInfo & { roomNumber?: string; hotelName?: string })[];
   bookingsLoading: boolean;
   rooms: Room[];
+  hotels: Hotel[];
   filterBookedBy: string;
   setFilterBookedBy: (value: string) => void;
   filterRoomNumber: string;
@@ -3889,36 +4641,44 @@ function BookingsView({
   setFilterDateTo: (value: string) => void;
   showBookingsFilters: boolean;
   setShowBookingsFilters: (value: boolean) => void;
-  bookingsSortBy: 'checkIn' | 'checkOut' | 'bookedDate' | 'bookedBy' | 'roomNumber';
-  setBookingsSortBy: (value: 'checkIn' | 'checkOut' | 'bookedDate' | 'bookedBy' | 'roomNumber') => void;
-  bookingsSortDirection: 'asc' | 'desc';
-  setBookingsSortDirection: (value: 'asc' | 'desc') => void;
+  bookingsSortBy:
+    | "checkIn"
+    | "checkOut"
+    | "bookedDate"
+    | "bookedBy"
+    | "roomNumber";
+  setBookingsSortBy: (
+    value: "checkIn" | "checkOut" | "bookedDate" | "bookedBy" | "roomNumber"
+  ) => void;
+  bookingsSortDirection: "asc" | "desc";
+  setBookingsSortDirection: (value: "asc" | "desc") => void;
   onCancelBooking: (bookingId: string) => void;
+  onUpdateBooking: () => Promise<void>;
 }) {
   // Фильтруем бронирования: менеджер видит все, гость - только свои
-  let filteredBookings = isManagerOrDeveloper(currentUser) 
-    ? bookings 
-    : bookings.filter(b => b.bookedBy === currentUser.name);
+  let filteredBookings = isManagerOrDeveloper(currentUser)
+    ? bookings
+    : bookings.filter((b) => b.bookedBy === currentUser.name);
 
   // Применяем фильтры
   if (filterBookedBy) {
-    filteredBookings = filteredBookings.filter(b => 
+    filteredBookings = filteredBookings.filter((b) =>
       b.bookedBy.toLowerCase().includes(filterBookedBy.toLowerCase())
     );
   }
   if (filterRoomNumber) {
-    filteredBookings = filteredBookings.filter(b => 
+    filteredBookings = filteredBookings.filter((b) =>
       b.roomNumber?.toLowerCase().includes(filterRoomNumber.toLowerCase())
     );
   }
   if (filterDateFrom) {
-    filteredBookings = filteredBookings.filter(b => 
-      new Date(b.checkIn) >= new Date(filterDateFrom)
+    filteredBookings = filteredBookings.filter(
+      (b) => new Date(b.checkIn) >= new Date(filterDateFrom)
     );
   }
   if (filterDateTo) {
-    filteredBookings = filteredBookings.filter(b => 
-      new Date(b.checkIn) <= new Date(filterDateTo)
+    filteredBookings = filteredBookings.filter(
+      (b) => new Date(b.checkIn) <= new Date(filterDateTo)
     );
   }
 
@@ -3926,42 +4686,117 @@ function BookingsView({
   filteredBookings.sort((a, b) => {
     let comparison = 0;
     switch (bookingsSortBy) {
-      case 'checkIn':
-        comparison = new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime();
+      case "checkIn":
+        comparison =
+          new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime();
         break;
-      case 'checkOut':
-        comparison = new Date(a.checkOut).getTime() - new Date(b.checkOut).getTime();
+      case "checkOut":
+        comparison =
+          new Date(a.checkOut).getTime() - new Date(b.checkOut).getTime();
         break;
-      case 'bookedDate':
-        comparison = new Date(a.bookedDate).getTime() - new Date(b.bookedDate).getTime();
+      case "bookedDate":
+        comparison =
+          new Date(a.bookedDate).getTime() - new Date(b.bookedDate).getTime();
         break;
-      case 'bookedBy':
+      case "bookedBy":
         comparison = a.bookedBy.localeCompare(b.bookedBy);
         break;
-      case 'roomNumber':
-        comparison = (a.roomNumber || '').localeCompare(b.roomNumber || '');
+      case "roomNumber":
+        comparison = (a.roomNumber || "").localeCompare(b.roomNumber || "");
         break;
     }
-    return bookingsSortDirection === 'asc' ? comparison : -comparison;
+    return bookingsSortDirection === "asc" ? comparison : -comparison;
   });
 
   const handleSort = (column: typeof bookingsSortBy) => {
     if (bookingsSortBy === column) {
-      setBookingsSortDirection(bookingsSortDirection === 'asc' ? 'desc' : 'asc');
+      setBookingsSortDirection(
+        bookingsSortDirection === "asc" ? "desc" : "asc"
+      );
     } else {
       setBookingsSortBy(column);
-      setBookingsSortDirection('asc');
+      setBookingsSortDirection("asc");
     }
   };
 
   const resetFilters = () => {
-    setFilterBookedBy('');
-    setFilterRoomNumber('');
-    setFilterDateFrom('');
-    setFilterDateTo('');
+    setFilterBookedBy("");
+    setFilterRoomNumber("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
   };
 
-  const hasActiveFilters = filterBookedBy || filterRoomNumber || filterDateFrom || filterDateTo;
+  const hasActiveFilters =
+    filterBookedBy || filterRoomNumber || filterDateFrom || filterDateTo;
+
+  // Состояние для редактирования
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedBookingForEdit, setSelectedBookingForEdit] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string }) | null>(null);
+  
+  // Открытое меню действий
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  
+  // Состояние для подтверждения отмены бронирования
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<{ id: string; roomNumber?: string; bookedBy?: string } | null>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
+
+  // Закрываем меню при нажатии Escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpenMenuId(null);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  const handleEdit = (booking: BookingInfo & { roomNumber?: string; hotelName?: string }) => {
+    setSelectedBookingForEdit(booking);
+    setShowEditModal(true);
+    setOpenMenuId(null);
+  };
+
+  const handleSaveEdit = async (data: BookingFormData) => {
+    if (!selectedBookingForEdit?.id) return;
+    
+    try {
+      await api.updateBooking(selectedBookingForEdit.id, {
+        checkIn: data.checkIn,
+        checkOut: data.checkOut,
+        guests: data.guests,
+        email: data.email,
+        phone: data.phone,
+        notes: data.notes,
+        manualUserName: data.manualUserName,
+        manualUserPhone: data.manualUserPhone,
+      });
+
+      setShowEditModal(false);
+      setSelectedBookingForEdit(null);
+      await onUpdateBooking();
+    } catch (error) {
+      console.error('Error updating booking:', error);
+      throw error;
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!bookingToCancel?.id) return;
+    
+    setIsCanceling(true);
+    try {
+      await onCancelBooking(bookingToCancel.id);
+      setShowCancelDialog(false);
+      setBookingToCancel(null);
+    } catch (error) {
+      console.error('Error canceling booking:', error);
+      alert('Ошибка при отмене бронирования');
+    } finally {
+      setIsCanceling(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -3969,9 +4804,11 @@ function BookingsView({
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
             <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
-            {isManagerOrDeveloper(currentUser) ? 'Бронирования' : 'Мои бронирования'}
+            {isManagerOrDeveloper(currentUser)
+              ? "Бронирования"
+              : "Мои бронирования"}
           </h2>
-          
+
           <div className="flex gap-2 w-full sm:w-auto">
             {hasActiveFilters && (
               <button
@@ -3986,8 +4823,8 @@ function BookingsView({
               onClick={() => setShowBookingsFilters(!showBookingsFilters)}
               className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                 showBookingsFilters
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                  ? "bg-gray-900 text-white"
+                  : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
               }`}
             >
               <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -4002,7 +4839,9 @@ function BookingsView({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {isManagerOrDeveloper(currentUser) && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Забронировано</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    Забронировано
+                  </label>
                   <input
                     type="text"
                     value={filterBookedBy}
@@ -4013,7 +4852,9 @@ function BookingsView({
                 </div>
               )}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Номер комнаты</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Номер комнаты
+                </label>
                 <input
                   type="text"
                   value={filterRoomNumber}
@@ -4023,21 +4864,27 @@ function BookingsView({
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Заезд с</label>
-                <input
-                  type="date"
-                  value={filterDateFrom}
-                  onChange={(e) => setFilterDateFrom(e.target.value)}
-                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Заезд с
+                </label>
+                <DatePicker
+                  date={filterDateFrom ? new Date(filterDateFrom) : undefined}
+                  onSelect={(date) => setFilterDateFrom(date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : "")}
+                  placeholder="С даты"
+                  maxDate={filterDateTo ? new Date(filterDateTo) : undefined}
+                  className="w-full text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Заезд до</label>
-                <input
-                  type="date"
-                  value={filterDateTo}
-                  onChange={(e) => setFilterDateTo(e.target.value)}
-                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Заезд до
+                </label>
+                <DatePicker
+                  date={filterDateTo ? new Date(filterDateTo) : undefined}
+                  onSelect={(date) => setFilterDateTo(date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : "")}
+                  placeholder="До даты"
+                  minDate={filterDateFrom ? new Date(filterDateFrom) : undefined}
+                  className="w-full text-xs"
                 />
               </div>
             </div>
@@ -4055,92 +4902,129 @@ function BookingsView({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[800px]">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th 
-                    className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                    onClick={() => handleSort('roomNumber')}
+            <Table className="min-w-[800px]">
+              <TableHeader>
+                <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableHead
+                    className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleSort("roomNumber")}
                   >
                     <div className="flex items-center gap-1">
                       Комната
-                      {bookingsSortBy === 'roomNumber' && (
-                        bookingsSortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                      {bookingsSortBy === "roomNumber" &&
+                        (bookingsSortDirection === "asc" ? (
+                          <ArrowUp className="w-3 h-3" />
+                        ) : (
+                          <ArrowDown className="w-3 h-3" />
+                        ))}
+                      {bookingsSortBy !== "roomNumber" && (
+                        <ArrowUpDown className="w-3 h-3 text-gray-400" />
                       )}
-                      {bookingsSortBy !== 'roomNumber' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                     </div>
-                  </th>
-                  <th 
-                    className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                    onClick={() => handleSort('checkIn')}
+                  </TableHead>
+                  <TableHead
+                    className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleSort("checkIn")}
                   >
                     <div className="flex items-center gap-1">
                       Заезд
-                      {bookingsSortBy === 'checkIn' && (
-                        bookingsSortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                      {bookingsSortBy === "checkIn" &&
+                        (bookingsSortDirection === "asc" ? (
+                          <ArrowUp className="w-3 h-3" />
+                        ) : (
+                          <ArrowDown className="w-3 h-3" />
+                        ))}
+                      {bookingsSortBy !== "checkIn" && (
+                        <ArrowUpDown className="w-3 h-3 text-gray-400" />
                       )}
-                      {bookingsSortBy !== 'checkIn' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                     </div>
-                  </th>
-                  <th 
-                    className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                    onClick={() => handleSort('checkOut')}
+                  </TableHead>
+                  <TableHead
+                    className="text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleSort("checkOut")}
                   >
                     <div className="flex items-center gap-1">
                       Выезд
-                      {bookingsSortBy === 'checkOut' && (
-                        bookingsSortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                      {bookingsSortBy === "checkOut" &&
+                        (bookingsSortDirection === "asc" ? (
+                          <ArrowUp className="w-3 h-3" />
+                        ) : (
+                          <ArrowDown className="w-3 h-3" />
+                        ))}
+                      {bookingsSortBy !== "checkOut" && (
+                        <ArrowUpDown className="w-3 h-3 text-gray-400" />
                       )}
-                      {bookingsSortBy !== 'checkOut' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                     </div>
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Гости</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Действия</th>
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    Гости
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700 sticky right-0 bg-white z-10">
+                    Действия
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filteredBookings.map((booking) => {
                   const nights = Math.ceil(
-                    (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 
-                    (1000 * 60 * 60 * 24)
+                    (new Date(booking.checkOut).getTime() -
+                      new Date(booking.checkIn).getTime()) /
+                      (1000 * 60 * 60 * 24)
                   );
-                  const room = rooms.find(r => r.id === booking.roomId);
-                  const canCancel = isManagerOrDeveloper(currentUser) || booking.bookedBy === currentUser.name;
+                  const room = rooms.find((r) => r.id === booking.roomId);
+                  const canCancel =
+                    isManagerOrDeveloper(currentUser) ||
+                    booking.bookedBy === currentUser.name;
 
                   return (
-                    <tr
+                    <TableRow
                       key={booking.id}
-                      className={`border-b border-gray-100 transition-colors ${
+                      className={`${
                         booking.bookedBy === currentUser.name
-                          ? 'bg-blue-50/50 hover:bg-blue-50'
-                          : 'hover:bg-gray-50'
+                          ? "bg-blue-50/50 hover:bg-blue-50"
+                          : ""
                       }`}
                     >
-                      <td className="px-3 py-2.5">
-                        <div className="font-semibold text-gray-900">#{booking.roomNumber || 'N/A'}</div>
+                      <TableCell className="py-2.5">
+                        <div className="font-semibold text-gray-900">
+                          #{booking.roomNumber || "N/A"}
+                        </div>
                         {room && (
                           <div className="text-xs text-gray-500">
                             {room.type}
                           </div>
                         )}
-                      </td>
-                      <td className="px-3 py-2.5 text-sm text-gray-700">
-                        {new Date(booking.checkIn).toLocaleDateString('ru-RU')}
-                      </td>
-                      <td className="px-3 py-2.5 text-sm text-gray-700">
-                        {new Date(booking.checkOut).toLocaleDateString('ru-RU')}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-sm text-gray-700">
+                        {new Date(booking.checkIn).toLocaleDateString("ru-RU")}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-sm text-gray-700">
+                        {new Date(booking.checkOut).toLocaleDateString("ru-RU")}
                         <div className="text-xs text-gray-500">
-                          {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'}
+                          {nights}{" "}
+                          {nights === 1
+                            ? "ночь"
+                            : nights < 5
+                            ? "ночи"
+                            : "ночей"}
                         </div>
-                      </td>
-                      <td className="px-3 py-2.5">
+                      </TableCell>
+                      <TableCell className="py-2.5">
                         <div className="text-xs text-gray-700">
                           {booking.guests && booking.guests.length > 0 ? (
                             <div>
-                              <div className="font-semibold mb-1">{booking.guests.length} {booking.guests.length === 1 ? 'гость' : 'гостей'}</div>
+                              <div className="font-semibold mb-1">
+                                {booking.guests.length}{" "}
+                                {booking.guests.length === 1
+                                  ? "гость"
+                                  : "гостей"}
+                              </div>
                               <div className="flex flex-wrap gap-2">
                                 {booking.guests.slice(0, 3).map((g, i) => (
-                                  <div key={i} className="flex items-center gap-1.5">
+                                  <div
+                                    key={i}
+                                    className="flex items-center gap-1.5"
+                                  >
                                     {g.image ? (
                                       <img
                                         src={g.image}
@@ -4149,14 +5033,20 @@ function BookingsView({
                                       />
                                     ) : (
                                       <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300">
-                                        <span className="text-xs text-gray-500">{g.name.charAt(0).toUpperCase()}</span>
+                                        <span className="text-xs text-gray-500">
+                                          {g.name.charAt(0).toUpperCase()}
+                                        </span>
                                       </div>
                                     )}
-                                    <span className="text-gray-700 text-xs">{g.name}</span>
+                                    <span className="text-gray-700 text-xs">
+                                      {g.name}
+                                    </span>
                                   </div>
                                 ))}
                                 {booking.guests.length > 3 && (
-                                  <div className="text-gray-400 text-xs">+{booking.guests.length - 3} еще</div>
+                                  <div className="text-gray-400 text-xs">
+                                    +{booking.guests.length - 3} еще
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -4164,33 +5054,124 @@ function BookingsView({
                             <span className="text-gray-400">Нет гостей</span>
                           )}
                         </div>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex flex-col gap-1">
-                          {canCancel && booking.id && (
-                            <button
-                              onClick={() => {
-                                if (confirm('Вы уверены, что хотите отменить бронирование?')) {
-                                  onCancelBooking(booking.id!);
-                                }
-                              }}
-                              className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
-                              title="Отменить бронирование"
-                            >
-                              Отменить
-                            </button>
+                      </TableCell>
+                      <TableCell className="py-2.5 sticky right-0 bg-white z-10" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative z-10">
+                          {booking.bookedBy === currentUser.name && booking.id && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!showEditModal) {
+                                    setOpenMenuId(openMenuId === booking.id ? null : booking.id || null);
+                                  }
+                                }}
+                                disabled={showEditModal}
+                                className={`p-1.5 hover:bg-gray-100 dark:hover:bg-accent rounded transition-colors z-11 ${showEditModal ? 'opacity-50 pointer-events-none' : ''}`}
+                                title="Действия"
+                              >
+                                <MoreVertical className="w-4 h-4 text-gray-600 dark:text-muted-foreground z-12" />
+                              </button>
+                              
+                              {openMenuId === booking.id && !showEditModal && (
+                                <>
+                                  <div 
+                                    className="fixed inset-0 z-5" 
+                                    onClick={() => setOpenMenuId(null)}
+                                  />
+                                  <div className="absolute right-25 -top-5 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg shadow-xl z-[9999] min-w-[180px]">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenMenuId(null);
+                                        handleEdit(booking);
+                                      }}
+                                      className="w-full px-3 py-2 text-left text-xs text-gray-700 dark:text-foreground hover:bg-gray-50 dark:hover:bg-accent flex items-center gap-2 transition-colors"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                      Редактировать
+                                    </button>
+                                    {canCancel && booking.id && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenMenuId(null);
+                                          setBookingToCancel({ 
+                                            id: booking.id!, 
+                                            roomNumber: booking.roomNumber,
+                                            bookedBy: booking.bookedBy
+                                          });
+                                          setShowCancelDialog(true);
+                                        }}
+                                        className="w-full px-3 py-2 text-left text-xs text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 transition-colors"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                        Отменить
+                                      </button>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </>
                           )}
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
+
+      {/* Модальное окно редактирования */}
+      {showEditModal && selectedBookingForEdit && (() => {
+        const bookingRoom = rooms.find(r => r.id === selectedBookingForEdit.roomId);
+        const bookingHotel = bookingRoom ? hotels.find(h => h.id === bookingRoom.hotelId) : null;
+        // Используем hotelName из бронирования, если отель не найден через bookingRoom
+        // Игнорируем "N/A" как невалидное значение
+        const hotelNameFromBooking = selectedBookingForEdit.hotelName && selectedBookingForEdit.hotelName !== "N/A" 
+          ? selectedBookingForEdit.hotelName 
+          : undefined;
+        const hotelName = bookingHotel?.name || hotelNameFromBooking || undefined;
+        return (
+          <BookingFormModal
+            isOpen={showEditModal}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedBookingForEdit(null);
+            }}
+            onSubmit={handleSaveEdit}
+            initialData={{
+              checkIn: selectedBookingForEdit.checkIn.split('T')[0],
+              checkOut: selectedBookingForEdit.checkOut.split('T')[0],
+              guests: selectedBookingForEdit.guests || [],
+              email: selectedBookingForEdit.email || '',
+              phone: selectedBookingForEdit.phone || '',
+              notes: selectedBookingForEdit.notes || '',
+            }}
+            room={bookingRoom || undefined}
+            hotelName={hotelName}
+            currentUser={currentUser}
+            mode="edit"
+            excludeBookingId={selectedBookingForEdit.id}
+          />
+        );
+      })()}
+
+      {/* Модальное окно подтверждения отмены бронирования */}
+      <ConfirmCancelBookingDialog
+        isOpen={showCancelDialog}
+        onClose={() => {
+          setShowCancelDialog(false);
+          setBookingToCancel(null);
+        }}
+        onConfirm={handleConfirmCancel}
+        roomNumber={bookingToCancel?.roomNumber}
+        bookedBy={bookingToCancel?.bookedBy}
+        isSubmitting={isCanceling}
+      />
     </div>
   );
 }
-

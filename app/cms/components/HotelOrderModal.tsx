@@ -71,13 +71,13 @@ export default function HotelOrderModal({ hotels, onClose, onSave }: HotelOrderM
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-gray-600" />
+            <X className="w-5 h-5 light:text-gray-600 dark:text-gray-600" />
           </button>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm light:text-gray-600 dark:text-gray-600 mb-4">
             Перемещайте отели вверх или вниз, чтобы изменить порядок их отображения у пользователей.
           </p>
           
@@ -89,14 +89,14 @@ export default function HotelOrderModal({ hotels, onClose, onSave }: HotelOrderM
               >
                 <div className="flex items-center gap-2 shrink-0">
                   <GripVertical className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm font-semibold text-gray-600 w-8 text-center">
+                  <span className="text-sm font-semibold light:text-gray-600 dark:text-gray-600 w-8 text-center">
                     {index + 1}
                   </span>
                 </div>
                 
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-gray-900 truncate">{hotel.name}</h3>
-                  <p className="text-xs text-gray-600 truncate">{hotel.address}</p>
+                  <p className="text-xs light:text-gray-600 dark:text-gray-600 truncate">{hotel.address}</p>
                 </div>
                 
                 <div className="flex gap-1 shrink-0">

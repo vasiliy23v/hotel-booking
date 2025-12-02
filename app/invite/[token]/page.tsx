@@ -237,10 +237,10 @@ export default function InviteRegistrationPage() {
 
   if (validating) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Проверка приглашения...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-muted-foreground">Проверка приглашения...</p>
         </div>
       </div>
     );
@@ -248,14 +248,14 @@ export default function InviteRegistrationPage() {
 
   if (!inviteValid) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Приглашение недействительно</h1>
-          <p className="text-gray-600 mb-6">{error || 'Это приглашение не может быть использовано для регистрации.'}</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-background p-4">
+        <div className="max-w-md w-full bg-white dark:bg-card rounded-lg shadow-lg p-8 text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 dark:text-destructive mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-foreground mb-2">Приглашение недействительно</h1>
+          <p className="text-gray-600 dark:text-muted-foreground mb-6">{error || 'Это приглашение не может быть использовано для регистрации.'}</p>
           <button
             onClick={() => router.push('/')}
-            className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-lg font-semibold transition-colors"
+            className="w-full bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white dark:text-primary-foreground py-3 rounded-lg font-semibold transition-colors"
           >
             Вернуться на главную
           </button>
@@ -267,22 +267,22 @@ export default function InviteRegistrationPage() {
   return (
     <div className="min-h-screen flex">
       {/* Левая часть - Форма */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 bg-white">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 bg-white dark:bg-background">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             {userExists ? (
-              <Key className="w-16 h-16 mx-auto text-gray-700 mb-4" />
+              <Key className="w-16 h-16 mx-auto text-gray-700 dark:text-foreground mb-4" />
             ) : (
-              <Building2 className="w-16 h-16 mx-auto text-gray-700 mb-4" />
+              <Building2 className="w-16 h-16 mx-auto text-gray-700 dark:text-foreground mb-4" />
             )}
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground mb-2">
               {userExists ? 'Сброс пароля' : 'Регистрация'}
             </h1>
-            <div className="flex items-center justify-center gap-2 text-green-600 mb-2">
+            <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400 mb-2">
               <CheckCircle className="w-5 h-5" />
               <p className="text-sm">Приглашение подтверждено</p>
             </div>
-            <p className="text-gray-600">
+            <p className="text-gray-600 dark:text-muted-foreground">
               {userExists 
                 ? 'Установите новый пароль для вашего аккаунта' 
                 : 'Создайте свой аккаунт'}
@@ -294,10 +294,10 @@ export default function InviteRegistrationPage() {
             {!userExists && (
               <>
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
                     Имя
                     {inviteName && (
-                      <span className="text-xs text-gray-500 ml-2">(из приглашения, можно изменить)</span>
+                      <span className="text-xs text-gray-500 dark:text-muted-foreground ml-2">(из приглашения, можно изменить)</span>
                     )}
                   </label>
                   <input
@@ -305,15 +305,15 @@ export default function InviteRegistrationPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Иван Иванов"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-900 dark:focus:border-ring focus:outline-none"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
                     Опционально. {inviteName ? 'Можно изменить предложенное имя' : 'Можно указать позже'}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
                     <Phone className="w-4 h-4 inline mr-1" />
                     Телефон <span className="text-red-500">*</span>
                   </label>
@@ -353,36 +353,36 @@ export default function InviteRegistrationPage() {
                       }
                     }}
                     placeholder="+491234567890 или +79123456789"
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none bg-white text-gray-900 ${
+                    className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground ${
                       phoneError && phoneTouched
-                        ? 'border-red-500 focus:border-red-500'
+                        ? 'border-red-500 dark:border-destructive focus:border-red-500 dark:focus:border-destructive'
                         : phoneTouched && !phoneError && phone.trim()
-                        ? 'border-green-500 focus:border-green-500'
-                        : 'border-gray-300 focus:border-gray-900'
+                        ? 'border-green-500 dark:border-green-600 focus:border-green-500 dark:focus:border-green-600'
+                        : 'border-gray-300 dark:border-border focus:border-gray-900 dark:focus:border-ring'
                     }`}
                     required
                   />
                   {phoneError && phoneTouched && (
-                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <p className="text-xs text-red-500 dark:text-destructive-foreground mt-1 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       {phoneError}
                     </p>
                   )}
                   {!phoneError && phoneTouched && phone.trim() && (
-                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" />
                       Телефон введен корректно
                     </p>
                   )}
                   {!phoneTouched && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
                       Обязательное поле для входа в систему. Формат: +7XXXXXXXXXX
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
                     <Mail className="w-4 h-4 inline mr-1" />
                     Email
                   </label>
@@ -394,9 +394,9 @@ export default function InviteRegistrationPage() {
                       setError('');
                     }}
                     placeholder="email@example.com"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none bg-white text-gray-900"
+                    className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
                     Опционально. Можно использовать для входа в систему
                   </p>
                 </div>
@@ -406,10 +406,10 @@ export default function InviteRegistrationPage() {
             {/* Имя для сброса пароля */}
             {userExists && (
               <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
                   Имя
                   {inviteName && (
-                    <span className="text-xs text-gray-500 ml-2">(из приглашения, можно изменить)</span>
+                    <span className="text-xs text-gray-500 dark:text-muted-foreground ml-2">(из приглашения, можно изменить)</span>
                   )}
                 </label>
                 <input
@@ -417,9 +417,9 @@ export default function InviteRegistrationPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Иван Иванов"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-900 dark:focus:border-ring focus:outline-none"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
                   Опционально. {inviteName ? 'Можно изменить предложенное имя' : 'Можно указать имя'}
                 </p>
               </div>
@@ -427,7 +427,7 @@ export default function InviteRegistrationPage() {
 
             {/* Пароль */}
             <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
                 {userExists ? 'Новый пароль' : 'Пароль'} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -450,36 +450,36 @@ export default function InviteRegistrationPage() {
                   }}
                   onKeyPress={(e) => e.key === 'Enter' && (userExists ? handleResetPassword() : handleRegister())}
                   placeholder="••••••••"
-                  className={`w-full px-4 py-3 pr-12 border-2 rounded-lg focus:outline-none bg-white text-gray-900 ${
+                  className={`w-full px-4 py-3 pr-12 border-2 rounded-lg focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground ${
                     passwordError && passwordTouched
-                      ? 'border-red-500 focus:border-red-500'
+                      ? 'border-red-500 dark:border-destructive focus:border-red-500 dark:focus:border-destructive'
                       : passwordTouched && !passwordError && password
-                      ? 'border-green-500 focus:border-green-500'
-                      : 'border-gray-300 focus:border-gray-900'
+                      ? 'border-green-500 dark:border-green-600 focus:border-green-500 dark:focus:border-green-600'
+                      : 'border-gray-300 dark:border-border focus:border-gray-900 dark:focus:border-ring'
                   }`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-muted-foreground hover:text-gray-700 dark:hover:text-foreground"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
               {passwordError && passwordTouched && (
-                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <p className="text-xs text-red-500 dark:text-destructive-foreground mt-1 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
                   {passwordError}
                 </p>
               )}
               {!passwordError && passwordTouched && password && (
-                <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
                   <CheckCircle className="w-3 h-3" />
                   Пароль введен корректно
                 </p>
               )}
               {!passwordTouched && (
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
                   Минимум 6 символов, только латинские буквы, цифры и специальные символы
                 </p>
               )}
@@ -488,7 +488,7 @@ export default function InviteRegistrationPage() {
             {/* Подтверждение пароля - только для сброса пароля */}
             {userExists && (
               <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
                   Подтвердите пароль <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -501,24 +501,24 @@ export default function InviteRegistrationPage() {
                     }}
                     onKeyPress={(e) => e.key === 'Enter' && handleResetPassword()}
                     placeholder="••••••••"
-                    className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
+                    className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-900 dark:focus:border-ring focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-muted-foreground hover:text-gray-700 dark:hover:text-foreground"
                   >
                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
                 {password && confirmPassword && password !== confirmPassword && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <p className="text-xs text-red-500 dark:text-destructive-foreground mt-1 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
                     Пароли не совпадают
                   </p>
                 )}
                 {password && confirmPassword && password === confirmPassword && passwordTouched && !passwordError && (
-                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3" />
                     Пароли совпадают
                   </p>
@@ -527,7 +527,7 @@ export default function InviteRegistrationPage() {
             )}
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              <div className="bg-red-50 dark:bg-destructive/20 border border-red-200 dark:border-destructive/50 text-red-700 dark:text-destructive-foreground px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
@@ -535,7 +535,7 @@ export default function InviteRegistrationPage() {
             <button
               onClick={userExists ? handleResetPassword : handleRegister}
               disabled={loading}
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
+              className="w-full bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white dark:text-primary-foreground py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
             >
               {loading 
                 ? (userExists ? 'Сброс пароля...' : 'Регистрация...') 
@@ -545,7 +545,7 @@ export default function InviteRegistrationPage() {
             {!userExists && (
               <button
                 onClick={() => router.push('/')}
-                className="w-full text-gray-700 hover:text-gray-900 font-semibold text-sm"
+                className="w-full text-gray-700 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground font-semibold text-sm"
               >
                 Уже есть аккаунт? Войти
               </button>
@@ -561,7 +561,7 @@ export default function InviteRegistrationPage() {
           alt="Hotel"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/10 dark:from-black/0 dark:to-black/10"></div>
       </div>
     </div>
   );

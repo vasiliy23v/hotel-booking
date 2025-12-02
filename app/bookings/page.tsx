@@ -2,9 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut, ArrowLeft, Euro, DollarSign, Edit, CheckCircle } from 'lucide-react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut, ArrowLeft, Euro, Edit, CheckCircle, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
-import type { User, Room, Hotel, BookingInfo } from '@/types';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DatePicker } from '@/components/ui/date-picker';
+import { BookingFormModal, type BookingFormData } from '@/components/booking/BookingFormModal';
+import { ConfirmCancelBookingDialog } from '@/components/booking/ConfirmCancelBookingDialog';
+import type { User, Room, Hotel, BookingInfo, Guest } from '@/types';
 import Link from 'next/link';
 
 export default function BookingsPage() {
@@ -31,15 +35,21 @@ export default function BookingsPage() {
   // Модальное окно для редактирования
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedBookingForEdit, setSelectedBookingForEdit] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string }) | null>(null);
-  const [editCheckIn, setEditCheckIn] = useState<string>('');
-  const [editCheckOut, setEditCheckOut] = useState<string>('');
-  const [editGuests, setEditGuests] = useState<any[]>([]);
-  const [editNotes, setEditNotes] = useState<string>('');
+  
+  // Состояние для подтверждения отмены бронирования
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<(BookingInfo & { roomNumber?: string }) | null>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
 
   useEffect(() => {
+    const userStr = localStorage.getItem('currentUser');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      setCurrentUser(user);
+    }
+    loadBookings();
     // Перенаправляем на главную страницу, где бронирования отображаются по умолчанию
     router.push('/dashboard');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   const loadBookings = async () => {
@@ -74,49 +84,56 @@ export default function BookingsPage() {
     }
   };
 
-  const handleCancel = async (booking: BookingInfo & { roomNumber?: string }) => {
-    if (!confirm(`Вы уверены, что хотите отменить бронирование комнаты #${booking.roomNumber}?`)) {
-      return;
-    }
+  const handleCancel = (booking: BookingInfo & { roomNumber?: string }) => {
+    setBookingToCancel(booking);
+    setShowCancelDialog(true);
+  };
 
+  const handleConfirmCancel = async () => {
+    if (!bookingToCancel?.id) return;
+    
+    setIsCanceling(true);
     try {
-      if (booking.id) {
-        await api.deleteBooking(booking.id);
-      }
-      // Обновляем список бронирований
+      await api.deleteBooking(bookingToCancel.id);
       await loadBookings();
+      setShowCancelDialog(false);
+      setBookingToCancel(null);
     } catch (error) {
       console.error('Error canceling booking:', error);
       alert('Ошибка при отмене бронирования');
+    } finally {
+      setIsCanceling(false);
     }
   };
 
 
   const handleEdit = (booking: BookingInfo & { roomNumber?: string; hotelName?: string }) => {
     setSelectedBookingForEdit(booking);
-    setEditCheckIn(booking.checkIn.split('T')[0]);
-    setEditCheckOut(booking.checkOut.split('T')[0]);
-    setEditGuests(booking.guests || []);
-    setEditNotes(booking.notes || '');
     setShowEditModal(true);
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = async (data: BookingFormData) => {
     if (!selectedBookingForEdit?.id) return;
     
     try {
+      // Для обычного пользователя имя берется из currentUser
+      const bookedByName = currentUser?.name || selectedBookingForEdit.bookedBy;
+
       await api.updateBooking(selectedBookingForEdit.id, {
-        checkIn: editCheckIn,
-        checkOut: editCheckOut,
-        guests: editGuests,
-        notes: editNotes,
+        checkIn: data.checkIn,
+        checkOut: data.checkOut,
+        guests: data.guests,
+        notes: data.notes,
+        email: data.email,
+        phone: data.phone,
+        bookedBy: bookedByName,
       });
       setShowEditModal(false);
       setSelectedBookingForEdit(null);
       await loadBookings();
     } catch (error) {
       console.error('Error updating booking:', error);
-      alert('Ошибка при обновлении бронирования');
+      throw error;
     }
   };
 
@@ -230,7 +247,7 @@ export default function BookingsPage() {
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <Link
                 href="/dashboard"
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 light:text-gray-600 dark:text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Назад к дашборду"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -380,7 +397,7 @@ export default function BookingsPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="text-lg font-bold text-gray-900">{hotel.name}</h3>
-                          <p className="text-sm text-gray-600">{hotel.address}</p>
+                          <p className="text-sm light:text-gray-600 dark:text-gray-600">{hotel.address}</p>
                         </div>
                         <div className="text-sm text-gray-500">
                           {hotelBookings.length} {hotelBookings.length === 1 ? 'бронирование' : hotelBookings.length < 5 ? 'бронирования' : 'бронирований'}
@@ -416,7 +433,7 @@ export default function BookingsPage() {
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-sm text-gray-600 space-y-1">
+                                    <div className="text-sm light:text-gray-600 dark:text-gray-600 space-y-1">
                                       <div className="flex items-center gap-2">
                                         <span className="font-semibold">Заезд:</span>
                                         <span>{new Date(booking.checkIn).toLocaleDateString('ru-RU')}</span>
@@ -461,7 +478,7 @@ export default function BookingsPage() {
                                 {booking.notes && (
                                   <div>
                                     <div className="text-xs font-semibold text-gray-700 mb-1">Примечания:</div>
-                                    <div className="text-xs text-gray-600">{booking.notes}</div>
+                                    <div className="text-xs text-gray-300 light:text-gray-600 dark:text-gray-600">{booking.notes}</div>
                                   </div>
                                 )}
                               </div>
@@ -541,15 +558,15 @@ export default function BookingsPage() {
           ) : (
             // Для менеджеров - таблица
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse min-w-[1200px]">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
+              <Table className="min-w-[1200px]">
+                <TableHeader>
+                  <TableRow className="border-b border-gray-200 hover:bg-transparent">
                     {currentUser.role === 'manager' ? (
                       <>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Отель</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Комната</th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                        <TableHead className="text-xs light:text-gray-600 dark:text-gray-600 whitespace-nowrap font-normal">Отель</TableHead>
+                        <TableHead className="text-xs light:text-gray-600 dark:text-gray-600 whitespace-nowrap font-normal">Комната</TableHead>
+                        <TableHead 
+                          className="text-xs light:text-gray-600 dark:text-gray-600 cursor-pointer whitespace-nowrap font-normal"
                           onClick={() => handleSort('bookedBy')}
                         >
                           <div className="flex items-center gap-1">
@@ -559,10 +576,10 @@ export default function BookingsPage() {
                             )}
                             {sortBy !== 'bookedBy' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Контакты</th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                        </TableHead>
+                        <TableHead className="text-xs light:text-gray-600 dark:text-gray-600 whitespace-nowrap font-normal">Контакты</TableHead>
+                        <TableHead 
+                          className="text-xs light:text-gray-600 dark:text-gray-600 cursor-pointer whitespace-nowrap font-normal"
                           onClick={() => handleSort('checkIn')}
                         >
                           <div className="flex items-center gap-1">
@@ -572,9 +589,9 @@ export default function BookingsPage() {
                             )}
                             {sortBy !== 'checkIn' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                        </TableHead>
+                        <TableHead 
+                          className="text-xs light:text-gray-600 dark:text-gray-600 cursor-pointer whitespace-nowrap font-normal"
                           onClick={() => handleSort('checkOut')}
                         >
                           <div className="flex items-center gap-1">
@@ -584,17 +601,17 @@ export default function BookingsPage() {
                             )}
                             {sortBy !== 'checkOut' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Гости</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Сумма</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Примечания</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Действия</th>
+                        </TableHead>
+                        <TableHead className="text-xs light:text-gray-600 dark:text-gray-600 whitespace-nowrap font-normal">Гости</TableHead>
+                        <TableHead className="text-xs light:text-gray-600 dark:text-gray-600 whitespace-nowrap font-normal">Сумма</TableHead>
+                        <TableHead className="text-xs light:text-gray-600 dark:text-gray-600 whitespace-nowrap font-normal">Примечания</TableHead>
+                        <TableHead className="text-xs light:text-gray-600 dark:text-gray-600 whitespace-nowrap font-normal">Действия</TableHead>
                       </>
                     ) : (
                       <>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Отель</th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                        <TableHead className="text-xs light:text-gray-600 dark:text-gray-600 whitespace-nowrap font-normal">Отель</TableHead>
+                        <TableHead 
+                          className="text-xs light:text-gray-600 dark:text-gray-600 cursor-pointer whitespace-nowrap font-normal"
                           onClick={() => handleSort('roomNumber')}
                         >
                           <div className="flex items-center gap-1">
@@ -604,9 +621,9 @@ export default function BookingsPage() {
                             )}
                             {sortBy !== 'roomNumber' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                        </TableHead>
+                        <TableHead 
+                          className="text-xs light:text-gray-600 dark:text-gray-600 cursor-pointer whitespace-nowrap font-normal"
                           onClick={() => handleSort('checkIn')}
                         >
                           <div className="flex items-center gap-1">
@@ -616,9 +633,9 @@ export default function BookingsPage() {
                             )}
                             {sortBy !== 'checkIn' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
-                        </th>
-                        <th 
-                          className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                        </TableHead>
+                        <TableHead 
+                          className="text-xs light:text-gray-600 dark:text-gray-600 cursor-pointer whitespace-nowrap font-normal"
                           onClick={() => handleSort('checkOut')}
                         >
                           <div className="flex items-center gap-1">
@@ -628,15 +645,15 @@ export default function BookingsPage() {
                             )}
                             {sortBy !== 'checkOut' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                           </div>
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Гости</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Статус</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Действия</th>
+                        </TableHead>
+                        <TableHead className="text-xs light:text-gray-600 dark:text-gray-600 whitespace-nowrap font-normal">Гости</TableHead>
+                        <TableHead className="text-xs light:text-gray-600 dark:text-gray-600 whitespace-nowrap font-normal">Статус</TableHead>
+                        <TableHead className="text-xs light:text-gray-600 dark:text-gray-600 whitespace-nowrap font-normal">Действия</TableHead>
                       </>
                     )}
-                  </tr>
-                </thead>
-                <tbody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {filteredBookings.map((booking) => {
                     const nights = Math.ceil(
                       (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 
@@ -648,61 +665,58 @@ export default function BookingsPage() {
 
                     if (currentUser.role === 'manager') {
                       return (
-                        <tr
-                          key={booking.id}
-                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                        >
+                        <TableRow key={booking.id} className="hover:bg-gray-100 transition-colors">
                           {/* Отель */}
-                          <td className="px-3 py-2.5">
-                            <div className="text-sm font-semibold text-gray-900">{booking.hotelName || 'N/A'}</div>
-                          </td>
+                          <TableCell className="py-3">
+                            <div className="text-sm text-gray-700">{booking.hotelName || 'N/A'}</div>
+                          </TableCell>
                           
                           {/* Комната */}
-                          <td className="px-3 py-2.5">
-                            <div className="font-semibold text-gray-900">#{booking.roomNumber || 'N/A'}</div>
+                          <TableCell className="py-3">
+                            <div className="text-sm text-gray-700">#{booking.roomNumber || 'N/A'}</div>
                             {room && (
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-gray-500 mt-0.5">
                                 {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : 'Общее'}
                               </div>
                             )}
-                          </td>
+                          </TableCell>
                           
                           {/* Кто бронировал */}
-                          <td className="px-3 py-2.5">
-                            <div className="text-sm font-semibold text-gray-700">{booking.bookedBy}</div>
-                            <div className="text-xs text-gray-500">
+                          <TableCell className="py-3">
+                            <div className="text-sm text-gray-700">{booking.bookedBy}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">
                               {new Date(booking.bookedDate).toLocaleDateString('ru-RU')}
                             </div>
-                          </td>
+                          </TableCell>
                           
                           {/* Контакты */}
-                          <td className="px-3 py-2.5">
-                            <div className="text-xs text-gray-700">
-                              <div className="font-semibold">{booking.email}</div>
-                              <div className="text-gray-500">{booking.phone}</div>
+                          <TableCell className="py-3">
+                            <div className="text-xs light:text-gray-600 dark:text-gray-600">
+                              <div>{booking.email}</div>
+                              <div className="text-gray-500 mt-0.5">{booking.phone}</div>
                             </div>
-                          </td>
+                          </TableCell>
                           
                           {/* Заезд */}
-                          <td className="px-3 py-2.5">
+                          <TableCell className="py-3">
                             <div className="text-sm text-gray-700">
                               {new Date(booking.checkIn).toLocaleDateString('ru-RU')}
                             </div>
-                          </td>
+                          </TableCell>
                           
                           {/* Выезд */}
-                          <td className="px-3 py-2.5">
+                          <TableCell className="py-3">
                             <div className="text-sm text-gray-700">
                               {new Date(booking.checkOut).toLocaleDateString('ru-RU')}
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 mt-0.5">
                               {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'}
                             </div>
-                          </td>
+                          </TableCell>
                           
                           {/* Гости */}
-                          <td className="px-3 py-2.5">
-                            <div className="text-xs text-gray-700">
+                          <TableCell className="py-3">
+                            <div className="text-xs light:text-gray-600 dark:text-gray-600">
                               {booking.guests && booking.guests.length > 0 ? (
                                 <div className="space-y-1">
                                   {booking.guests.map((g, i) => (
@@ -711,14 +725,14 @@ export default function BookingsPage() {
                                         <img
                                           src={g.image}
                                           alt={g.name}
-                                          className="w-6 h-6 rounded-full object-cover border border-gray-300"
+                                          className="w-5 h-5 rounded-full object-cover border border-gray-200"
                                         />
                                       ) : (
-                                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300">
+                                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
                                           <span className="text-xs text-gray-500">{g.name.charAt(0).toUpperCase()}</span>
                                         </div>
                                       )}
-                                      <span className="text-gray-700">{g.name}</span>
+                                      <span className="light:text-gray-600 dark:text-gray-600">{g.name}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -726,43 +740,44 @@ export default function BookingsPage() {
                                 <span className="text-gray-400">Нет гостей</span>
                               )}
                             </div>
-                          </td>
+                          </TableCell>
                           
                           {/* Подтверждение */}
-                          <td className="px-3 py-2.5">
+                          <TableCell className="py-3">
                             {booking.isConfirmed ? (
-                              <div className="flex items-center gap-1 text-xs text-green-600">
-                                <CheckCircle className="w-4 h-4" />
-                                <span className="font-semibold">Подтверждено</span>
+                              <div className="flex items-center gap-1.5 text-xs text-green-600">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                <span>Подтверждено</span>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1 text-xs text-yellow-600">
+                              <div className="flex items-center gap-1.5 text-xs text-yellow-600">
+                                <div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
                                 <span>Ожидает</span>
                               </div>
                             )}
                             {booking.confirmedBy && (
-                              <div className="text-xs text-gray-500 mt-1">
+                              <div className="text-xs text-gray-500 mt-0.5">
                                 {booking.confirmedBy}
                               </div>
                             )}
                             {booking.confirmedDate && (
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-gray-500 mt-0.5">
                                 {new Date(booking.confirmedDate).toLocaleDateString('ru-RU')}
                               </div>
                             )}
-                          </td>
+                          </TableCell>
                           
                           {/* Оплата */}
-                          <td className="px-3 py-2.5">
+                          <TableCell className="py-3">
                             {booking.isPaid ? (
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-1 text-xs text-green-600">
-                                  <Euro className="w-4 h-4" />
-                                  <span className="font-semibold">Оплачено</span>
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5 text-xs text-green-600">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                  <span>Оплачено</span>
                                 </div>
-                                <div className="text-xs text-gray-600">
-                                  {booking.paymentMethod === 'cash' ? 'Оплачено наличными' : 
-                                   booking.paymentMethod === 'transfer' ? 'Оплачено переводом' : '-'}
+                                <div className="text-xs text-gray-500">
+                                  {booking.paymentMethod === 'cash' ? 'Наличными' : 
+                                   booking.paymentMethod === 'transfer' ? 'Переводом' : '-'}
                                 </div>
                                 {booking.paymentDate && (
                                   <div className="text-xs text-gray-500">
@@ -771,27 +786,28 @@ export default function BookingsPage() {
                                 )}
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1 text-xs text-red-600">
+                              <div className="flex items-center gap-1.5 text-xs text-red-600">
+                                <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
                                 <span>Не оплачено</span>
                               </div>
                             )}
-                          </td>
+                          </TableCell>
                           
                           {/* Сумма */}
-                          <td className="px-3 py-2.5">
-                            <div className="text-sm font-bold text-gray-900">
+                          <TableCell className="py-3">
+                            <div className="text-sm text-gray-700">
                               {totalPrice > 0 ? `${totalPrice.toFixed(2)}€` : '-'}
                             </div>
                             {room && room.price > 0 && (
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-gray-500 mt-0.5">
                                 {room.price}€{room.pricePerPerson ? '/Per' : ''}/ночь
                               </div>
                             )}
-                          </td>
+                          </TableCell>
                           
                           {/* Примечания */}
-                          <td className="px-3 py-2.5">
-                            <div className="text-xs text-gray-600 max-w-xs">
+                          <TableCell className="py-3">
+                            <div className="text-xs text-gray-500 max-w-xs">
                               {booking.notes ? (
                                 <div title={booking.notes} className="truncate">
                                   {booking.notes}
@@ -800,94 +816,116 @@ export default function BookingsPage() {
                                 <span className="text-gray-400">-</span>
                               )}
                             </div>
-                          </td>
+                          </TableCell>
                           
                           {/* Действия */}
-                          <td className="px-3 py-2.5">
+                          <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
                             <div className="flex flex-col gap-1">
+                              <button
+                                onClick={() => handleEdit(booking)}
+                                className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs whitespace-nowrap transition-colors flex items-center gap-1"
+                                title="Редактировать бронирование"
+                              >
+                                <Edit className="w-3 h-3" />
+                                Редактировать
+                              </button>
                               {canCancel && (
                                 <button
                                   onClick={() => handleCancel(booking)}
-                                  className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                  className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded text-xs whitespace-nowrap transition-colors"
                                   title="Отменить бронирование"
                                 >
                                   Отменить
                                 </button>
                               )}
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     } else {
                       // Для гостей - упрощенная версия
                       return (
-                        <tr
+                        <TableRow
                           key={booking.id}
-                          className={`border-b border-gray-100 transition-colors ${
+                          className={`hover:bg-gray-100 transition-colors ${
                             booking.bookedBy === currentUser.name
-                              ? 'bg-blue-50/50 hover:bg-blue-50'
-                              : 'hover:bg-gray-50'
+                              ? 'bg-blue-50/30'
+                              : ''
                           }`}
                         >
                           {/* Отель */}
-                          <td className="px-3 py-2.5">
-                            <div className="text-sm font-semibold text-gray-900">{booking.hotelName || 'N/A'}</div>
-                          </td>
+                          <TableCell className="py-3">
+                            <div className="text-sm text-gray-700">{booking.hotelName || 'N/A'}</div>
+                          </TableCell>
                           
                           {/* Комната */}
-                          <td className="px-3 py-2.5">
-                            <div className="font-semibold text-gray-900">#{booking.roomNumber || 'N/A'}</div>
+                          <TableCell className="py-3">
+                            <div className="text-sm text-gray-700">#{booking.roomNumber || 'N/A'}</div>
                             {room && (
-                              <div className="text-xs text-gray-500">
-                                {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : 'Общее'}
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {room.type === 'FZ' ? 'FZ' : room.type === 'DZ' ? 'DZ' : room.type === 'EZ' ? 'EZ' : room.type === 'MZ' ? 'MZ' : room.type === 'App' ? 'App' : ''}
                               </div>
                             )}
-                          </td>
-                          <td className="px-3 py-2.5 text-sm text-gray-700">
+                          </TableCell>
+                          <TableCell className="py-3 text-sm text-gray-700">
                             {new Date(booking.checkIn).toLocaleDateString('ru-RU')}
-                          </td>
-                          <td className="px-3 py-2.5 text-sm text-gray-700">
-                            {new Date(booking.checkOut).toLocaleDateString('ru-RU')}
-                          </td>
-                          <td className="px-3 py-2.5">
-                            <div className="text-xs text-gray-700">
+                          </TableCell>
+                          <TableCell className="py-3 text-sm text-gray-700">
+                            <div>{new Date(booking.checkOut).toLocaleDateString('ru-RU')}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-3">
+                            <div className="text-xs light:text-gray-600 dark:text-gray-600">
                               {booking.guests && booking.guests.length > 0 ? (
-                                <div>
-                                  <div className="font-semibold mb-2">{booking.guests.length} {booking.guests.length === 1 ? 'гость' : 'гостей'}</div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {booking.guests.slice(0, 3).map((g, i) => (
-                                      <div key={i} className="flex items-center gap-1.5">
-                                        {g.image ? (
-                                          <img
-                                            src={g.image}
-                                            alt={g.name}
-                                            className="w-8 h-8 rounded-full object-cover border border-gray-300"
-                                          />
-                                        ) : (
-                                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300">
-                                            <span className="text-xs text-gray-500">{g.name.charAt(0).toUpperCase()}</span>
-                                          </div>
-                                        )}
-                                        <span className="text-gray-700">{g.name}</span>
-                                      </div>
-                                    ))}
-                                    {booking.guests.length > 3 && (
-                                      <div className="text-gray-400">+{booking.guests.length - 3} еще</div>
-                                    )}
-                                  </div>
+                                <div className="space-y-1">
+                                  {booking.guests.slice(0, 3).map((g, i) => (
+                                    <div key={i} className="flex items-center gap-1.5">
+                                      {g.image ? (
+                                        <img
+                                          src={g.image}
+                                          alt={g.name}
+                                          className="w-5 h-5 rounded-full object-cover border border-gray-200"
+                                        />
+                                      ) : (
+                                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+                                          <span className="text-xs text-gray-500">{g.name.charAt(0).toUpperCase()}</span>
+                                        </div>
+                                      )}
+                                      <span className="light:text-gray-600 dark:text-gray-600">{g.name}</span>
+                                    </div>
+                                  ))}
+                                  {booking.guests.length > 3 && (
+                                    <div className="text-gray-400 text-[10px]">+{booking.guests.length - 3} еще</div>
+                                  )}
                                 </div>
                               ) : (
                                 <span className="text-gray-400">Нет гостей</span>
                               )}
                             </div>
-                          </td>
-                          <td className="px-3 py-2.5">
+                          </TableCell>
+                          <TableCell className="py-3">
+                            {booking.isConfirmed ? (
+                              <div className="flex items-center gap-1.5 text-xs text-green-600">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                <span>Подтверждено</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 text-xs text-yellow-600">
+                                <div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
+                                <span>Ожидает</span>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
                             <div className="flex flex-col gap-1">
-                              {canCancel && (
+                              {/* Кнопка редактирования всегда доступна для пользователя в его бронированиях */}
+                              {booking.bookedBy === currentUser.name && (
                                 <>
                                   <button
                                     onClick={() => handleEdit(booking)}
-                                    className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
+                                    className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs whitespace-nowrap transition-colors flex items-center gap-1"
                                     title="Редактировать бронирование"
                                   >
                                     <Edit className="w-3 h-3" />
@@ -895,7 +933,7 @@ export default function BookingsPage() {
                                   </button>
                                   <button
                                     onClick={() => handleCancel(booking)}
-                                    className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
+                                    className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded text-xs whitespace-nowrap transition-colors"
                                     title="Отменить бронирование"
                                   >
                                     Отменить
@@ -903,13 +941,13 @@ export default function BookingsPage() {
                                 </>
                               )}
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     }
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>
@@ -917,88 +955,46 @@ export default function BookingsPage() {
 
 
       {/* Модальное окно для редактирования бронирования */}
-      {showEditModal && selectedBookingForEdit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Редактировать бронирование</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
-                  Отель
-                </label>
-                <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">
-                  {selectedBookingForEdit.hotelName || 'N/A'}
-                </div>
-              </div>
+      {showEditModal && selectedBookingForEdit && (() => {
+        const bookingRoom = rooms.find(r => r.id === selectedBookingForEdit.roomId);
+        const bookingHotel = bookingRoom ? hotels.find(h => h.id === bookingRoom.hotelId) : null;
+        return (
+          <BookingFormModal
+            isOpen={showEditModal}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedBookingForEdit(null);
+            }}
+            onSubmit={handleSaveEdit}
+            initialData={{
+              checkIn: selectedBookingForEdit.checkIn.split('T')[0],
+              checkOut: selectedBookingForEdit.checkOut.split('T')[0],
+              guests: selectedBookingForEdit.guests || [],
+              email: selectedBookingForEdit.email || '',
+              phone: selectedBookingForEdit.phone || '',
+              notes: selectedBookingForEdit.notes || '',
+            }}
+            room={bookingRoom || undefined}
+            hotelName={bookingHotel?.name}
+            currentUser={currentUser}
+            mode="edit"
+            excludeBookingId={selectedBookingForEdit.id}
+          />
+        );
+      })()}
 
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
-                  Комната
-                </label>
-                <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">
-                  #{selectedBookingForEdit.roomNumber || 'N/A'}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
-                  Заезд <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={editCheckIn}
-                  onChange={(e) => setEditCheckIn(e.target.value)}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
-                  Выезд <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={editCheckOut}
-                  onChange={(e) => setEditCheckOut(e.target.value)}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
-                  Примечания
-                </label>
-                <textarea
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                  placeholder="Дополнительная информация..."
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setSelectedBookingForEdit(null);
-                }}
-                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg font-semibold"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold"
-              >
-                Сохранить
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Модальное окно подтверждения отмены бронирования */}
+      <ConfirmCancelBookingDialog
+        isOpen={showCancelDialog}
+        onClose={() => {
+          setShowCancelDialog(false);
+          setBookingToCancel(null);
+        }}
+        onConfirm={handleConfirmCancel}
+        roomNumber={bookingToCancel?.roomNumber}
+        bookedBy={bookingToCancel?.bookedBy}
+        isSubmitting={isCanceling}
+      />
     </div>
   );
 }

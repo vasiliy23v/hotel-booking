@@ -1,0 +1,9 @@
+{
+  "comment": "02.12 (Сделано)\r\n- Приведение к единому типу фильтров\r\n- Создан календарь в нормальном виде \r\n- Создан календарь с Range\r\n- Рефактор Sidebar панели\r\n  - Переход в сабменю\r\n- Наброски тёмной темы\r\n- Фиксы багов",
+  "userName": "Vasiliy Sh.",
+  "userEmail": "shevchuk.develop@gmail.com",
+  "userRole": "developer",
+  "screenshot": null,
+  "timestamp": "2025-12-02T19:54:37.041Z",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
+}

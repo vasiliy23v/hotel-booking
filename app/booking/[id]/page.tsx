@@ -2,9 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { Mail, Phone, Calendar, Users, Plus, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Room, User, Guest, BookingInfo } from '@/types';
+import { MultiStepForm } from '@/components/booking/MultiStepForm';
+import { DatesStep } from '@/components/booking/steps/DatesStep';
+import { GuestsStep } from '@/components/booking/steps/GuestsStep';
+import { ContactStep } from '@/components/booking/steps/ContactStep';
+import { NotesStep } from '@/components/booking/steps/NotesStep';
 
 export default function BookingPage() {
   const router = useRouter();
@@ -38,6 +42,10 @@ export default function BookingPage() {
     }
     return '';
   });
+  
+  // Преобразуем строки в Date объекты для DatePicker
+  const checkInDate = checkIn ? new Date(checkIn) : undefined;
+  const checkOutDate = checkOut ? new Date(checkOut) : undefined;
   const [guests, setGuests] = useState<Guest[]>([]);
   const [notes, setNotes] = useState('');
   const [manualUserName, setManualUserName] = useState('');
@@ -220,9 +228,28 @@ export default function BookingPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleCheckInChange = (date: string) => {
+    setCheckIn(date);
+    // Если даты одинаковые - автоматически добавляем +1 день к дате выезда
+    if (checkOut && date === checkOut) {
+      const nextDay = new Date(date);
+      nextDay.setDate(nextDay.getDate() + 1);
+      setCheckOut(`${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`);
+    }
+  };
+
+  const handleCheckOutChange = (date: string) => {
+    // Если даты одинаковые - автоматически добавляем +1 день
+    if (checkIn && date === checkIn) {
+      const nextDay = new Date(date);
+      nextDay.setDate(nextDay.getDate() + 1);
+      setCheckOut(`${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`);
+    } else {
+      setCheckOut(date);
+    }
+  };
+
+  const handleSubmit = async () => {
     // Проверка для менеджера - всегда требуется ввод имени и телефона вручную
     if (currentUser?.role === 'manager') {
       if (!manualUserName.trim() || !manualUserPhone.trim()) {
@@ -355,331 +382,115 @@ export default function BookingPage() {
     : 0;
   const total = nights * room.price;
 
+  const validateDates = () => {
+    if (!checkIn || !checkOut) return false;
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    return checkOutDate > checkInDate && isAvailable !== false;
+  };
+
+  const validateContact = () => {
+    if (currentUser?.role === 'manager') {
+      return !!(manualUserName && manualUserPhone);
+    }
+    return !!phone;
+  };
+
+  const steps = [
+    {
+      title: 'Даты',
+      description: 'Выберите даты',
+      content: (
+        <DatesStep
+          checkIn={checkIn}
+          checkOut={checkOut}
+          onCheckInChange={handleCheckInChange}
+          onCheckOutChange={handleCheckOutChange}
+          availabilityError={availabilityError}
+          isAvailable={isAvailable}
+          checkingAvailability={checkingAvailability}
+          minDate={new Date()}
+        />
+      ),
+      validate: validateDates,
+    },
+    {
+      title: 'Контакты',
+      description: 'Контактная информация',
+      content: (
+        <ContactStep
+          email={email}
+          phone={phone}
+          onEmailChange={setEmail}
+          onPhoneChange={setPhone}
+          currentUser={currentUser}
+          manualUserName={manualUserName}
+          manualUserPhone={manualUserPhone}
+          onManualUserNameChange={setManualUserName}
+          onManualUserPhoneChange={setManualUserPhone}
+        />
+      ),
+      validate: validateContact,
+    },
+    {
+      title: 'Гости',
+      description: 'Добавьте гостей',
+      content: (
+        <GuestsStep
+          guests={guests}
+          onGuestsChange={setGuests}
+          maxCapacity={room?.maxCapacity || 4}
+          onGuestImageUpload={handleGuestImageUpload}
+        />
+      ),
+    },
+    {
+      title: 'Примечания',
+      description: 'Дополнительная информация',
+      content: (
+        <NotesStep
+          notes={notes}
+          onNotesChange={setNotes}
+          roomNumber={room?.number}
+          checkIn={checkIn}
+          checkOut={checkOut}
+          nights={nights}
+        />
+      ),
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-background">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="bg-white dark:bg-card rounded-lg shadow-lg p-8">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground mb-2">
             Бронирование комнаты #{room.number}
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 dark:text-muted-foreground mb-6">
             {room.type === 'FZ' ? 'FZ' : room.type === 'DZ' ? 'DZ' : room.type === 'EZ' ? 'EZ' : room.type === 'MZ' ? 'MZ' : room.type === 'App' ? 'App' : 'Комната'} · {room.capacity} · {room.price}€{room.pricePerPerson ? '/Per' : ''}/ночь
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Контактная информация */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  <Mail className="w-4 h-4 inline mr-1" />
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  <Phone className="w-4 h-4 inline mr-1" />
-                  Телефон <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+491234567890"
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Даты */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  <Calendar className="w-4 h-4 inline mr-1" />
-                  Заезд <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={checkIn}
-                  onChange={(e) => {
-                    const newCheckIn = e.target.value;
-                    setCheckIn(newCheckIn);
-                    // Если даты одинаковые - автоматически добавляем +1 день к дате выезда
-                    if (newCheckIn && checkOut && newCheckIn === checkOut) {
-                      const nextDay = new Date(newCheckIn);
-                      nextDay.setDate(nextDay.getDate() + 1);
-                      setCheckOut(nextDay.toISOString().split('T')[0]);
-                    }
-                  }}
-                  min={today}
-                  className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
-                    isAvailable === false ? 'border-red-500' : isAvailable === true ? 'border-green-500' : 'border-gray-300 focus:border-gray-700'
-                  }`}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  <Calendar className="w-4 h-4 inline mr-1" />
-                  Выезд <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={checkOut}
-                  onChange={(e) => {
-                    const newCheckOut = e.target.value;
-                    // Если даты одинаковые - автоматически добавляем +1 день
-                    if (newCheckOut && checkIn && newCheckOut === checkIn) {
-                      const nextDay = new Date(newCheckOut);
-                      nextDay.setDate(nextDay.getDate() + 1);
-                      setCheckOut(nextDay.toISOString().split('T')[0]);
-                    } else {
-                      setCheckOut(newCheckOut);
-                    }
-                  }}
-                  min={checkIn || today}
-                  className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
-                    isAvailable === false ? 'border-red-500' : isAvailable === true ? 'border-green-500' : 'border-gray-300 focus:border-gray-700'
-                  }`}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Индикатор проверки доступности */}
-            {checkIn && checkOut && (
-              <div className="mt-2">
-                {checkingAvailability ? (
-                  <div className="flex items-center gap-2 text-blue-600 text-sm">
-                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                    Проверка доступности...
-                  </div>
-                ) : isAvailable === true ? (
-                  <div className="text-green-600 text-sm font-semibold flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-600 rounded-full"></span>
-                    Комната доступна на выбранные даты
-                  </div>
-                ) : isAvailable === false && availabilityError ? (
-                  <div className="text-red-600 text-sm font-semibold">
-                    {availabilityError}
-                  </div>
-                ) : null}
-              </div>
-            )}
-
-            {/* Ввод данных пользователя для менеджера */}
-            {currentUser.role === 'manager' && (
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  <Users className="w-4 h-4 inline mr-1" />
-                  Данные пользователя
-                </label>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">
-                      Имя пользователя <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={manualUserName}
-                      onChange={(e) => setManualUserName(e.target.value)}
-                      placeholder="Введите имя"
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">
-                      Телефон пользователя <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      value={manualUserPhone}
-                      onChange={(e) => setManualUserPhone(e.target.value)}
-                      placeholder="+491234567890"
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Гости */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold">
-                  <Users className="w-4 h-4 inline mr-1" />
-                  Гости (опционально)
-                </label>
-                <span className={`text-xs font-semibold px-2 py-1 rounded ${
-                  guests.length > (room.maxCapacity || 4)
-                    ? 'bg-red-100 text-red-700'
-                    : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {guests.length} / {room.maxCapacity || 4}
-                </span>
-              </div>
-
-              <div className="space-y-2 mb-3">
-                {guests.map((guest, idx) => (
-                  <div key={idx} className="flex gap-3 items-start p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                    {/* Фото гостя */}
-                    <div className="flex-shrink-0">
-                      {guest.image ? (
-                        <div className="relative">
-                          <img
-                            src={guest.image}
-                            alt={guest.name || 'Гость'}
-                            className="w-16 h-16 rounded-full object-cover border-2 border-gray-300"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => updateGuest(idx, 'image', '')}
-                            className="absolute -top-1 -right-1 bg-pink-900 hover:bg-pink-950 text-white rounded-full p-1"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="w-16 h-16 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleGuestImageUpload(idx, file);
-                            }}
-                            className="hidden"
-                          />
-                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        </label>
-                      )}
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <input
-                        type="text"
-                        value={guest.name}
-                        onChange={(e) => updateGuest(idx, 'name', e.target.value)}
-                        placeholder="Имя"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      />
-                      <input
-                        type="email"
-                        value={guest.email || ''}
-                        onChange={(e) => updateGuest(idx, 'email', e.target.value)}
-                        placeholder="Email"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      />
-                      <input
-                        type="tel"
-                        value={guest.phone || ''}
-                        onChange={(e) => updateGuest(idx, 'phone', e.target.value)}
-                        placeholder="Телефон"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeGuest(idx)}
-                      className="text-red-500 hover:text-red-700 p-1 flex-shrink-0"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {guests.length < (room.maxCapacity || 4) && (
-                <button
-                  type="button"
-                  onClick={addGuest}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Добавить гостя
-                </button>
-              )}
-            </div>
-
-            {/* Примечания */}
-            <div>
-              <label className="block text-sm font-semibold mb-2">
-                Примечания
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Особые пожелания, время прибытия..."
-                rows={3}
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            {/* Итого */}
-            {nights > 0 && (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm">Ночей:</span>
-                  <span className="font-semibold">{nights}</span>
-                </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm">Цена за ночь:</span>
-                  <span className="font-semibold">{room.price}€{room.pricePerPerson ? '/Per' : ''}</span>
-                </div>
-                <div className="border-t pt-2 mt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold">Итого:</span>
-                    <span className="text-xl font-bold text-gray-700">{total}€</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Кнопки */}
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  // Сохраняем даты в фильтр перед возвратом на dashboard
-                  // Сохраняем даже если даты пустые, чтобы не потерять предыдущие значения
-                  if (typeof window !== 'undefined') {
-                    localStorage.setItem('dashboard_dateFilterEnabled', 'true');
-                    // Сохраняем даты только если они заполнены, иначе оставляем предыдущие значения
-                    if (checkIn) {
-                      localStorage.setItem('dashboard_checkInDate', checkIn);
-                    }
-                    if (checkOut) {
-                      localStorage.setItem('dashboard_checkOutDate', checkOut);
-                    }
-                    // Если даты заполнены, сохраняем их
-                    // Если даты пустые, не трогаем localStorage (оставляем предыдущие значения)
-                  }
-                  router.push('/dashboard');
-                }}
-                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 rounded-lg font-semibold"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white py-3 rounded-lg font-semibold"
-              >
-                {submitting ? 'Сохранение...' : 'Забронировать'}
-              </button>
-            </div>
-          </form>
+          <MultiStepForm
+            steps={steps}
+            onSubmit={handleSubmit}
+            onCancel={() => {
+              // Сохраняем даты в фильтр перед возвратом на dashboard
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('dashboard_dateFilterEnabled', 'true');
+                if (checkIn) {
+                  localStorage.setItem('dashboard_checkInDate', checkIn);
+                }
+                if (checkOut) {
+                  localStorage.setItem('dashboard_checkOutDate', checkOut);
+                }
+              }
+              router.push('/dashboard');
+            }}
+            submitLabel="Забронировать"
+            cancelLabel="Отмена"
+            isSubmitting={submitting}
+          />
         </div>
       </div>
     </div>

@@ -195,7 +195,7 @@ export default function FeedbackView() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-2" />
-          <div className="text-gray-600">Загрузка отзывов...</div>
+          <div className="text-gray-600 dark:text-muted-foreground">Загрузка отзывов...</div>
         </div>
       </div>
     );
@@ -204,11 +204,11 @@ export default function FeedbackView() {
   return (
     <div className="space-y-4">
       {/* Заголовок и статистика */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-1">Отзывы и обратная связь</h2>
-            <p className="text-sm text-gray-600">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-foreground mb-1">Отзывы и обратная связь</h2>
+            <p className="text-sm text-gray-600 dark:text-muted-foreground">
               Всего отзывов: {feedbacks.length} 
               {filteredFeedbacks.length !== feedbacks.length && ` (найдено: ${filteredFeedbacks.length})`}
             </p>
@@ -216,14 +216,14 @@ export default function FeedbackView() {
           <div className="flex gap-2">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-white dark:bg-card border border-gray-300 dark:border-border text-gray-700 dark:text-foreground rounded-lg hover:bg-gray-50 dark:hover:bg-accent transition-colors flex items-center gap-2"
             >
               <Filter className="w-4 h-4" />
               <span>Фильтры</span>
             </button>
             <button
               onClick={loadFeedbacks}
-              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-gray-900 dark:bg-primary text-white dark:text-primary-foreground rounded-lg hover:bg-gray-800 dark:hover:bg-accent transition-colors flex items-center gap-2"
             >
               <RefreshCw className="w-4 h-4" />
               <span>Обновить</span>
@@ -234,20 +234,20 @@ export default function FeedbackView() {
         {/* Поиск и фильтры */}
         <div className={`space-y-3 ${showFilters ? 'block' : 'hidden'}`}>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
             <input
               type="text"
               placeholder="Поиск по имени, email или тексту отзыва..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground"
             />
           </div>
           <div className="flex gap-3">
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
+              className="px-4 py-2 border border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground"
             >
               <option key="all" value="all">Все роли</option>
               {uniqueRoles.map(role => (
@@ -262,7 +262,7 @@ export default function FeedbackView() {
                   setSearchQuery('');
                   setFilterRole('all');
                 }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 flex items-center gap-2"
+                className="px-4 py-2 text-gray-600 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground flex items-center gap-2"
               >
                 <X className="w-4 h-4" />
                 <span>Сбросить</span>
@@ -274,9 +274,9 @@ export default function FeedbackView() {
 
       {/* Список отзывов */}
       {filteredFeedbacks.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-          <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">
+        <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-12 text-center">
+          <MessageSquare className="w-12 h-12 text-gray-400 dark:text-muted-foreground mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-foreground">
             {feedbacks.length === 0 
               ? 'Отзывов пока нет' 
               : 'Отзывы не найдены по заданным фильтрам'}
@@ -291,8 +291,8 @@ export default function FeedbackView() {
               key={feedback.id}
               className={`rounded-lg border p-4 sm:p-6 transition-all ${
                 feedback.isProcessed
-                  ? 'bg-gray-50 border-gray-300 opacity-75'
-                  : 'bg-white border-gray-200 hover:shadow-md'
+                  ? 'bg-gray-50 dark:bg-muted border-gray-300 dark:border-border opacity-75'
+                  : 'bg-white dark:bg-card border-gray-200 dark:border-border hover:shadow-md dark:hover:border-accent'
               }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -308,12 +308,12 @@ export default function FeedbackView() {
                   </label>
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shrink-0">
-                        <User className={`w-5 h-5 ${feedback.isProcessed ? 'text-gray-400' : 'text-gray-600'}`} />
+                      <div className="w-10 h-10 bg-gray-100 dark:bg-muted rounded-full flex items-center justify-center shrink-0">
+                        <User className={`w-5 h-5 ${feedback.isProcessed ? 'text-gray-400 dark:text-muted-foreground' : 'text-gray-600 dark:text-muted-foreground'}`} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className={`font-semibold ${feedback.isProcessed ? 'text-gray-500' : 'text-gray-900'}`}>
+                          <h3 className={`font-semibold ${feedback.isProcessed ? 'text-gray-500 dark:text-muted-foreground' : 'text-gray-900 dark:text-foreground'}`}>
                             {feedback.userName}
                           </h3>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getRoleBadgeColor(feedback.userRole)} ${feedback.isProcessed ? 'opacity-60' : ''}`}>
@@ -321,7 +321,7 @@ export default function FeedbackView() {
                           </span>
                         </div>
                         {feedback.userEmail && (
-                          <p className={`text-sm flex items-center gap-1 mt-0.5 ${feedback.isProcessed ? 'text-gray-400' : 'text-gray-500'}`}>
+                          <p className={`text-sm flex items-center gap-1 mt-0.5 ${feedback.isProcessed ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'}`}>
                             <Mail className="w-3 h-3" />
                             {feedback.userEmail}
                           </p>
@@ -329,17 +329,17 @@ export default function FeedbackView() {
                       </div>
                     </div>
                     
-                    <p className={`mb-3 line-clamp-3 whitespace-pre-wrap ${feedback.isProcessed ? 'text-gray-500' : 'text-gray-700'}`}>
+                    <p className={`mb-3 line-clamp-3 whitespace-pre-wrap ${feedback.isProcessed ? 'text-gray-500 dark:text-muted-foreground' : 'text-gray-700 dark:text-foreground'}`}>
                       {feedback.comment}
                     </p>
                     
-                    <div className={`flex items-center gap-4 text-xs flex-wrap ${feedback.isProcessed ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <div className={`flex items-center gap-4 text-xs flex-wrap ${feedback.isProcessed ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'}`}>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
                         {formatDate(feedback.createdAt)}
                       </span>
                       {feedback.screenshot && (
-                        <span className={`flex items-center gap-1 ${feedback.isProcessed ? 'text-gray-400' : 'text-blue-600'}`}>
+                        <span className={`flex items-center gap-1 ${feedback.isProcessed ? 'text-gray-400 dark:text-gray-500' : 'text-blue-600 dark:text-blue-400'}`}>
                           <ImageIcon className="w-3 h-3" />
                           Есть скриншот
                         </span>
@@ -353,8 +353,8 @@ export default function FeedbackView() {
                     onClick={() => handleViewDetail(feedback)}
                     className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
                       feedback.isProcessed
-                        ? 'bg-gray-300 text-gray-600 hover:bg-gray-400'
-                        : 'bg-gray-900 text-white hover:bg-gray-800'
+                        ? 'bg-gray-300 dark:bg-muted text-gray-600 dark:text-muted-foreground hover:bg-gray-400 dark:hover:bg-accent'
+                        : 'bg-gray-900 dark:bg-primary text-white dark:text-primary-foreground hover:bg-gray-800 dark:hover:bg-accent'
                     }`}
                   >
                     <Eye className="w-4 h-4" />
@@ -365,8 +365,8 @@ export default function FeedbackView() {
                     disabled={deletingId === feedback.id}
                     className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                       feedback.isProcessed
-                        ? 'bg-gray-300 text-gray-600 hover:bg-gray-400'
-                        : 'bg-red-600 text-white hover:bg-red-700'
+                        ? 'bg-gray-300 dark:bg-[hsl(var(--muted))] light:text-gray-600 dark:text-gray-600 dark:text-gray-400 hover:bg-gray-400 dark:hover:bg-[hsl(var(--accent))]'
+                        : 'bg-red-600 dark:bg-red-700 text-white hover:bg-red-700 dark:hover:bg-red-800'
                     }`}
                     title="Удалить отзыв"
                   >
@@ -388,15 +388,15 @@ export default function FeedbackView() {
       {/* Модальное окно с деталями */}
       {showDetailModal && selectedFeedback && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Детали отзыва</h2>
+          <div className="bg-white dark:bg-card rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="sticky top-0 bg-white dark:bg-card border-b border-gray-200 dark:border-border px-4 sm:px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-foreground">Детали отзыва</h2>
               <button
                 onClick={() => {
                   setShowDetailModal(false);
                   setSelectedFeedback(null);
                 }}
-                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                className="p-1 text-gray-400 dark:text-gray-500 hover:light:text-gray-600 dark:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -406,7 +406,7 @@ export default function FeedbackView() {
               {/* Информация о пользователе */}
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shrink-0">
-                  <User className="w-6 h-6 text-gray-600" />
+                  <User className="w-6 h-6 light:text-gray-600 dark:text-gray-600" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -416,7 +416,7 @@ export default function FeedbackView() {
                     </span>
                   </div>
                   {selectedFeedback.userEmail && (
-                    <p className="text-sm text-gray-600 flex items-center gap-1 mb-2">
+                    <p className="text-sm light:text-gray-600 dark:text-gray-600 flex items-center gap-1 mb-2">
                       <Mail className="w-4 h-4" />
                       {selectedFeedback.userEmail}
                     </p>
@@ -430,9 +430,9 @@ export default function FeedbackView() {
 
               {/* Текст отзыва */}
               <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Текст отзыва:</h4>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-700 whitespace-pre-wrap">{selectedFeedback.comment}</p>
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-foreground mb-2">Текст отзыва:</h4>
+                <div className="bg-gray-50 dark:bg-muted rounded-lg p-4">
+                  <p className="text-gray-700 dark:text-foreground whitespace-pre-wrap">{selectedFeedback.comment}</p>
                 </div>
               </div>
 
@@ -463,7 +463,7 @@ export default function FeedbackView() {
               {selectedFeedback.userAgent && (
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">Информация о браузере:</h4>
-                  <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3 break-all">
+                  <p className="text-sm light:text-gray-600 dark:text-gray-600 bg-gray-50 rounded-lg p-3 break-all">
                     {selectedFeedback.userAgent}
                   </p>
                 </div>

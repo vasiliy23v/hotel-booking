@@ -48,6 +48,16 @@ export default function HotelsView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Синхронизируем viewingHotelId с selectedHotel из сайдбара
+  useEffect(() => {
+    if (selectedHotel && selectedHotel !== viewingHotelId) {
+      setViewingHotelId(selectedHotel);
+    } else if (!selectedHotel && viewingHotelId) {
+      // Если selectedHotel сброшен (например, выбрали "Все отели"), закрываем детальный вид
+      setViewingHotelId(null);
+    }
+  }, [selectedHotel, viewingHotelId]);
+
   const handleDeleteHotel = async (hotel: Hotel) => {
     setHotelToDelete(hotel);
     setShowDeleteModal(true);
@@ -103,7 +113,10 @@ export default function HotelsView({
     return (
       <HotelDetailView
         hotelId={viewingHotelId}
-        onBack={() => setViewingHotelId(null)}
+        onBack={() => {
+          setViewingHotelId(null);
+          onSelectHotel(''); // Сбрасываем выбор в сайдбаре
+        }}
         onHotelUpdate={loadHotels}
       />
     );
@@ -111,7 +124,7 @@ export default function HotelsView({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200">
+      <div className="bg-white dark:bg-card rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-border">
         <div className="mb-4 flex justify-end gap-2">
           <button
             onClick={() => setShowOrderModal(true)}
@@ -136,8 +149,11 @@ export default function HotelsView({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {hotels.map(hotel => (
-            <div key={hotel.id} className="bg-white border-2 border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors flex flex-col">
-              <div className="w-full h-48 overflow-hidden cursor-pointer" onClick={() => setViewingHotelId(hotel.id)}>
+            <div key={hotel.id} className="bg-white dark:bg-card border-2 border-gray-200 dark:border-border rounded-lg overflow-hidden hover:border-gray-300 dark:hover:border-accent transition-colors flex flex-col">
+              <div className="w-full h-48 overflow-hidden cursor-pointer" onClick={() => {
+                setViewingHotelId(hotel.id);
+                onSelectHotel(hotel.id);
+              }}>
                 {hotel.image ? (
                   <img
                     src={hotel.image}
@@ -145,30 +161,36 @@ export default function HotelsView({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                    <Building2 className="w-16 h-16 text-gray-400" />
+                  <div className="w-full h-full bg-gray-200 dark:bg-muted flex items-center justify-center">
+                    <Building2 className="w-16 h-16 text-gray-400 dark:text-muted-foreground" />
                   </div>
                 )}
               </div>
               <div className="p-4 sm:p-6 flex flex-col grow">
                 <h3 
-                  className="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2 cursor-pointer hover:text-gray-700"
-                  onClick={() => setViewingHotelId(hotel.id)}
+                  className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground mb-1 sm:mb-2 cursor-pointer hover:text-gray-700 dark:hover:text-foreground"
+                  onClick={() => {
+                    setViewingHotelId(hotel.id);
+                    onSelectHotel(hotel.id);
+                  }}
                 >
                   {hotel.name}
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2">{hotel.address}</p>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-muted-foreground mb-1 sm:mb-2">{hotel.address}</p>
                 {hotel.description && (
-                  <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{hotel.description}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-muted-foreground mb-2 line-clamp-2">{hotel.description}</p>
                 )}
                 {hotel.floors && (
-                  <p className="text-xs sm:text-sm text-gray-700 mb-3 sm:mb-4 font-semibold">
+                  <p className="text-xs sm:text-sm text-gray-700 dark:text-foreground mb-3 sm:mb-4 font-semibold">
                     Этажей: {hotel.floors} {hotel.floors === 1 ? 'этаж' : hotel.floors < 5 ? 'этажа' : 'этажей'}
                   </p>
                 )}
                 <div className="flex gap-1.5 sm:gap-2 mt-auto">
                   <button
-                    onClick={() => setViewingHotelId(hotel.id)}
+                    onClick={() => {
+                      setViewingHotelId(hotel.id);
+                      onSelectHotel(hotel.id);
+                    }}
                     className="flex-1 bg-black hover:bg-black-90 text-white py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1"
                   >
                     <span className="hidden sm:inline">Открыть</span>
@@ -221,8 +243,8 @@ export default function HotelsView({
       {/* Модальное окно подтверждения удаления */}
       {showDeleteModal && hotelToDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Подтверждение удаления отеля</h2>
+          <div className="bg-white dark:bg-card rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-foreground mb-4">Подтверждение удаления отеля</h2>
             
             <div className="space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -240,7 +262,7 @@ export default function HotelsView({
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
                   Для подтверждения введите название отеля: <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -248,10 +270,10 @@ export default function HotelsView({
                   value={deleteConfirmName}
                   onChange={(e) => setDeleteConfirmName(e.target.value)}
                   placeholder={hotelToDelete.name}
-                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground"
                   autoFocus
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
                   Введите: <strong>{hotelToDelete.name}</strong>
                 </p>
               </div>
@@ -264,7 +286,7 @@ export default function HotelsView({
                   setHotelToDelete(null);
                   setDeleteConfirmName('');
                 }}
-                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg font-semibold"
+                className="flex-1 bg-gray-300 dark:bg-muted hover:bg-gray-400 dark:hover:bg-accent text-gray-700 dark:text-foreground py-2 rounded-lg font-semibold"
               >
                 Отмена
               </button>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, X, Copy, CheckCircle, AlertCircle, Clock, ArrowRight, KeyRound, Mail, Trash2, Key, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { User, Invite } from '@/types';
 import UserDetailView from './UserDetailView';
 import Toast, { type ToastType } from './Toast';
@@ -382,14 +383,14 @@ export default function UsersManagementView({
       )}
       <div className="space-y-4 sm:space-y-6">
         {/* Секция управления общим токеном регистрации */}
-        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200">
+        <div className="bg-white dark:bg-card rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-border">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2 mb-2">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground flex items-center gap-2 mb-2">
                 <Key className="w-5 h-5 sm:w-6 sm:h-6" />
                 Общий токен регистрации
               </h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-muted-foreground">
                 Создайте общую ссылку для регистрации. Люди с этой ссылкой смогут регистрироваться без индивидуальных приглашений.
               </p>
             </div>
@@ -397,13 +398,13 @@ export default function UsersManagementView({
 
           {registrationToken?.exists ? (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-green-600">
+              <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
                 <CheckCircle className="w-5 h-5" />
                 <span className="text-sm font-medium">Активный токен создан</span>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                <div className="text-xs text-gray-600 mb-2">Создан:</div>
-                <div className="text-sm text-gray-900">
+              <div className="bg-gray-50 dark:bg-muted rounded-lg p-3 border border-gray-200 dark:border-border">
+                <div className="text-xs text-gray-600 dark:text-muted-foreground mb-2">Создан:</div>
+                <div className="text-sm text-gray-900 dark:text-foreground">
                   {new Date(registrationToken.createdAt).toLocaleString('ru-RU', {
                     day: '2-digit',
                     month: '2-digit',
@@ -416,14 +417,14 @@ export default function UsersManagementView({
               
               {/* Ссылка для копирования */}
               {activeRegistrationUrl ? (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div className="text-xs text-blue-600 mb-2 font-semibold">Ссылка для регистрации:</div>
+                <div className="bg-gray-50 dark:bg-muted border border-gray-200 dark:border-border rounded-lg p-3">
+                  <div className="text-xs text-gray-600 dark:text-muted-foreground mb-2 font-semibold">Ссылка для регистрации:</div>
                   <div className="flex gap-2 items-center">
                     <input
                       type="text"
                       value={activeRegistrationUrl}
                       readOnly
-                      className="flex-1 px-3 py-2 border border-blue-300 rounded-lg bg-white text-sm"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-sm text-gray-700 dark:text-foreground"
                       onClick={(e) => (e.target as HTMLInputElement).select()}
                     />
                     <button
@@ -443,7 +444,7 @@ export default function UsersManagementView({
                           });
                         }
                       }}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 text-sm font-semibold shrink-0"
+                      className="px-4 py-2 bg-gray-700 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/80 text-white dark:text-primary-foreground rounded-lg flex items-center gap-2 text-sm font-semibold shrink-0 transition-colors"
                     >
                       {copiedRegistrationUrl ? (
                         <>
@@ -537,19 +538,19 @@ export default function UsersManagementView({
                     }
                   }}
                   disabled={registrationTokenLoading}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
+                  className="px-4 py-2 bg-gray-700 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/80 text-white dark:text-primary-foreground rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50 transition-colors"
                 >
                   <RefreshCw className={`w-4 h-4 ${registrationTokenLoading ? 'animate-spin' : ''}`} />
                   {registrationTokenLoading ? 'Создание...' : 'Создать новый токен'}
                 </button>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-muted-foreground">
                 При создании нового токена старый автоматически деактивируется. Все ссылки со старым токеном перестанут работать.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-gray-600 dark:text-muted-foreground">
                 <AlertCircle className="w-5 h-5" />
                 <span className="text-sm">Общий токен регистрации не создан</span>
               </div>
@@ -583,7 +584,7 @@ export default function UsersManagementView({
                   }
                 }}
                 disabled={registrationTokenLoading}
-                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
+                className="px-4 py-2 bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/80 text-white dark:text-primary-foreground rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50 transition-colors"
               >
                 <Key className={`w-4 h-4 ${registrationTokenLoading ? 'animate-spin' : ''}`} />
                 {registrationTokenLoading ? 'Создание...' : 'Создать токен регистрации'}
@@ -592,15 +593,15 @@ export default function UsersManagementView({
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200">
+        <div className="bg-white dark:bg-card rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-border">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-foreground flex items-center gap-2">
               <Users className="w-5 h-5 sm:w-6 sm:h-6" />
               Управление пользователями
             </h2>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+              className="px-4 py-2 bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/80 text-white dark:text-primary-foreground rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors"
             >
               <Plus className="w-4 h-4" />
               Добавить пользователя
@@ -608,55 +609,57 @@ export default function UsersManagementView({
           </div>
 
           {users.length === 0 && invites.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+            <div className="text-center py-12 text-gray-500 dark:text-muted-foreground">
+              <Users className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-muted-foreground" />
               <p>Нет пользователей</p>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="mt-4 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-semibold"
+                className="mt-4 px-4 py-2 bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/80 text-white dark:text-primary-foreground rounded-lg text-sm font-semibold transition-colors"
               >
                 Добавить первого пользователя
               </button>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse min-w-[1000px]">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Имя</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Email</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Телефон</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Роль</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Дата регистрации</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Действия</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="min-w-[1000px]">
+                <TableHeader>
+                  <TableRow className="bg-gray-50 dark:bg-muted hover:bg-transparent border-b border-gray-200 dark:border-border">
+                    <TableHead className="text-xs font-semibold text-gray-700 dark:text-foreground">Имя</TableHead>
+                    <TableHead className="text-xs font-semibold text-gray-700 dark:text-foreground">Email</TableHead>
+                    <TableHead className="text-xs font-semibold text-gray-700 dark:text-foreground">Телефон</TableHead>
+                    <TableHead className="text-xs font-semibold text-gray-700 dark:text-foreground">Роль</TableHead>
+                    <TableHead className="text-xs font-semibold text-gray-700 dark:text-foreground">Дата регистрации</TableHead>
+                    <TableHead className="text-xs font-semibold text-gray-700 dark:text-foreground">Действия</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {users.map((user) => {
                     const userInvites = getUserInvites(user.name);
                     const userHasUsedInvites = hasUsedInvites(user.name);
                     return (
                       <React.Fragment key={user.id}>
-                        <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                          <td className="px-3 py-2.5 text-sm text-gray-900 font-medium">
+                        <TableRow className="hover:bg-gray-100 dark:hover:bg-accent transition-colors">
+                          <TableCell className="text-sm text-gray-900 dark:text-foreground font-medium">
                             {user.name}
-                          </td>
-                          <td className="px-3 py-2.5 text-sm text-gray-700">
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-700 dark:text-foreground">
                             {user.email}
-                          </td>
-                          <td className="px-3 py-2.5 text-sm text-gray-700">
-                            {user.phone || <span className="text-gray-400">—</span>}
-                          </td>
-                          <td className="px-3 py-2.5">
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-700 dark:text-foreground">
+                            {user.phone || <span className="text-gray-400 dark:text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell>
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
                               user.role === 'manager' 
-                                ? 'bg-blue-100 text-blue-800' 
-                                : 'bg-gray-100 text-gray-800'
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' 
+                                : user.role === 'developer'
+                                ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
                             }`}>
                               {user.role === 'developer' ? 'Разработчик' : user.role === 'manager' ? 'Менеджер' : 'Гость'}
                             </span>
-                          </td>
-                          <td className="px-3 py-2.5 text-sm text-gray-700">
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-700 dark:text-foreground">
                             {user.createdAt ? (
                               new Date(user.createdAt).toLocaleDateString('ru-RU', {
                                 day: '2-digit',
@@ -666,14 +669,14 @@ export default function UsersManagementView({
                                 minute: '2-digit'
                               })
                             ) : (
-                              <span className="text-gray-400">—</span>
+                              <span className="text-gray-400 dark:text-muted-foreground">—</span>
                             )}
-                          </td>
-                          <td className="px-3 py-2.5">
+                          </TableCell>
+                          <TableCell>
                             <div className="flex items-center gap-2 flex-wrap">
                               <button
                                 onClick={() => onSelectUser(user.id!)}
-                                className="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5"
+                                className="px-3 py-1.5 bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/80 text-white dark:text-primary-foreground rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
                               >
                                 <span>Подробнее</span>
                                 <ArrowRight className="w-3 h-3" />
@@ -684,7 +687,7 @@ export default function UsersManagementView({
                                 resetPasswordLinks[user.id!] ? (
                                   <button
                                     onClick={() => handleCopyResetLink(user.id!, resetPasswordLinks[user.id!])}
-                                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5"
+                                    className="px-3 py-1.5 bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
                                     title="Скопировать ссылку для сброса пароля"
                                   >
                                     {copiedUserId === user.id! ? (
@@ -702,7 +705,7 @@ export default function UsersManagementView({
                                 ) : (
                                   <button
                                     onClick={() => handleResetPassword(user)}
-                                    className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5"
+                                    className="px-3 py-1.5 bg-orange-600 dark:bg-orange-700 hover:bg-orange-700 dark:hover:bg-orange-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
                                     title="Создать ссылку для сброса пароля"
                                   >
                                     <KeyRound className="w-3 h-3" />
@@ -712,7 +715,7 @@ export default function UsersManagementView({
                               ) : (
                                 <button
                                   onClick={() => handleRecreateInvite(user.name)}
-                                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5"
+                                  className="px-3 py-1.5 bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
                                   title="Создать/регенерировать приглашение"
                                 >
                                   <Mail className="w-3 h-3" />
@@ -723,7 +726,7 @@ export default function UsersManagementView({
                               {user.id !== currentUser.id && (
                                 <button
                                   onClick={() => handleDeleteUser(user)}
-                                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5"
+                                  className="px-3 py-1.5 bg-red-600 dark:bg-red-700 hover:bg-red-700 dark:hover:bg-red-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
                                   title="Удалить пользователя"
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -731,8 +734,8 @@ export default function UsersManagementView({
                                 </button>
                               )}
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                         
                         {/* Показываем приглашение только если оно было создано/регенерировано */}
                         {visibleInviteUrl && userInvites.some(inv => inv.id === visibleInviteUrl) && (() => {
@@ -741,8 +744,8 @@ export default function UsersManagementView({
                           if (!invite || !inviteUrl) return null;
                           
                           return (
-                            <tr key={`${user.id}-invite`} className="bg-gray-50">
-                              <td colSpan={6} className="px-3 py-3">
+                            <TableRow key={`${user.id}-invite`} className="bg-gray-50 dark:bg-muted hover:bg-gray-50 dark:hover:bg-accent">
+                              <TableCell colSpan={6} className="py-3">
                                 <div className="space-y-2">
                                   <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
                                     <Mail className="w-3 h-3" />
@@ -753,12 +756,12 @@ export default function UsersManagementView({
                                       type="text"
                                       value={inviteUrl}
                                       readOnly
-                                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-sm text-gray-900 dark:text-foreground"
                                       onClick={(e) => (e.target as HTMLInputElement).select()}
                                     />
                                     <button
                                       onClick={() => handleCopyLink(inviteUrl)}
-                                      className="px-3 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg flex items-center gap-2 text-sm"
+                                      className="px-3 py-2 bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/80 text-white dark:text-primary-foreground rounded-lg flex items-center gap-2 text-sm transition-colors"
                                     >
                                       {copiedToken === inviteUrl ? (
                                         <>
@@ -774,21 +777,21 @@ export default function UsersManagementView({
                                     </button>
                                     <button
                                       onClick={() => setVisibleInviteUrl(null)}
-                                      className="px-3 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg text-sm"
+                                      className="px-3 py-2 bg-gray-300 dark:bg-muted hover:bg-gray-400 dark:hover:bg-accent text-gray-700 dark:text-foreground rounded-lg text-sm transition-colors"
                                     >
                                       <X className="w-4 h-4" />
                                     </button>
                                   </div>
                                 </div>
-                              </td>
-                            </tr>
+                              </TableCell>
+                            </TableRow>
                           );
                         })()}
                       </React.Fragment>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>
@@ -797,7 +800,7 @@ export default function UsersManagementView({
       {/* Модальное окно создания приглашения/пользователя */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-card rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 sm:p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl sm:text-2xl font-bold">Добавить пользователя</h2>
@@ -820,12 +823,12 @@ export default function UsersManagementView({
               </div>
 
               {/* Переключатель режима создания */}
-              <div className="mb-4 flex gap-2 border-b border-gray-200">
+              <div className="mb-4 flex gap-2 border-b border-gray-200 dark:border-border">
                 <button
                   onClick={() => setCreateMode('direct')}
                   className={`px-4 py-2 text-sm font-semibold transition-colors ${
                     createMode === 'direct'
-                      ? 'border-b-2 border-gray-900 text-gray-900'
+                      ? 'border-b-2 border-gray-900 dark:border-ring text-gray-900 dark:text-foreground'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -835,7 +838,7 @@ export default function UsersManagementView({
                   onClick={() => setCreateMode('invite')}
                   className={`px-4 py-2 text-sm font-semibold transition-colors ${
                     createMode === 'invite'
-                      ? 'border-b-2 border-gray-900 text-gray-900'
+                      ? 'border-b-2 border-gray-900 dark:border-ring text-gray-900 dark:text-foreground'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >

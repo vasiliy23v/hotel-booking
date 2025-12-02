@@ -76,17 +76,17 @@ export default function Home() {
   return (
     <div className="min-h-screen flex">
       {/* Левая часть - Форма */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 bg-white">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 bg-white dark:bg-background">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <Building2 className="w-16 h-16 mx-auto text-gray-700 mb-4" />
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Hotel Booking</h1>
-            <p className="text-gray-600">Войдите в систему</p>
+            <Building2 className="w-16 h-16 mx-auto text-gray-700 dark:text-foreground mb-4" />
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground mb-2">Hotel Booking</h1>
+            <p className="text-gray-600 dark:text-muted-foreground">Войдите в систему</p>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
                 <Mail className="w-4 h-4 inline mr-1" />
                 Email или телефон <span className="text-red-500">*</span>
               </label>
@@ -98,12 +98,12 @@ export default function Home() {
                   setAuthError('');
                 }}
                 placeholder="email@example.com или +79991234567"
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-700 focus:outline-none"
+                className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-700 dark:focus:border-ring focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">
+              <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
                 Пароль <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -116,12 +116,12 @@ export default function Home() {
                   }}
                   onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
                   placeholder="••••••••"
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-900 dark:focus:border-ring focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-muted-foreground hover:text-gray-700 dark:hover:text-foreground"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -129,7 +129,7 @@ export default function Home() {
             </div>
 
             {authError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              <div className="bg-red-50 dark:bg-destructive/20 border border-red-200 dark:border-destructive/50 text-red-700 dark:text-destructive-foreground px-4 py-3 rounded-lg text-sm">
                 {authError}
               </div>
             )}
@@ -137,12 +137,12 @@ export default function Home() {
             <button
               onClick={handleLogin}
               disabled={loading}
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
+              className="w-full bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white dark:text-primary-foreground py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
             >
               {loading ? 'Загрузка...' : 'Войти'}
             </button>
 
-            <div className="text-center text-sm text-gray-600 pt-4 border-t">
+            <div className="text-center text-sm text-gray-600 dark:text-muted-foreground pt-4 border-t border-gray-200 dark:border-border">
               <p>Регистрация доступна только по приглашению</p>
             </div>
           </div>
@@ -156,7 +156,7 @@ export default function Home() {
           alt="Hotel"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/10 dark:from-black/0 dark:to-black/10"></div>
       </div>
 
     </div>

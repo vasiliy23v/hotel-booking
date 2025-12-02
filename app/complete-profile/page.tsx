@@ -125,31 +125,31 @@ export default function CompleteProfilePage() {
 
   if (checking || !currentUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Загрузка...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-muted-foreground">Загрузка...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-background p-4">
+      <div className="max-w-md w-full bg-white dark:bg-card rounded-lg shadow-lg p-8">
         <div className="text-center mb-8">
-          <Lock className="w-16 h-16 mx-auto text-gray-700 mb-4" />
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <Lock className="w-16 h-16 mx-auto text-gray-700 dark:text-foreground mb-4" />
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground mb-2">
             Завершите регистрацию
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-muted-foreground">
             Для продолжения работы необходимо указать телефон (обязательно), email (опционально) и установить пароль
           </p>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold mb-2 text-gray-700">
+            <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
               <Phone className="w-4 h-4 inline mr-1" />
               Телефон <span className="text-red-500">*</span>
             </label>
@@ -161,16 +161,16 @@ export default function CompleteProfilePage() {
                 setError('');
               }}
               placeholder="+491234567890"
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
+              className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-900 dark:focus:border-ring focus:outline-none"
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
               Обязательное поле для входа в систему
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-2 text-gray-700">
+            <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
               <Mail className="w-4 h-4 inline mr-1" />
               Email
             </label>
@@ -182,15 +182,15 @@ export default function CompleteProfilePage() {
                 setError('');
               }}
               placeholder="email@example.com"
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
+              className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-900 dark:focus:border-ring focus:outline-none"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
               Опционально. Можно использовать для входа в систему
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-2 text-gray-700">
+            <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
               Пароль <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -213,43 +213,43 @@ export default function CompleteProfilePage() {
                 }}
                 onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
                 placeholder="••••••••"
-                className={`w-full px-4 py-3 pr-12 border-2 rounded-lg focus:outline-none bg-white text-gray-900 ${
+                className={`w-full px-4 py-3 pr-12 border-2 rounded-lg focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground ${
                   passwordError && passwordTouched
-                    ? 'border-red-500 focus:border-red-500'
+                    ? 'border-red-500 dark:border-destructive focus:border-red-500 dark:focus:border-destructive'
                     : passwordTouched && !passwordError && password
-                    ? 'border-green-500 focus:border-green-500'
-                    : 'border-gray-300 focus:border-gray-900'
+                    ? 'border-green-500 dark:border-green-600 focus:border-green-500 dark:focus:border-green-600'
+                    : 'border-gray-300 dark:border-border focus:border-gray-900 dark:focus:border-ring'
                 }`}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-muted-foreground hover:text-gray-700 dark:hover:text-foreground"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
             {passwordError && passwordTouched && (
-              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+              <p className="text-xs text-red-500 dark:text-destructive-foreground mt-1 flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" />
                 {passwordError}
               </p>
             )}
             {!passwordError && passwordTouched && password && (
-              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
                 <CheckCircle className="w-3 h-3" />
                 Пароль введен корректно
               </p>
             )}
             {!passwordTouched && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
                 Минимум 6 символов, только латинские буквы, цифры и специальные символы
               </p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-2 text-gray-700">
+            <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
               Подтвердите пароль <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -262,24 +262,24 @@ export default function CompleteProfilePage() {
                 }}
                 onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
                 placeholder="••••••••"
-                className="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900"
+                className="w-full px-4 py-3 pr-12 border-2 border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-900 dark:focus:border-ring focus:outline-none"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-muted-foreground hover:text-gray-700 dark:hover:text-foreground"
               >
                 {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
             {password && confirmPassword && password !== confirmPassword && (
-              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+              <p className="text-xs text-red-500 dark:text-destructive-foreground mt-1 flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" />
                 Пароли не совпадают
               </p>
             )}
             {password && confirmPassword && password === confirmPassword && passwordTouched && !passwordError && (
-              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
                 <CheckCircle className="w-3 h-3" />
                 Пароли совпадают
               </p>
@@ -287,7 +287,7 @@ export default function CompleteProfilePage() {
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+            <div className="bg-red-50 dark:bg-destructive/20 border border-red-200 dark:border-destructive/50 text-red-700 dark:text-destructive-foreground px-4 py-3 rounded-lg text-sm flex items-center gap-2">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               <span>{error}</span>
             </div>
@@ -296,7 +296,7 @@ export default function CompleteProfilePage() {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
+            className="w-full bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white dark:text-primary-foreground py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
           >
             {loading ? 'Сохранение...' : 'Сохранить и продолжить'}
           </button>

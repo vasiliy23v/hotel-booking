@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Edit, Trash2, Building2, Save, X, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Building2, Save, X, LayoutGrid, Calendar } from 'lucide-react';
+import { DatePicker } from '@/components/ui/date-picker';
 import { api } from '@/lib/api';
 import type { Hotel, Room, Stairs, User } from '@/types';
 import FloorPlan from '@/components/FloorPlan';
+import { ConfirmCancelBookingDialog } from '@/components/booking/ConfirmCancelBookingDialog';
 
 interface HotelDetailViewProps {
   hotelId: string;
@@ -34,6 +36,16 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  
+  // Состояние для подтверждения отмены бронирования
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<{ id: string; roomNumber?: string; bookedBy?: string } | null>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
+  
+  // Фильтр по датам
+  const [dateFilterEnabled, setDateFilterEnabled] = useState(false);
+  const [checkInDate, setCheckInDate] = useState('');
+  const [checkOutDate, setCheckOutDate] = useState('');
 
   // Определяем доступные этажи для отеля
   // Показываем ВСЕ этажи на основе hotel.floors и hasEGFloor, даже если на них еще нет комнат
@@ -157,27 +169,45 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
   };
 
   const handleRoomClick = (room: Room) => {
-    // Бронировать можно только свободные комнаты
-    // Менеджер сначала должен отменить существующее бронирование
-    if (!room.isCommon && !room.booking) {
-      router.push(`/booking/${room.id}`);
+    if (room.isCommon) return;
+    
+    // Менеджер может забронировать любую комнату
+    // Передаем выбранные даты в URL если они заданы
+    const params = new URLSearchParams();
+    if (checkInDate && checkOutDate) {
+      params.set('checkIn', checkInDate);
+      params.set('checkOut', checkOutDate);
     }
+    const queryString = params.toString();
+    router.push(`/booking/${room.id}${queryString ? `?${queryString}` : ''}`);
   };
 
-  const handleCancelBooking = async (roomId: string) => {
+  const handleCancelBooking = (roomId: string) => {
     const foundRoom = rooms.find(r => r.id === roomId);
-    if (!foundRoom?.booking) return;
+    if (!foundRoom?.booking?.id) return;
 
-    if (!confirm('Вы уверены, что хотите отменить бронирование?')) return;
+    setBookingToCancel({ 
+      id: foundRoom.booking.id, 
+      roomNumber: foundRoom.number,
+      bookedBy: foundRoom.booking.bookedBy
+    });
+    setShowCancelDialog(true);
+  };
 
+  const handleConfirmCancel = async () => {
+    if (!bookingToCancel?.id) return;
+    
+    setIsCanceling(true);
     try {
-      if (foundRoom.booking.id) {
-        await api.deleteBooking(foundRoom.booking.id);
-      }
+      await api.deleteBooking(bookingToCancel.id);
       await loadRoomsAndStairs();
+      setShowCancelDialog(false);
+      setBookingToCancel(null);
     } catch (error) {
       console.error('Error canceling booking:', error);
       alert('Ошибка при отмене бронирования');
+    } finally {
+      setIsCanceling(false);
     }
   };
 
@@ -306,7 +336,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
   if (loading) {
     return (
       <div className="text-center py-12">
-        <div className="text-lg text-gray-900">Загрузка...</div>
+        <div className="text-lg text-gray-900 dark:text-foreground">Загрузка...</div>
       </div>
     );
   }
@@ -314,7 +344,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
   if (!hotel) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500 mb-4">Отель не найден</p>
+        <p className="text-gray-500 dark:text-muted-foreground mb-4">Отель не найден</p>
         <button
           onClick={onBack}
           className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-semibold"
@@ -328,11 +358,11 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4 ">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-semibold"
+            className="flex items-center gap-2 light:text-gray-600 dark:text-gray-600 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground font-semibold"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -358,7 +388,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
             <div className="flex gap-2">
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg text-sm font-semibold flex items-center gap-2"
+                className="px-4 py-2 bg-gray-300 dark:bg-muted hover:bg-gray-400 dark:hover:bg-accent text-gray-700 dark:text-foreground rounded-lg text-sm font-semibold flex items-center gap-2"
               >
                 <X className="w-4 h-4" />
                 Отмена
@@ -377,7 +407,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
         {/* Hotel Image */}
         <div className="mb-6">
           {imagePreview ? (
-            <div className="relative w-full h-64 sm:h-96 rounded-lg overflow-hidden border-2 border-gray-300">
+            <div className="relative w-full h-64 sm:h-96 rounded-lg overflow-hidden border-2 border-gray-300 dark:border-border">
               <img
                 src={imagePreview}
                 alt={hotel.name}
@@ -393,8 +423,8 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
               )}
             </div>
           ) : (
-            <div className="w-full h-64 sm:h-96 rounded-lg bg-gray-200 flex items-center justify-center border-2 border-gray-300">
-              <Building2 className="w-16 h-16 text-gray-400" />
+            <div className="w-full h-64 sm:h-96 rounded-lg bg-gray-200 dark:bg-muted flex items-center justify-center border-2 border-gray-300 dark:border-border">
+              <Building2 className="w-16 h-16 text-gray-400 dark:text-muted-foreground" />
             </div>
           )}
           {editing && (
@@ -405,10 +435,10 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
                 accept="image/*"
                 onChange={handleImageChange}
                 disabled={uploading}
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none disabled:opacity-50"
+                className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none disabled:opacity-50 bg-white dark:bg-input text-gray-900 dark:text-foreground"
               />
               {uploading && (
-                <p className="text-xs text-gray-500 mt-1">Загрузка изображения...</p>
+                <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">Загрузка изображения...</p>
               )}
               <p className="text-xs text-gray-500 mt-1">
                 Максимальный размер файла: 5MB. Поддерживаемые форматы: JPG, PNG, GIF, WebP.
@@ -420,7 +450,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
         {/* Hotel Information */}
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-foreground mb-2">
               Название <span className="text-red-500">*</span>
             </label>
             {editing ? (
@@ -428,16 +458,16 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none text-lg"
+                className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none text-lg bg-white dark:bg-input text-gray-900 dark:text-foreground"
                 required
               />
             ) : (
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{hotel.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-foreground">{hotel.name}</h1>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-foreground mb-2">
               Адрес <span className="text-red-500">*</span>
             </label>
             {editing ? (
@@ -445,39 +475,39 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
+                className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground"
                 required
               />
             ) : (
-              <p className="text-base sm:text-lg text-gray-700">{hotel.address}</p>
+              <p className="text-base sm:text-lg text-gray-700 dark:text-foreground">{hotel.address}</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Описание</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-foreground mb-2">Описание</label>
             {editing ? (
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={4}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
+                className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground"
               />
             ) : (
-              <p className="text-sm sm:text-base text-gray-600 whitespace-pre-wrap">
+              <p className="text-sm sm:text-base light:text-gray-600 dark:text-gray-600 whitespace-pre-wrap">
                 {hotel.description || <span className="text-gray-400">Описание не указано</span>}
               </p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-foreground mb-2">
               Количество этажей <span className="text-red-500">*</span>
             </label>
             {editing ? (
               <select
                 value={formData.floors}
                 onChange={(e) => setFormData({ ...formData, floors: parseInt(e.target.value) || 3 })}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
+                className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground"
                 required
               >
                 <option value={1}>1 этаж</option>
@@ -498,7 +528,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-foreground mb-2">
               Этаж EG (первый этаж)
             </label>
             {editing ? (
@@ -528,9 +558,9 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
       </div>
 
       {/* План этажа */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
         <div className="mb-4">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-foreground flex items-center gap-2">
             <LayoutGrid className="w-5 h-5 sm:w-6 sm:h-6" />
             План этажа
           </h2>
@@ -547,7 +577,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
                   className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
                     selectedFloor === floor
                       ? 'bg-gray-900 text-white shadow-sm'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                      : 'bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent'
                   }`}
                 >
                   {floor}
@@ -555,6 +585,75 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
               ))}
             </div>
           )}
+
+          {/* Фильтр по датам */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+            <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+              <Calendar className="w-4 h-4" />
+              Даты:
+            </span>
+            <div className="flex flex-col sm:flex-row gap-3 flex-1">
+              <div className="flex-1 min-w-[150px]">
+                <DatePicker
+                  date={checkInDate ? new Date(checkInDate) : undefined}
+                  onSelect={(date) => {
+                    if (date) {
+                      const newCheckIn = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                      setCheckInDate(newCheckIn);
+                      setDateFilterEnabled(true);
+                      if (checkOutDate && newCheckIn >= checkOutDate) {
+                        const nextDay = new Date(date);
+                        nextDay.setDate(nextDay.getDate() + 1);
+                        setCheckOutDate(`${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`);
+                      }
+                    } else {  
+                      setCheckInDate('');
+                      if (!checkOutDate) setDateFilterEnabled(false);
+                    }
+                  }}
+                  placeholder="Дата заезда"
+                  className="w-full text-sm"
+                />
+              </div>
+              <div className="flex-1 min-w-[150px]">
+                <DatePicker
+                  date={checkOutDate ? new Date(checkOutDate) : undefined}
+                  onSelect={(date) => {
+                    if (date) {
+                      const newCheckOut = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                      setDateFilterEnabled(true);
+                      if (checkInDate && newCheckOut <= checkInDate) {
+                        const nextDay = new Date(date);
+                        nextDay.setDate(nextDay.getDate() + 1);
+                        setCheckOutDate(`${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`);
+                      } else {
+                        setCheckOutDate(newCheckOut);
+                      }
+                    } else {
+                      setCheckOutDate('');
+                      if (!checkInDate) setDateFilterEnabled(false);
+                    }
+                  }}
+                  placeholder="Дата выезда"
+                  minDate={checkInDate ? new Date(new Date(checkInDate).getTime() + 86400000) : undefined}
+                  className="w-full text-sm"
+                />
+              </div>
+              {(checkInDate || checkOutDate) && (
+                <button
+                  onClick={() => {
+                    setCheckInDate('');
+                    setCheckOutDate('');
+                    setDateFilterEnabled(false);
+                  }}
+                  className="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Сбросить даты"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* FloorPlan */}
           {currentUser && (
@@ -570,6 +669,9 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
               stairs={stairs}
               onStairsUpdate={handleStairsUpdate}
               hotelId={hotelId}
+              dateFilterEnabled={dateFilterEnabled}
+              checkInDate={checkInDate}
+              checkOutDate={checkOutDate}
             />
           )}
         </div>
@@ -578,8 +680,8 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
       {/* Модальное окно подтверждения удаления */}
       {showDeleteModal && hotel && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Подтверждение удаления отеля</h2>
+          <div className="bg-white dark:bg-card rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-foreground mb-4">Подтверждение удаления отеля</h2>
             
             <div className="space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -635,6 +737,19 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
           </div>
         </div>
       )}
+
+      {/* Модальное окно подтверждения отмены бронирования */}
+      <ConfirmCancelBookingDialog
+        isOpen={showCancelDialog}
+        onClose={() => {
+          setShowCancelDialog(false);
+          setBookingToCancel(null);
+        }}
+        onConfirm={handleConfirmCancel}
+        roomNumber={bookingToCancel?.roomNumber}
+        bookedBy={bookingToCancel?.bookedBy}
+        isSubmitting={isCanceling}
+      />
     </div>
   );
 }

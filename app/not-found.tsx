@@ -18,7 +18,7 @@ export default function NotFound() {
         </h1>
 
         {/* Описание */}
-        <p className="text-lg text-gray-600 mb-2">
+        <p className="text-lg light:text-gray-600 dark:text-gray-600 mb-2">
           К сожалению, запрашиваемая страница не существует
         </p>
         <p className="text-sm text-gray-500 mb-8">

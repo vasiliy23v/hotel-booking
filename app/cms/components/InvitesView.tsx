@@ -234,7 +234,7 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
                                 }
                               }
                             }}
-                            className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
+                            className="p-1.5 light:text-gray-600 dark:text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
                             title={visibleInviteUrl === invite.id ? "Скрыть ссылку" : "Показать ссылку"}
                           >
                             {visibleInviteUrl === invite.id ? (

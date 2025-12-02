@@ -5,7 +5,7 @@ import { isRoomAvailable } from '@/lib/db';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { roomIds, checkIn, checkOut } = body;
+    const { roomIds, checkIn, checkOut, excludeBookingId } = body;
 
     if (!roomIds || !Array.isArray(roomIds) || !checkIn || !checkOut) {
       return NextResponse.json(
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     
     await Promise.all(
       roomIds.map(async (roomId: string) => {
-        const available = await isRoomAvailable(roomId, checkInDate, checkOutDate);
+        const available = await isRoomAvailable(roomId, checkInDate, checkOutDate, excludeBookingId);
         availability[roomId] = available;
       })
     );

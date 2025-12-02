@@ -7,3 +7,4 @@ WHERE type = 'APP';
 
 -- Теперь можно безопасно изменить enum в Prisma schema
 
+

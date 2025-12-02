@@ -770,24 +770,26 @@ export async function isRoomAvailable(
   excludeBookingId?: string
 ): Promise<boolean> {
   // Проверяем пересечения дат
-  // Пересечение происходит если: newCheckIn < existingCheckOut AND newCheckOut > existingCheckIn
-  // Для одинаковых дат (checkIn = checkOut) проверяем, есть ли бронирование, которое включает эту дату
+  // Пересечение происходит если: existingCheckIn < newCheckOut AND existingCheckOut > newCheckIn
+  // Это означает, что комната занята, если существующее бронирование начинается до даты выезда нового
+  // И заканчивается после даты заезда нового
+  // Если existingCheckOut = newCheckIn, то конфликта нет (комната свободна с даты выезда)
+  // Если existingCheckIn = newCheckOut, то конфликта нет (комната свободна до даты заезда)
   const conflictingBooking = await prisma.booking.findFirst({
     where: {
       roomId,
       id: excludeBookingId ? { not: excludeBookingId } : undefined,
       // Проверяем пересечение дат: существующее бронирование пересекается с новым,
       // если existingCheckIn < newCheckOut AND existingCheckOut > newCheckIn
-      // Используем <= и >= для поддержки одинаковых дат (бронирование на одну ночь)
       AND: [
         {
           checkIn: {
-            lte: checkOut, // existingCheckIn <= newCheckOut
+            lt: checkOut, // existingCheckIn < newCheckOut
           },
         },
         {
           checkOut: {
-            gte: checkIn, // existingCheckOut >= newCheckIn
+            gt: checkIn, // existingCheckOut > newCheckIn
           },
         },
       ],

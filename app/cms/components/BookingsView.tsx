@@ -1,9 +1,14 @@
 'use client';
 
 import { useState, useEffect, ReactElement } from 'react';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Eye, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, Building2, Search } from 'lucide-react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, Building2, Search, Edit, MoreVertical, Trash2, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
-import type { User, Room, Hotel, BookingInfo, Statistics } from '@/types';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { BookingFormModal, type BookingFormData } from '@/components/booking/BookingFormModal';
+import { ConfirmCancelBookingDialog } from '@/components/booking/ConfirmCancelBookingDialog';
+import { ConfirmPaymentDialog } from '@/components/booking/ConfirmPaymentDialog';
+import type { User, Room, Hotel, BookingInfo, Statistics, Guest } from '@/types';
 
 export default function BookingsView() {
   const [bookings, setBookings] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string })[]>([]);
@@ -35,6 +40,24 @@ export default function BookingsView() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedBookingForDetail, setSelectedBookingForDetail] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string }) | null>(null);
 
+  // Модальное окно для редактирования
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedBookingForEdit, setSelectedBookingForEdit] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string }) | null>(null);
+
+  // Открытое меню действий
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  
+  // Состояние для подтверждения отмены бронирования
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<(BookingInfo & { roomNumber?: string }) | null>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
+  
+  // Состояние для подтверждения оплаты
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentBooking, setPaymentBooking] = useState<(BookingInfo & { roomNumber?: string }) | null>(null);
+  const [paymentType, setPaymentType] = useState<'half' | 'full'>('half');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
   const loadStatistics = async (hotelId?: string) => {
     try {
       setStatisticsLoading(true);
@@ -47,32 +70,99 @@ export default function BookingsView() {
     }
   };
 
+  const loadAllData = async (hotelId?: string) => {
+    try {
+      setLoading(true);
+      setStatisticsLoading(true);
+      
+      // Загружаем все данные параллельно
+      const [bookingsData, roomsData, hotelsData, stats] = await Promise.all([
+        api.getBookings(),
+        api.getRooms(),
+        api.getHotels(),
+        api.getStatistics(hotelId || undefined).catch((err) => {
+          console.error('Error loading statistics:', err);
+          return null; // Возвращаем null если статистика не загрузилась
+        })
+      ]);
+
+      setRooms(roomsData);
+      setHotels(hotelsData);
+      // Устанавливаем статистику только если она успешно загрузилась
+      if (stats) {
+        setStatistics(stats);
+      }
+
+      // Обогащаем бронирования информацией о комнатах и отелях
+      const enrichedBookings = bookingsData.map((booking: BookingInfo) => {
+        const room = roomsData.find((r: Room) => r.id === booking.roomId);
+        const hotel = hotelsData.find((h: Hotel) => h.id === room?.hotelId);
+        return {
+          ...booking,
+          roomNumber: room?.number || 'N/A',
+          hotelName: hotel?.name || 'N/A'
+        };
+      });
+
+      setBookings(enrichedBookings);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setBookings([]);
+      // Убеждаемся, что статистика сбрасывается при ошибке
+      setStatistics(null);
+    } finally {
+      setLoading(false);
+      setStatisticsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const userStr = localStorage.getItem('currentUser');
     if (userStr) {
       const user = JSON.parse(userStr);
       setCurrentUser(user);
     }
-    loadBookings();
-    loadStatistics();
+    loadAllData();
   }, []);
 
   useEffect(() => {
     // Обновляем статистику при изменении фильтра по отелю
+    // Не вызываем loadAllData если hotels еще не загружены (избегаем бесконечного цикла)
+    if (hotels.length === 0) return;
+    
     if (filterHotel) {
       const hotel = hotels.find(h => h.name === filterHotel || h.id === filterHotel);
       if (hotel) {
         setFilterHotelId(hotel.id);
-        loadStatistics(hotel.id);
+        loadAllData(hotel.id);
       } else {
         setFilterHotelId('');
-        loadStatistics();
+        loadAllData();
       }
     } else {
       setFilterHotelId('');
-      loadStatistics();
+      loadAllData();
     }
-  }, [filterHotel, hotels]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterHotel]);
+
+  useEffect(() => {
+    // Закрываем меню при нажатии Escape
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpenMenuId(null);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  useEffect(() => {
+    // Закрываем меню при открытии модального окна
+    if (showDetailModal || showEditModal) {
+      setOpenMenuId(null);
+    }
+  }, [showDetailModal, showEditModal]);
 
   const loadBookings = async () => {
     try {
@@ -106,31 +196,76 @@ export default function BookingsView() {
     }
   };
 
-  const handleCancel = async (booking: BookingInfo & { roomNumber?: string }) => {
-    if (!confirm(`Вы уверены, что хотите отменить бронирование комнаты #${booking.roomNumber}?`)) {
-      return;
-    }
+  const handleCancel = (booking: BookingInfo & { roomNumber?: string }) => {
+    setBookingToCancel(booking);
+    setShowCancelDialog(true);
+  };
 
+  const handleConfirmCancel = async () => {
+    if (!bookingToCancel?.id) return;
+    
+    setIsCanceling(true);
     try {
-      if (booking.id) {
-        await api.deleteBooking(booking.id);
-      }
+      await api.deleteBooking(bookingToCancel.id);
       await loadBookings();
+      setShowCancelDialog(false);
+      setBookingToCancel(null);
     } catch (error) {
       console.error('Error canceling booking:', error);
       alert('Ошибка при отмене бронирования');
+    } finally {
+      setIsCanceling(false);
     }
   };
 
-  const handleConfirmHalfPayment = async (booking: BookingInfo & { roomNumber?: string }) => {
+  const handleEdit = (booking: BookingInfo & { roomNumber?: string; hotelName?: string }) => {
+    setOpenMenuId(null);
+    setSelectedBookingForEdit(booking);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (data: BookingFormData) => {
+    if (!selectedBookingForEdit?.id) return;
+    
+    try {
+      // Определяем имя того, кто бронирует
+      let bookedByName: string;
+      
+      if (currentUser?.role === 'manager') {
+        // Менеджер может изменить имя пользователя
+        bookedByName = data.manualUserName?.trim() || selectedBookingForEdit.bookedBy;
+      } else {
+        // Обычный пользователь - имя берется из currentUser
+        bookedByName = currentUser?.name || selectedBookingForEdit.bookedBy;
+      }
+
+      await api.updateBooking(selectedBookingForEdit.id, {
+        checkIn: data.checkIn,
+        checkOut: data.checkOut,
+        notes: data.notes,
+        guests: data.guests,
+        email: data.email,
+        phone: data.phone,
+        bookedBy: bookedByName,
+      });
+      setShowEditModal(false);
+      setSelectedBookingForEdit(null);
+      await loadBookings();
+    } catch (error) {
+      console.error('Error updating booking:', error);
+      throw error;
+    }
+  };
+
+  const handleConfirmHalfPayment = (booking: BookingInfo & { roomNumber?: string }) => {
     const nights = Math.ceil(
       (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 
       (1000 * 60 * 60 * 24)
     );
     const room = rooms.find(r => r.id === booking.roomId);
-    const totalAmount = booking.amount || (nights * (room?.price || 0));
+    const totalBookingAmount = nights * (room?.price || 0);
     const alreadyPaid = booking.amount || 0;
-    const halfAmount = totalAmount / 2;
+    const halfAmount = totalBookingAmount / 2;
     const amountToAdd = halfAmount - alreadyPaid;
 
     if (amountToAdd <= 0) {
@@ -138,28 +273,12 @@ export default function BookingsView() {
       return;
     }
 
-    if (!confirm(`Подтвердить оплату 50% (${halfAmount.toFixed(2)}€) для бронирования комнаты #${booking.roomNumber}?\n\nУже оплачено: ${alreadyPaid.toFixed(2)}€\nК доплате: ${amountToAdd.toFixed(2)}€`)) {
-      return;
-    }
-
-    try {
-      if (booking.id && currentUser) {
-        await api.updateBooking(booking.id, {
-          amount: halfAmount,
-          isPaid: false, // Частичная оплата, не полная
-          paidBy: currentUser.name,
-          paymentDate: new Date().toISOString(),
-        });
-        await loadBookings();
-        alert(`Подтверждена оплата 50% (${halfAmount.toFixed(2)}€)`);
-      }
-    } catch (error) {
-      console.error('Error confirming half payment:', error);
-      alert('Ошибка при подтверждении оплаты');
-    }
+    setPaymentBooking(booking);
+    setPaymentType('half');
+    setShowPaymentDialog(true);
   };
 
-  const handleConfirmFullPayment = async (booking: BookingInfo & { roomNumber?: string }) => {
+  const handleConfirmFullPayment = (booking: BookingInfo & { roomNumber?: string }) => {
     const nights = Math.ceil(
       (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 
       (1000 * 60 * 60 * 24)
@@ -174,24 +293,41 @@ export default function BookingsView() {
       return;
     }
 
-    if (!confirm(`Подтвердить полную оплату (${totalAmount.toFixed(2)}€) для бронирования комнаты #${booking.roomNumber}?\n\nУже оплачено: ${alreadyPaid.toFixed(2)}€\nК доплате: ${amountToAdd.toFixed(2)}€`)) {
-      return;
-    }
+    setPaymentBooking(booking);
+    setPaymentType('full');
+    setShowPaymentDialog(true);
+  };
 
+  const handleProcessPayment = async () => {
+    if (!paymentBooking || !currentUser) return;
+
+    setIsProcessingPayment(true);
     try {
-      if (booking.id && currentUser) {
-        await api.updateBooking(booking.id, {
-          amount: totalAmount,
-          isPaid: true, // Полная оплата
+      const nights = Math.ceil(
+        (new Date(paymentBooking.checkOut).getTime() - new Date(paymentBooking.checkIn).getTime()) / 
+        (1000 * 60 * 60 * 24)
+      );
+      const room = rooms.find(r => r.id === paymentBooking.roomId);
+      const totalAmount = nights * (room?.price || 0);
+      const paymentAmount = paymentType === 'half' ? totalAmount / 2 : totalAmount;
+
+      if (paymentBooking.id) {
+        await api.updateBooking(paymentBooking.id, {
+          amount: paymentAmount,
+          isPaid: paymentType === 'full', // Полная оплата только для 100%
           paidBy: currentUser.name,
           paymentDate: new Date().toISOString(),
         });
         await loadBookings();
-        alert(`Подтверждена полная оплата (${totalAmount.toFixed(2)}€)`);
+        setShowPaymentDialog(false);
+        setPaymentBooking(null);
+        alert(`Подтверждена оплата ${paymentType === 'half' ? '50%' : '100%'} (${paymentAmount.toFixed(2)}€)`);
       }
     } catch (error) {
-      console.error('Error confirming full payment:', error);
+      console.error('Error confirming payment:', error);
       alert('Ошибка при подтверждении оплаты');
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -216,12 +352,12 @@ export default function BookingsView() {
       const matchesEmail = b.email?.toLowerCase().includes(query);
       
       // Поиск по именам гостей
-      const matchesGuestNames = b.guests?.some((guest: any) => 
+      const matchesGuestNames = b.guests?.some((guest: Guest) => 
         guest.name?.toLowerCase().includes(query)
       ) || false;
       
       // Поиск по email гостей
-      const matchesGuestEmails = b.guests?.some((guest: any) => 
+      const matchesGuestEmails = b.guests?.some((guest: Guest) => 
         guest.email?.toLowerCase().includes(query)
       ) || false;
       
@@ -277,6 +413,36 @@ export default function BookingsView() {
         break;
     }
     return sortDirection === 'asc' ? comparison : -comparison;
+  });
+
+  // Группируем бронирования по комнатам для визуального объединения
+  // Сначала сортируем по номеру комнаты, затем по датам заезда
+  const sortedForGrouping = [...filteredBookings].sort((a, b) => {
+    const roomCompare = (a.roomNumber || '').localeCompare(b.roomNumber || '');
+    if (roomCompare !== 0) return roomCompare;
+    return new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime();
+  });
+  
+  const groupedBookings: Array<{
+    roomKey: string;
+    bookings: typeof filteredBookings;
+  }> = [];
+  
+  const roomGroups = new Map<string, typeof filteredBookings>();
+  sortedForGrouping.forEach(booking => {
+    const room = rooms.find(r => r.id === booking.roomId);
+    const hotelId = room?.hotelId || '';
+    const roomKey = `${hotelId}_${booking.roomId || ''}`;
+    if (!roomGroups.has(roomKey)) {
+      roomGroups.set(roomKey, []);
+    }
+    roomGroups.get(roomKey)!.push(booking);
+  });
+  
+  roomGroups.forEach((bookings, roomKey) => {
+    // Сортируем бронирования внутри группы по датам
+    bookings.sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+    groupedBookings.push({ roomKey, bookings });
   });
 
   const handleSort = (column: typeof sortBy) => {
@@ -335,11 +501,15 @@ export default function BookingsView() {
 
   const hasActiveFilters = searchQuery || filterHotel || filterBookedBy || filterRoomNumber || filterDateFrom || filterDateTo;
 
-  // Вычисляем статистику бронирований
+  // Вычисляем статистику бронирований на основе отфильтрованных данных
   const totalBookings = filteredBookings.length;
   const paidBookings = filteredBookings.filter(b => b.isPaid).length;
   
-  let totalRevenue = 0;
+  // Вычисляем финансовую статистику на основе отфильтрованных бронирований
+  let totalRevenue = 0; // Ожидаемый доход (общая сумма всех бронирований)
+  let paidRevenue = 0; // Доход (оплаченные бронирования)
+  let unpaidAmount = 0; // Не оплачено
+  
   filteredBookings.forEach(booking => {
     const nights = Math.ceil(
       (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 
@@ -348,126 +518,97 @@ export default function BookingsView() {
     const room = rooms.find(r => r.id === booking.roomId);
     const amount = booking.amount || (nights * (room?.price || 0));
     totalRevenue += amount;
+    
+    if (booking.isPaid) {
+      paidRevenue += amount;
+    } else {
+      unpaidAmount += amount;
+    }
   });
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-            Статистика и бронирования
-          </h2>
-          
-        </div>
-
         {/* Объединенная статистика */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-4 sm:mb-6">
-          {/* Статистика комнат */}
-          {statisticsLoading ? (
-            <>
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-5 h-5 bg-gray-300 rounded animate-pulse"></div>
-                    <div className="h-4 w-20 bg-gray-300 rounded animate-pulse"></div>
-                  </div>
-                  <div className="h-8 w-16 bg-gray-300 rounded animate-pulse mt-2"></div>
-                </div>
-              ))}
-            </>
-          ) : statistics ? (
-            <>
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Building2 className="w-5 h-5 text-gray-700" />
-                  <span className="text-sm text-gray-700 font-semibold">Всего комнат</span>
-                </div>
-                <div className="text-2xl sm:text-3xl font-bold text-gray-900">{statistics.totalRooms}</div>
-              </div>
-
-              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Bed className="w-5 h-5 text-green-700" />
-                  <span className="text-sm text-green-700 font-semibold">Свободно</span>
-                </div>
-                <div className="text-2xl sm:text-3xl font-bold text-green-700">{statistics.availableRooms}</div>
-              </div>
-
-              <div className="bg-gray-100 rounded-lg p-4 border border-gray-300">
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="w-5 h-5 text-gray-700" />
-                  <span className="text-sm text-gray-700 font-semibold">Забронировано</span>
-                </div>
-                <div className="text-2xl sm:text-3xl font-bold text-gray-700">{statistics.bookedRooms}</div>
-              </div>
-
-            </>
-          ) : null}
-
-          {/* Статистика бронирований */}
-          {!loading && (
-            <>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <BookOpen className="w-4 h-4 text-blue-600" />
-                  <span className="text-xs font-semibold text-blue-900">Всего бронирований</span>
-                </div>
-                <div className="text-xl sm:text-2xl font-bold text-blue-900">{totalBookings}</div>
-              </div>
-              
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 sm:p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <Euro className="w-4 h-4 text-purple-600" />
-                  <span className="text-xs font-semibold text-purple-900">Оплачено</span>
-                </div>
-                <div className="text-xl sm:text-2xl font-bold text-purple-900">{paidBookings}</div>
-              </div>
-            </>
-          )}
-
-          {/* Объединенная финансовая статистика */}
-          {!statisticsLoading && statistics && !loading && (
-            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-4 border-2 border-emerald-300 col-span-2 sm:col-span-1">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <Euro className="w-5 h-5 text-emerald-700" />
-                  <span className="text-sm font-bold text-emerald-900">Финансы</span>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-emerald-700 font-medium">Доход</span>
-                    <span className="text-lg font-bold text-emerald-900">{statistics.revenue}€</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-orange-700 font-medium">К оплате</span>
-                    <span className="text-lg font-bold text-orange-700">{statistics.amountToPay?.toFixed(2) || '0.00'}€</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center pt-2 border-t border-emerald-200">
-                    <span className="text-xs text-gray-700 font-semibold">Общая сумма</span>
-                    <span className="text-lg font-bold text-gray-900">{totalRevenue.toFixed(2)}€</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="bg-white dark:bg-card rounded-lg shadow-sm p-4 sm:p-6 border border-gray-600 dark:border-gray-600/20">
+        
         </div>
-      </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+      <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
+        <div className="flex flex-col justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-foreground flex items-center gap-2">
             <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
             Бронирования
           </h2>
-          
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            {/* Показываем скелетон загрузки, пока загружаются данные */}
+            {(loading || statisticsLoading) ? (
+              <>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <div key={i} className="rounded-lg p-3 sm:p-4 border border-gray-600 dark:border-gray-400">
+                    <div className="h-3 w-16 sm:w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
+                    <div className="h-6 sm:h-8 w-12 sm:w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </div>
+                ))}
+              </>
+            ) : statistics ? (
+              <>
+                {/* Статистика комнат */}
+                <div className="rounded-lg p-3 sm:p-4 border border-gray-500 dark:border-gray-200">
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Всего комнат</div>
+                  <div className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-foreground">{statistics.totalRooms}</div>
+                </div>
+
+                <div className="rounded-lg p-3 sm:p-4 border border-green-200 dark:border-green-800">
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Свободно</div>
+                  <div className="text-xl sm:text-2xl font-semibold text-green-600 dark:text-green-400">{statistics.availableRooms}</div>
+                </div>
+
+                <div className="rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-border">
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Забронировано</div>
+                  <div className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-foreground">{statistics.bookedRooms}</div>
+                </div>
+
+                {/* Статистика бронирований */}
+                <div className="rounded-lg p-3 sm:p-4 border border-gray-600 dark:border-gray-300">
+                  <div className="text-xs sm:text-sm text-gray-600 dark:border-gray-300 mb-1.5">Всего бронирований</div>
+                  <div className="text-xl sm:text-2xl font-semibold text-gray-600 dark:text-gray-300">{totalBookings}</div>
+                </div>
+                
+                <div className="rounded-lg p-3 sm:p-4 border border-purple-200 dark:border-purple-800">
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Оплачено</div>
+                  <div className="text-xl sm:text-2xl font-semibold text-purple-600 dark:text-purple-400">{paidBookings}</div>
+                </div>
+
+                {/* Карточка: Не оплачено */}
+                <div className="rounded-lg p-3 sm:p-4 border border-orange-200 dark:border-orange-800">
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Не оплачено</div>
+                  <div className="text-xl sm:text-2xl font-semibold text-orange-600 dark:text-orange-400">{unpaidAmount.toFixed(2)}€</div>
+                </div>
+
+                {/* Карточка: Доход */}
+                <div className="rounded-lg p-3 sm:p-4 border border-emerald-200 dark:border-emerald-800">
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Доход</div>
+                  <div className="text-xl sm:text-2xl font-semibold text-emerald-600 dark:text-emerald-400">{paidRevenue.toFixed(2)}€</div>
+                </div>
+
+                {/* Карточка: Ожидаемый доход */}
+                <div className="rounded-lg p-3 sm:p-4 border border-blue-200 dark:border-blue-800">
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Ожидаемый доход</div>
+                  <div className="text-xl sm:text-2xl font-semibold text-blue-600 dark:text-blue-400">{totalRevenue.toFixed(2)}€</div>
+                </div>
+              </>
+            ) : (
+              // Если статистика не загрузилась, показываем пустое состояние
+              <div className="col-span-2 sm:col-span-4 text-center py-8 text-gray-500 dark:text-muted-foreground">
+                Не удалось загрузить статистику
+              </div>
+            )}
+          </div>
           <div className="flex gap-2 w-full sm:w-auto">
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
-                className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent"
               >
                 <X className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Сбросить</span>
@@ -478,7 +619,7 @@ export default function BookingsView() {
               className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                 showFilters
                   ? 'bg-gray-900 text-white'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                  : 'bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent'
               }`}
             >
               <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -490,18 +631,18 @@ export default function BookingsView() {
         {/* Поле поиска */}
         <div className="mb-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Поиск по отелям, комнатам, именам или почте..."
-              className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none bg-white text-gray-900 text-sm"
+              className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground text-sm"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-muted-foreground hover:text-gray-600 dark:hover:text-foreground"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -511,14 +652,14 @@ export default function BookingsView() {
 
         {/* Панель фильтров */}
         {showFilters && (
-          <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="mb-4 p-3 sm:p-4 bg-gray-50 dark:bg-muted rounded-lg border border-gray-200 dark:border-border">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Отель</label>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-foreground mb-1.5">Отель</label>
                 <select
                   value={filterHotel}
                   onChange={(e) => setFilterHotel(e.target.value)}
-                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 dark:border-border bg-white dark:bg-input text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-ring"
                 >
                   <option value="">Все отели</option>
                   {hotels.map((hotel) => (
@@ -529,13 +670,13 @@ export default function BookingsView() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Забронировано</label>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-foreground mb-1.5">Забронировано</label>
                 <input
                   type="text"
                   value={filterBookedBy}
                   onChange={(e) => setFilterBookedBy(e.target.value)}
                   placeholder="Имя пользователя"
-                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 dark:border-border bg-white dark:bg-input text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-ring"
                 />
               </div>
               <div>
@@ -545,25 +686,27 @@ export default function BookingsView() {
                   value={filterRoomNumber}
                   onChange={(e) => setFilterRoomNumber(e.target.value)}
                   placeholder="Номер комнаты"
-                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 dark:border-border bg-white dark:bg-input text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-ring"
                 />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Заезд с</label>
-                <input
-                  type="date"
-                  value={filterDateFrom}
-                  onChange={(e) => setFilterDateFrom(e.target.value)}
-                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                <DatePicker
+                  date={filterDateFrom ? new Date(filterDateFrom) : undefined}
+                  onSelect={(date) => setFilterDateFrom(date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '')}
+                  placeholder="С даты"
+                  maxDate={filterDateTo ? new Date(filterDateTo) : undefined}
+                  className="w-full text-xs"
                 />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Заезд до</label>
-                <input
-                  type="date"
-                  value={filterDateTo}
-                  onChange={(e) => setFilterDateTo(e.target.value)}
-                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                <DatePicker
+                  date={filterDateTo ? new Date(filterDateTo) : undefined}
+                  onSelect={(date) => setFilterDateTo(date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '')}
+                  placeholder="До даты"
+                  minDate={filterDateFrom ? new Date(filterDateFrom) : undefined}
+                  className="w-full text-xs"
                 />
               </div>
             </div>
@@ -572,7 +715,7 @@ export default function BookingsView() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="text-lg text-gray-900">Загрузка...</div>
+            <div className="text-lg text-gray-900 dark:text-foreground">Загрузка...</div>
           </div>
         ) : filteredBookings.length === 0 ? (
           <div className="text-center py-12">
@@ -581,13 +724,13 @@ export default function BookingsView() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[1200px]">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Отель</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Комната</th>
-                  <th 
-                    className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+            <Table className="min-w-[1200px]">
+              <TableHeader>
+                <TableRow className="border-b border-gray-200 dark:border-border hover:bg-transparent">
+                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Отель</TableHead>
+                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Комната</TableHead>
+                  <TableHead 
+                    className="text-xs text-gray-600 dark:text-muted-foreground cursor-pointer whitespace-nowrap font-normal"
                     onClick={() => handleSort('bookedBy')}
                   >
                     <div className="flex items-center gap-1">
@@ -597,10 +740,10 @@ export default function BookingsView() {
                       )}
                       {sortBy !== 'bookedBy' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                     </div>
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Контакты</th>
-                  <th 
-                    className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                  </TableHead>
+                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Контакты</TableHead>
+                  <TableHead 
+                    className="text-xs text-gray-600 dark:text-muted-foreground cursor-pointer whitespace-nowrap font-normal"
                     onClick={() => handleSort('checkIn')}
                   >
                     <div className="flex items-center gap-1">
@@ -610,9 +753,9 @@ export default function BookingsView() {
                       )}
                       {sortBy !== 'checkIn' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                     </div>
-                  </th>
-                  <th 
-                    className="px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
+                  </TableHead>
+                  <TableHead 
+                    className="text-xs text-gray-600 dark:text-muted-foreground cursor-pointer whitespace-nowrap font-normal"
                     onClick={() => handleSort('checkOut')}
                   >
                     <div className="flex items-center gap-1">
@@ -622,18 +765,19 @@ export default function BookingsView() {
                       )}
                       {sortBy !== 'checkOut' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                     </div>
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Гости</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Сумма</th>
+                  </TableHead>
+                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Гости</TableHead>
+                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Сумма</TableHead>
                   {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && (
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Статус оплаты</th>
+                    <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Статус оплаты</TableHead>
                   )}
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Примечания</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap sticky right-0 bg-gray-50 z-10 border-l border-gray-200">Действия</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredBookings.map((booking) => {
+                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Примечания</TableHead>
+                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap sticky right-0 bg-white dark:bg-card z-10 font-normal">Действия</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {groupedBookings.map((group) => 
+                  group.bookings.map((booking, index) => {
                   const nights = Math.ceil(
                     (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 
                     (1000 * 60 * 60 * 24)
@@ -646,63 +790,82 @@ export default function BookingsView() {
                   const isFullyPaid = booking.isPaid && alreadyPaid >= expectedAmount;
                   const isHalfPaidOrMore = alreadyPaid >= (totalPrice / 2) && alreadyPaid > 0 && !isFullyPaid;
 
+                  const isFirstInGroup = index === 0;
+                  const isLastInGroup = index === group.bookings.length - 1;
+                  const hasMultipleBookings = group.bookings.length > 1;
+                  
                   return (
-                    <tr
+                    <TableRow 
                       key={booking.id}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                      onClick={() => {
+                        setOpenMenuId(null);
+                        setSelectedBookingForDetail(booking);
+                        setShowDetailModal(true);
+                      }}
+                      className={`cursor-pointer hover:bg-gray-100 dark:hover:bg-accent transition-colors ${hasMultipleBookings ? 'bg-gray-50 dark:bg-muted border-l-3 border-l-gray-200 dark:border-l-border' : ''} ${isFirstInGroup && hasMultipleBookings ? 'border-t border-t-gray-200 dark:border-t-border' : ''} ${isLastInGroup && hasMultipleBookings ? 'border-b border-b-gray-200 dark:border-b-border' : ''}`}
                     >
-                      <td className="px-3 py-2.5">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {searchQuery ? highlightText(booking.hotelName || 'N/A', searchQuery) : (booking.hotelName || 'N/A')}
-                        </div>
-                      </td>
-                      
-                      <td className="px-3 py-2.5">
-                        <div className="font-semibold text-gray-900">
-                          #{searchQuery ? highlightText(booking.roomNumber || 'N/A', searchQuery) : (booking.roomNumber || 'N/A')}
-                        </div>
-                        {room && (
-                          <div className="text-xs text-gray-500">
-                            {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : room.type === 'MZ' ? 'Многоместная' : room.type === 'App' ? 'Апартаменты' : 'Общее'}
+                      <TableCell className="py-3">
+                        {isFirstInGroup ? (
+                          <div className="text-sm text-gray-700 dark:text-foreground">
+                            {searchQuery ? highlightText(booking.hotelName || 'N/A', searchQuery) : (booking.hotelName || 'N/A')}
                           </div>
+                        ) : (
+                          <div className="text-sm text-gray-400 dark:text-muted-foreground">—</div>
                         )}
-                      </td>
+                      </TableCell>
                       
-                      <td className="px-3 py-2.5">
-                        <div className="text-sm font-semibold text-gray-700">
+                      <TableCell className="py-3">
+                        {isFirstInGroup ? (
+                          <>
+                            <div className="text-sm text-gray-700 dark:text-foreground">
+                              #{searchQuery ? highlightText(booking.roomNumber || 'N/A', searchQuery) : (booking.roomNumber || 'N/A')}
+                            </div>
+                            {room && (
+                              <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
+                                {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : room.type === 'MZ' ? 'Многоместная' : room.type === 'App' ? 'Апартаменты' : 'Общее'}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-sm text-gray-400 dark:text-muted-foreground">—</div>
+                        )}
+                      </TableCell>
+                      
+                      <TableCell className="py-3">
+                        <div className="text-sm text-gray-700 dark:text-foreground">
                           {searchQuery ? highlightText(booking.bookedBy, searchQuery) : booking.bookedBy}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
                           {new Date(booking.bookedDate).toLocaleDateString('ru-RU')}
                         </div>
-                      </td>
+                      </TableCell>
                       
-                      <td className="px-3 py-2.5">
-                        <div className="text-xs text-gray-700">
-                          <div className="font-semibold">
+                      <TableCell className="py-3">
+                        <div className="text-xs text-gray-600 dark:text-muted-foreground">
+                          <div>
                             {searchQuery ? highlightText(booking.email || '', searchQuery) : (booking.email || '')}
                           </div>
-                          <div className="text-gray-500">{booking.phone}</div>
+                          <div className="text-gray-500 dark:text-muted-foreground mt-0.5">{booking.phone}</div>
                         </div>
-                      </td>
+                      </TableCell>
                       
-                      <td className="px-3 py-2.5">
-                        <div className="text-sm text-gray-700">
+                      <TableCell className="py-3">
+                        <div className="text-sm text-gray-700 dark:text-foreground">
                           {new Date(booking.checkIn).toLocaleDateString('ru-RU')}
                         </div>
-                      </td>
+                      </TableCell>
                       
-                      <td className="px-3 py-2.5">
-                        <div className="text-sm text-gray-700">
+                      <TableCell className="py-3">
+                        <div className="text-sm text-gray-700 dark:text-foreground">
                           {new Date(booking.checkOut).toLocaleDateString('ru-RU')}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
                           {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'}
                         </div>
-                      </td>
+                      </TableCell>
                       
-                      <td className="px-3 py-2.5">
-                        <div className="text-xs text-gray-700">
+                      <TableCell className="py-3">
+                        <div className="text-xs text-gray-600 dark:text-muted-foreground">
                           {booking.guests && booking.guests.length > 0 ? (
                             <div className="space-y-1">
                               {booking.guests.map((g, i) => (
@@ -711,23 +874,23 @@ export default function BookingsView() {
                                     <img
                                       src={g.image}
                                       alt={g.name}
-                                      className="w-6 h-6 rounded-full object-cover border border-gray-300"
+                                      className="w-5 h-5 rounded-full object-cover border border-gray-200 dark:border-border"
                                     />
                                   ) : (
-                                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300">
-                                      <span className="text-xs text-gray-500">{g.name.charAt(0).toUpperCase()}</span>
+                                    <div className="w-5 h-5 rounded-full bg-gray-100 dark:bg-muted flex items-center justify-center border border-gray-200 dark:border-border">
+                                      <span className="text-xs text-gray-500 dark:text-muted-foreground">{g.name.charAt(0).toUpperCase()}</span>
                                     </div>
                                   )}
-                                  <span className="text-gray-700">
+                                  <span className="text-gray-600 dark:text-muted-foreground">
                                     {searchQuery ? highlightText(g.name || '', searchQuery) : (g.name || '')}
                                   </span>
                                   {g.email && searchQuery && (
-                                    <span className="text-gray-500 text-[10px]">
+                                    <span className="text-gray-400 dark:text-muted-foreground text-[10px]">
                                       ({highlightText(g.email, searchQuery)})
                                     </span>
                                   )}
                                   {g.email && !searchQuery && (
-                                    <span className="text-gray-500 text-[10px]">
+                                    <span className="text-gray-400 dark:text-muted-foreground text-[10px]">
                                       ({g.email})
                                     </span>
                                   )}
@@ -735,107 +898,143 @@ export default function BookingsView() {
                               ))}
                             </div>
                           ) : (
-                            <span className="text-gray-400">Нет гостей</span>
+                            <span className="text-gray-400 dark:text-muted-foreground">Нет гостей</span>
                           )}
                         </div>
-                      </td>
+                      </TableCell>
                       
-                      <td className="px-3 py-2.5">
-                        <div className="text-sm font-bold text-gray-900">
+                      <TableCell className="py-3">
+                        <div className="text-sm text-gray-700 dark:text-foreground">
                           {totalPrice > 0 ? `${totalPrice.toFixed(2)}€` : '-'}
                         </div>
                         {room && room.price > 0 && (
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
                             {room.price}€{room.pricePerPerson ? '/Per' : ''}/ночь
                           </div>
                         )}
-                      </td>
+                      </TableCell>
                       
                       {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && (
-                        <td className="px-3 py-2.5">
+                        <TableCell className="py-3">
                           {isFullyPaid ? (
                             <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                              <span className="text-xs font-semibold text-green-700">Полностью оплачено</span>
+                              <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                              <span className="text-xs text-green-600 dark:text-green-400">Полностью оплачено</span>
                             </div>
                           ) : isHalfPaidOrMore ? (
                             <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                              <span className="text-xs font-semibold text-yellow-700">50% оплачено</span>
+                              <div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
+                              <span className="text-xs text-yellow-600 dark:text-yellow-500">50% оплачено</span>
                             </div>
                           ) : (
                             <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                              <span className="text-xs font-semibold text-red-700">Не оплачено</span>
+                              <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                              <span className="text-xs text-red-600 dark:text-red-400">Не оплачено</span>
                             </div>
                           )}
                           {alreadyPaid > 0 && (
-                            <div className="text-xs text-gray-500 mt-0.5">
+                            <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
                               Оплачено: {alreadyPaid.toFixed(2)}€
                             </div>
                           )}
-                        </td>
+                        </TableCell>
                       )}
                       
-                      <td className="px-3 py-2.5">
-                        <div className="text-xs text-gray-600 max-w-xs">
+                      <TableCell className="py-3">
+                        <div className="text-xs text-gray-500 dark:text-muted-foreground max-w-xs">
                           {booking.notes ? (
                             <div title={booking.notes} className="truncate">
                               {booking.notes}
                             </div>
                           ) : (
-                            <span className="text-gray-400">-</span>
+                            <span className="text-gray-400 dark:text-muted-foreground">-</span>
                           )}
                         </div>
-                      </td>
+                      </TableCell>
                       
-                      <td className="px-3 py-2.5 sticky right-0 bg-white z-10 hover:bg-gray-50 border-l border-gray-200">
-                        <div className="flex flex-col gap-1">
+                      <TableCell className="py-3 sticky right-0 bg-white dark:bg-card z-10" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative z-10">
                           <button
-                            onClick={() => {
-                              setSelectedBookingForDetail(booking);
-                              setShowDetailModal(true);
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!showDetailModal && !showEditModal) {
+                                setOpenMenuId(openMenuId === booking.id ? null : booking.id || null);
+                              }
                             }}
-                            className="px-2 py-1 bg-white hover:bg-gray-100 text-black border border-black rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
-                            title="Подробнее о бронировании"
+                            disabled={showDetailModal || showEditModal}
+                            className={`p-1.5 hover:bg-gray-100 dark:hover:bg-accent rounded transition-colors z-11 ${(showDetailModal || showEditModal) ? 'opacity-50 pointer-events-none' : ''}`}
+                            title="Действия"
                           >
-                            <Eye className="w-3 h-3" />
-                            Подробнее
+                            <MoreVertical className="w-4 h-4 text-gray-600 dark:text-muted-foreground z-12" />
                           </button>
-                          {currentUser?.role === 'manager' && !isFullyPaid && !isHalfPaidOrMore && (
-                            <button
-                              onClick={() => handleConfirmHalfPayment(booking)}
-                              className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
-                              title="Подтвердить оплату 50%"
-                            >
-                              <Euro className="w-3 h-3" />
-                              50% оплата
-                            </button>
+                          
+                          {openMenuId === booking.id && !showDetailModal && !showEditModal && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-5" 
+                                onClick={() => setOpenMenuId(null)}
+                              />
+                              <div className="absolute right-25 -top-5 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg shadow-xl z-[9999] min-w-[180px]">
+                                {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && (
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenMenuId(null);
+                                        handleConfirmHalfPayment(booking);
+                                      }}
+                                      className="w-full px-3 py-2 text-left text-xs text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center gap-2 transition-colors"
+                                    >
+                                      <Euro className="w-3 h-3" />
+                                      50% оплаты
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenMenuId(null);
+                                        handleConfirmFullPayment(booking);
+                                      }}
+                                      className="w-full px-3 py-2 text-left text-xs text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 flex items-center gap-2 transition-colors"
+                                    >
+                                      <Euro className="w-3 h-3" />
+                                      100% оплаты
+                                    </button>
+                                    <div className="border-t border-gray-200 dark:border-border my-1" />
+                                  </>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuId(null);
+                                    handleEdit(booking);
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-xs text-gray-700 dark:text-foreground hover:bg-gray-50 dark:hover:bg-accent flex items-center gap-2 transition-colors"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                  Редактировать
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuId(null);
+                                    handleCancel(booking);
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-xs text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 transition-colors"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  Отменить
+                                </button>
+                              </div>
+                            </>
                           )}
-                          {currentUser?.role === 'manager' && !isFullyPaid && (
-                            <button
-                              onClick={() => handleConfirmFullPayment(booking)}
-                              className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-semibold whitespace-nowrap flex items-center gap-1"
-                              title="Подтвердить полную оплату"
-                            >
-                              <Euro className="w-3 h-3" />
-                              100% оплата
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleCancel(booking)}
-                            className="px-2 py-1 bg-pink-900 hover:bg-pink-950 text-white rounded text-xs font-semibold whitespace-nowrap"
-                            title="Отменить бронирование"
-                          >
-                            Отменить
-                          </button>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
-                })}
-              </tbody>
-            </table>
+                  })
+                ).flat()}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -854,11 +1053,11 @@ export default function BookingsView() {
         const totalPrice = booking.amount || expectedAmount;
         
         return (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4 overflow-y-auto">
+            <div className="bg-white dark:bg-card rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-foreground flex items-center gap-2">
                     <BookOpen className="w-6 h-6" />
                     Детали бронирования
                   </h2>
@@ -867,7 +1066,7 @@ export default function BookingsView() {
                       setShowDetailModal(false);
                       setSelectedBookingForDetail(null);
                     }}
-                    className="text-gray-500 hover:text-gray-700"
+                    className="text-gray-500 dark:text-muted-foreground hover:text-gray-700 dark:hover:text-foreground"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -876,68 +1075,68 @@ export default function BookingsView() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Основная информация */}
                   <div className="space-y-4">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <div className="bg-gray-50 dark:bg-muted rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-foreground mb-3 flex items-center gap-2">
                         <MapPin className="w-4 h-4" />
                         Информация об отеле и комнате
                       </h3>
                       <div className="space-y-2 text-sm">
                         <div>
-                          <span className="text-gray-600">Отель:</span>
-                          <span className="ml-2 font-semibold text-gray-900">{booking.hotelName || 'N/A'}</span>
+                          <span className="text-gray-600 dark:text-muted-foreground">Отель:</span>
+                          <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">{booking.hotelName || 'N/A'}</span>
                         </div>
                         <div>
-                          <span className="text-gray-600">Комната:</span>
-                          <span className="ml-2 font-semibold text-gray-900">#{booking.roomNumber || 'N/A'}</span>
+                          <span className="text-gray-600 dark:text-muted-foreground">Комната:</span>
+                          <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">#{booking.roomNumber || 'N/A'}</span>
                         </div>
                         {room && (
                           <>
                             <div>
-                              <span className="text-gray-600">Тип:</span>
-                              <span className="ml-2 text-gray-900">
+                              <span className="text-gray-600 dark:text-muted-foreground">Тип:</span>
+                              <span className="ml-2 text-gray-900 dark:text-foreground">
                                 {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : room.type === 'MZ' ? 'Многоместная' : room.type === 'App' ? 'Апартаменты' : 'Общее'}
                               </span>
                             </div>
                             <div>
-                              <span className="text-gray-600">Вместимость:</span>
-                              <span className="ml-2 text-gray-900">{room.capacity}</span>
+                              <span className="text-gray-600 dark:text-muted-foreground">Вместимость:</span>
+                              <span className="ml-2 text-gray-900 dark:text-foreground">{room.capacity}</span>
                             </div>
                             <div>
-                              <span className="text-gray-600">Цена за ночь:</span>
-                              <span className="ml-2 font-semibold text-gray-900">{room.price}€{room.pricePerPerson ? '/Per' : ''}</span>
+                              <span className="text-gray-600 dark:text-muted-foreground">Цена за ночь:</span>
+                              <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">{room.price}€{room.pricePerPerson ? '/Per' : ''}</span>
                             </div>
                           </>
                         )}
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <div className="bg-gray-50 dark:bg-muted rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-foreground mb-3 flex items-center gap-2">
                         <UserIcon className="w-4 h-4" />
                         Информация о госте
                       </h3>
                       <div className="space-y-2 text-sm">
                         <div>
-                          <span className="text-gray-600">Имя:</span>
-                          <span className="ml-2 font-semibold text-gray-900">{booking.bookedBy}</span>
+                          <span className="text-gray-600 dark:text-muted-foreground">Имя:</span>
+                          <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">{booking.bookedBy}</span>
                         </div>
                         {booking.email && (
                           <div className="flex items-center gap-2">
-                            <Mail className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-600">Email:</span>
-                            <span className="ml-2 text-gray-900">{booking.email}</span>
+                            <Mail className="w-4 h-4 text-gray-400 dark:text-muted-foreground" />
+                            <span className="text-gray-600 dark:text-muted-foreground">Email:</span>
+                            <span className="ml-2 text-gray-900 dark:text-foreground">{booking.email}</span>
                           </div>
                         )}
                         {booking.phone && (
                           <div className="flex items-center gap-2">
-                            <Phone className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-600">Телефон:</span>
-                            <span className="ml-2 text-gray-900">{booking.phone}</span>
+                            <Phone className="w-4 h-4 text-gray-400 dark:text-muted-foreground" />
+                            <span className="text-gray-600 dark:text-muted-foreground">Телефон:</span>
+                            <span className="ml-2 text-gray-900 dark:text-foreground">{booking.phone}</span>
                           </div>
                         )}
                         <div>
-                          <span className="text-gray-600">Дата бронирования:</span>
-                          <span className="ml-2 text-gray-900">
+                          <span className="text-gray-600 dark:text-muted-foreground">Дата бронирования:</span>
+                          <span className="ml-2 text-gray-900 dark:text-foreground">
                             {new Date(booking.bookedDate).toLocaleDateString('ru-RU', {
                               day: '2-digit',
                               month: '2-digit',
@@ -953,15 +1152,15 @@ export default function BookingsView() {
 
                   {/* Даты и период */}
                   <div className="space-y-4">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <div className="bg-gray-50 dark:bg-muted rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-foreground mb-3 flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
                         Даты пребывания
                       </h3>
                       <div className="space-y-2 text-sm">
                         <div>
-                          <span className="text-gray-600">Заезд:</span>
-                          <span className="ml-2 font-semibold text-gray-900">
+                          <span className="text-gray-600 dark:text-muted-foreground">Заезд:</span>
+                          <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">
                             {new Date(booking.checkIn).toLocaleDateString('ru-RU', {
                               day: '2-digit',
                               month: 'long',
@@ -971,8 +1170,8 @@ export default function BookingsView() {
                           </span>
                         </div>
                         <div>
-                          <span className="text-gray-600">Выезд:</span>
-                          <span className="ml-2 font-semibold text-gray-900">
+                          <span className="text-gray-600 dark:text-muted-foreground">Выезд:</span>
+                          <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">
                             {new Date(booking.checkOut).toLocaleDateString('ru-RU', {
                               day: '2-digit',
                               month: 'long',
@@ -982,8 +1181,8 @@ export default function BookingsView() {
                           </span>
                         </div>
                         <div>
-                          <span className="text-gray-600">Количество ночей:</span>
-                          <span className="ml-2 font-semibold text-gray-900">
+                          <span className="text-gray-600 dark:text-muted-foreground">Количество ночей:</span>
+                          <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">
                             {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'}
                           </span>
                         </div>
@@ -992,32 +1191,32 @@ export default function BookingsView() {
 
                     {/* Гости */}
                     {booking.guests && booking.guests.length > 0 && (
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <div className="bg-gray-50 dark:bg-muted rounded-lg p-4">
+                        <h3 className="text-sm font-semibold text-gray-700 dark:text-foreground mb-3 flex items-center gap-2">
                           <Bed className="w-4 h-4" />
                           Гости ({booking.guests.length})
                         </h3>
                         <div className="space-y-2">
                           {booking.guests.map((guest, index) => (
-                            <div key={index} className="flex items-center gap-3 p-2 bg-white rounded border border-gray-200">
+                            <div key={index} className="flex items-center gap-3 p-2 bg-white dark:bg-card rounded border border-gray-200 dark:border-border">
                               {guest.image ? (
                                 <img
                                   src={guest.image}
                                   alt={guest.name}
-                                  className="w-10 h-10 rounded-full object-cover border border-gray-300"
+                                  className="w-10 h-10 rounded-full object-cover border border-gray-300 dark:border-border"
                                 />
                               ) : (
-                                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300">
-                                  <span className="text-sm text-gray-500 font-semibold">{guest.name.charAt(0).toUpperCase()}</span>
+                                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-muted flex items-center justify-center border border-gray-300 dark:border-border">
+                                  <span className="text-sm text-gray-500 dark:text-muted-foreground font-semibold">{guest.name.charAt(0).toUpperCase()}</span>
                                 </div>
                               )}
                               <div className="flex-1">
-                                <div className="font-semibold text-gray-900">{guest.name}</div>
+                                <div className="font-semibold text-gray-900 dark:text-foreground">{guest.name}</div>
                                 {guest.email && (
-                                  <div className="text-xs text-gray-500">{guest.email}</div>
+                                  <div className="text-xs text-gray-500 dark:text-muted-foreground">{guest.email}</div>
                                 )}
                                 {guest.phone && (
-                                  <div className="text-xs text-gray-500">{guest.phone}</div>
+                                  <div className="text-xs text-gray-500 dark:text-muted-foreground">{guest.phone}</div>
                                 )}
                               </div>
                             </div>
@@ -1028,12 +1227,12 @@ export default function BookingsView() {
 
                     {/* Примечания */}
                     {booking.notes && (
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <div className="bg-gray-50 dark:bg-muted rounded-lg p-4">
+                        <h3 className="text-sm font-semibold text-gray-700 dark:text-foreground mb-3 flex items-center gap-2">
                           <FileText className="w-4 h-4" />
                           Примечания
                         </h3>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{booking.notes}</p>
+                        <p className="text-sm text-gray-700 dark:text-foreground whitespace-pre-wrap">{booking.notes}</p>
                       </div>
                     )}
                   </div>
@@ -1043,10 +1242,8 @@ export default function BookingsView() {
                 <div className="mt-6 flex flex-wrap gap-2">
                   <button
                     onClick={() => {
-                      if (confirm(`Вы уверены, что хотите отменить бронирование комнаты #${booking.roomNumber}?`)) {
-                        setShowDetailModal(false);
-                        handleCancel(booking);
-                      }
+                      setShowDetailModal(false);
+                      handleCancel(booking);
                     }}
                     className="px-4 py-2 bg-pink-900 hover:bg-pink-950 text-white rounded-lg font-semibold"
                   >
@@ -1057,7 +1254,7 @@ export default function BookingsView() {
                       setShowDetailModal(false);
                       setSelectedBookingForDetail(null);
                     }}
-                    className="px-4 py-2 bg-white hover:bg-gray-100 text-black border border-black rounded-lg font-semibold"
+                    className="px-4 py-2 bg-white dark:bg-card hover:bg-gray-100 dark:hover:bg-accent text-black dark:text-foreground border border-black dark:border-border rounded-lg font-semibold"
                   >
                     Закрыть
                   </button>
@@ -1068,6 +1265,79 @@ export default function BookingsView() {
         );
       })()}
 
+      {/* Модальное окно для редактирования бронирования */}
+      {showEditModal && selectedBookingForEdit && (() => {
+        const bookingRoom = rooms.find(r => r.id === selectedBookingForEdit.roomId);
+        const bookingHotel = bookingRoom ? hotels.find(h => h.id === bookingRoom.hotelId) : null;
+        return (
+          <BookingFormModal
+            isOpen={showEditModal}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedBookingForEdit(null);
+            }}
+            onSubmit={handleSaveEdit}
+            initialData={{
+              checkIn: selectedBookingForEdit.checkIn.split('T')[0],
+              checkOut: selectedBookingForEdit.checkOut.split('T')[0],
+              guests: selectedBookingForEdit.guests || [],
+              email: selectedBookingForEdit.email || '',
+              phone: selectedBookingForEdit.phone || '',
+              notes: selectedBookingForEdit.notes || '',
+              manualUserName: selectedBookingForEdit.bookedBy || '',
+              manualUserPhone: selectedBookingForEdit.phone || '',
+            }}
+            room={bookingRoom || undefined}
+            hotelName={bookingHotel?.name}
+            currentUser={currentUser}
+            mode="edit"
+            excludeBookingId={selectedBookingForEdit.id}
+          />
+        );
+      })()}
+
+      {/* Модальное окно подтверждения отмены бронирования */}
+      <ConfirmCancelBookingDialog
+        isOpen={showCancelDialog}
+        onClose={() => {
+          setShowCancelDialog(false);
+          setBookingToCancel(null);
+        }}
+        onConfirm={handleConfirmCancel}
+        roomNumber={bookingToCancel?.roomNumber}
+        bookedBy={bookingToCancel?.bookedBy}
+        isSubmitting={isCanceling}
+      />
+
+      {/* Модальное окно подтверждения оплаты */}
+      {paymentBooking && (() => {
+        const nights = Math.ceil(
+          (new Date(paymentBooking.checkOut).getTime() - new Date(paymentBooking.checkIn).getTime()) / 
+          (1000 * 60 * 60 * 24)
+        );
+        const room = rooms.find(r => r.id === paymentBooking.roomId);
+        const totalBookingAmount = nights * (room?.price || 0);
+        const alreadyPaid = paymentBooking.amount || 0;
+        const paymentAmount = paymentType === 'half' ? totalBookingAmount / 2 : totalBookingAmount;
+        const amountToAdd = paymentAmount - alreadyPaid;
+
+        return (
+          <ConfirmPaymentDialog
+            isOpen={showPaymentDialog}
+            onClose={() => {
+              setShowPaymentDialog(false);
+              setPaymentBooking(null);
+            }}
+            onConfirm={handleProcessPayment}
+            paymentType={paymentType}
+            roomNumber={paymentBooking.roomNumber}
+            totalAmount={paymentAmount}
+            alreadyPaid={alreadyPaid}
+            amountToAdd={amountToAdd}
+            isSubmitting={isProcessingPayment}
+          />
+        );
+      })()}
     </div>
   );
 }

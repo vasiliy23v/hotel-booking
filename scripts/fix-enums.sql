@@ -64,3 +64,4 @@ ALTER TABLE bookings
   ALTER COLUMN payment_method TYPE "PaymentMethod" USING payment_method::"PaymentMethod";
 
 
+
