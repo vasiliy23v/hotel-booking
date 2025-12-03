@@ -995,7 +995,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <SidebarInset className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <header className="bg-white dark:bg-background border-b border-gray-200 dark:border-border sticky top-0 z-30">
           <div className="px-3 sm:px-4 py-2 sm:py-3">
             <div className="flex justify-between items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -1007,16 +1007,16 @@ export default function Dashboard() {
                   prefetch={false}
                   className="flex items-center gap-2 sm:gap-3 min-w-0 hover:opacity-80 transition-opacity"
                 >
-                  <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 shrink-0" />
-                  <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate cursor-pointer">
+                  <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 dark:text-gray-300 shrink-0" />
+                  <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground truncate cursor-pointer">
                     Hotel Booking
                   </h1>
                 </Link>
                 <span
                   className={`hidden sm:inline text-xs px-2 py-0.5 rounded ${
                     isManagerOrDeveloper(currentUser)
-                      ? "bg-gray-700 text-white"
-                      : "bg-gray-100 text-gray-700"
+                      ? "bg-gray-700 dark:bg-gray-600 text-white dark:text-gray-100"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
                   } font-semibold`}
                 >
                   {currentUser.role === "developer"
@@ -1072,12 +1072,12 @@ export default function Dashboard() {
 
         {/* Информация о выбранном отеле */}
         {selectedHotel && currentHotel && (
-          <div className="bg-white border-b border-gray-200 relative overflow-hidden">
+          <div className="bg-white dark:bg-background border-b border-gray-200 dark:border-border relative overflow-hidden">
             {/* Индикатор обновления данных */}
             {isRefreshing && (
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gray-100 overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gray-100 dark:bg-gray-800 overflow-hidden">
                 <div
-                  className="h-full w-1/3 bg-gray-900 animate-[shimmer_1s_ease-in-out_infinite]"
+                  className="h-full w-1/3 bg-gray-900 dark:bg-gray-300 animate-[shimmer_1s_ease-in-out_infinite]"
                   style={{ animation: "shimmer 1s ease-in-out infinite" }}
                 />
               </div>
@@ -1099,11 +1099,11 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div
-                    className={`w-full sm:w-48 h-48 sm:h-32 shrink-0 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-sm transition-opacity ${
+                    className={`w-full sm:w-48 h-48 sm:h-32 shrink-0 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center shadow-sm transition-opacity ${
                       isRefreshing ? "opacity-70" : ""
                     }`}
                   >
-                    <Building2 className="w-12 h-12 text-gray-400" />
+                    <Building2 className="w-12 h-12 text-gray-400 dark:text-gray-500" />
                   </div>
                 )}
 
@@ -1114,19 +1114,19 @@ export default function Dashboard() {
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-foreground">
                       {currentHotel?.name}
                     </h1>
                     {isRefreshing && (
-                      <RefreshCw className="w-4 h-4 text-gray-400 animate-spin" />
+                      <RefreshCw className="w-4 h-4 text-gray-400 dark:text-gray-500 animate-spin" />
                     )}
                   </div>
-                  <p className="text-sm sm:text-base light:text-gray-600 dark:text-gray-600 mb-3 flex items-center gap-1.5">
+                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-3 flex items-center gap-1.5">
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500"></span>
                     {currentHotel.address}
                   </p>
                   {currentHotel.description && (
-                    <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
                       {currentHotel.description}
                     </p>
                   )}
@@ -1138,13 +1138,13 @@ export default function Dashboard() {
 
         {/* Общие компоненты навигации (только если выбран отель) */}
         {selectedHotel && (
-          <div className="bg-white border-b border-gray-200">
+          <div className="bg-white dark:bg-background border-b border-gray-200 dark:border-border">
             <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3 space-y-3">
               {/* Переключатель режимов: План - Список */}
               <div className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
                 <button
                   onClick={() => setSelectedHotel("")}
-                  className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                  className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span className="hidden sm:inline">Назад</span>
@@ -1153,8 +1153,8 @@ export default function Dashboard() {
                   onClick={() => setViewMode("plan")}
                   className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 ${
                     viewMode === "plan"
-                      ? "bg-gray-900 text-white"
-                      : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                      ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
+                      : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                 >
                   <LayoutGrid className="w-4 h-4" />
@@ -1164,8 +1164,8 @@ export default function Dashboard() {
                   onClick={() => setViewMode("list")}
                   className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 ${
                     viewMode === "list"
-                      ? "bg-gray-900 text-white"
-                      : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                      ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
+                      : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                 >
                   <List className="w-4 h-4" />
@@ -1182,8 +1182,8 @@ export default function Dashboard() {
                       onClick={() => setSelectedFloor(floor)}
                       className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
                         selectedFloor === floor
-                          ? "bg-gray-900 text-white shadow-sm"
-                          : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                          ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-sm"
+                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                       }`}
                     >
                       {floor}

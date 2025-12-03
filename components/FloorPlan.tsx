@@ -423,8 +423,12 @@ export default function FloorPlan({
     setHasScrolled(true);
   };
   
-  // Масштаб для мобильных устройств - увеличиваем комнаты пропорционально
-  const mobileScale = isMobile ? Math.max(1.5, Math.min(windowWidth / 400, 2.0)) : 1;
+  // Масштаб для мобильных устройств - уменьшаем план пропорционально ширине экрана
+  // Базовое значение: для экрана 375px (типичный мобильный) масштаб ~0.5-0.6
+  // Для экрана 768px (планшет) масштаб ~0.9-1.0
+  const mobileScale = isMobile 
+    ? Math.max(0.5, Math.min(windowWidth / 600, 1.0))
+    : 1;
   
   // Масштаб для больших экранов - уменьшаем для лучшей видимости
   const largeScreenScale = isLargeScreen ? Math.min(windowWidth / 1920, 1.2) : 1;
@@ -1708,7 +1712,7 @@ export default function FloorPlan({
 
       <div
         ref={planContainerRef}
-        className={`relative border-2 border-gray-300 dark:border-border rounded-lg bg-gray-50 dark:bg-muted overflow-y-auto overflow-y-hidden ${isLoading ? 'pointer-events-none' : ''}`}
+        className={`relative border-2 border-gray-300 dark:border-border rounded-lg bg-gray-50 dark:bg-muted ${isMobile ? 'overflow-auto' : 'overflow-hidden'} ${isLoading ? 'pointer-events-none' : ''}`}
         style={{
           minHeight: isMobile ? `${scaledContainerHeight}px` : '600px',
           height: isMobile ? `${scaledContainerHeight}px` : 'auto',

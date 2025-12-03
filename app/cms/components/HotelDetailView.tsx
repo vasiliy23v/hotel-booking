@@ -493,8 +493,8 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
                 className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground"
               />
             ) : (
-              <p className="text-sm sm:text-base light:text-gray-600 dark:text-gray-600 whitespace-pre-wrap">
-                {hotel.description || <span className="text-gray-400">Описание не указано</span>}
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                {hotel.description || <span className="text-gray-400 dark:text-gray-500">Описание не указано</span>}
               </p>
             )}
           </div>

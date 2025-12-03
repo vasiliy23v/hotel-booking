@@ -110,7 +110,7 @@ export default function CMSDashboard() {
           <div className="px-3 sm:px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between gap-3 sm:gap-4">
               <div className="flex items-center gap-3 sm:gap-4">
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-[hsl(var(--foreground))]">CMS - Управление</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-foreground">CMS - Управление</h1>
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
                 {/* Переключатель темы */}
@@ -127,7 +127,7 @@ export default function CMSDashboard() {
             <span className="sr-only">Отправить отзыв</span>
           </Button>
 
-                <span className="text-sm light:text-gray-600 dark:text-gray-600 dark:text-gray-400 hidden sm:inline">{currentUser.name}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:inline">{currentUser.name}</span>
               </div>
             </div>
           </div>
