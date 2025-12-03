@@ -2,17 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Users, LogOut, ArrowLeft, BookOpen, Bell, DollarSign, MessageSquare, MessageCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Building2, Users, BookOpen, MessageCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User, Hotel } from '@/types';
-import Link from 'next/link';
 import HotelsView from '../components/HotelsView';
 import UsersManagementView from '../components/UsersManagementView';
 import BookingsView from '../components/BookingsView';
 import FeedbackView from '../components/FeedbackView';
 import FeedbackForm from '@/components/FeedbackForm';
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/navigation/AppSidebar';
 import { MobileNav } from '@/components/navigation/MobileNav';
 import { ModeToggle } from '@/components/mode-toggle';
@@ -101,6 +99,7 @@ export default function CMSDashboard() {
         onViewModeChange={(mode) => setViewMode(mode as 'hotels' | 'users' | 'bookings' | 'feedback')}
         onHotelSelect={setSelectedHotel}
         onLogout={handleLogout}
+        onShowFeedbackForm={() => setShowFeedbackForm(true)}
       />
 
       {/* Main Content */}
@@ -115,17 +114,6 @@ export default function CMSDashboard() {
               <div className="flex items-center gap-2 sm:gap-3">
                 {/* Переключатель темы */}
                 <ModeToggle />
-
-                {/* Кнопка обратной связи */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setShowFeedbackForm(true)}
-            title="Отправить отзыв / Сообщить о баге"
-          >
-            <MessageSquare className="h-[1.2rem] w-[1.2rem]" />
-            <span className="sr-only">Отправить отзыв</span>
-          </Button>
 
                 <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:inline">{currentUser.name}</span>
               </div>

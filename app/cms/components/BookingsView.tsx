@@ -904,7 +904,7 @@ export default function BookingsView() {
                         </div>
                         {room && room.price > 0 && (
                           <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
-                            {room.price}€{room.pricePerPerson ? '/Per' : ''}/ночь
+                            {room.price}€{room.pricePerPerson ? '/p.P.' : ''}/ночь
                           </div>
                         )}
                       </TableCell>
@@ -1098,7 +1098,7 @@ export default function BookingsView() {
                             </div>
                             <div>
                               <span className="text-gray-600 dark:text-muted-foreground">Цена за ночь:</span>
-                              <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">{room.price}€{room.pricePerPerson ? '/Per' : ''}</span>
+                              <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">{room.price}€{room.pricePerPerson ? '/p.P.' : ''}</span>
                             </div>
                           </>
                         )}

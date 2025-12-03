@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Building2, BookOpen, Users, MessageCircle, LogOut, ChevronDown } from 'lucide-react';
+import { Building2, BookOpen, Users, MessageCircle, LogOut, ChevronDown, MessageSquare } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -20,6 +20,16 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import type { User, Hotel } from '@/types';
 
 interface AppSidebarProps {
@@ -33,6 +43,7 @@ interface AppSidebarProps {
   onViewModeChange?: (mode: string) => void;
   onLogout: () => void;
   onLoadBookings?: () => void;
+  onShowFeedbackForm?: () => void;
 }
 
 export function AppSidebar({
@@ -46,11 +57,13 @@ export function AppSidebar({
   onViewModeChange,
   onLogout,
   onLoadBookings,
+  onShowFeedbackForm,
 }: AppSidebarProps) {
   const isManager = currentUser.role === 'manager' || currentUser.role === 'developer';
   const isGuest = currentUser.role === 'guest';
   const [hotelsOpen, setHotelsOpen] = useState(true);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -257,15 +270,51 @@ export function AppSidebar({
 
       <SidebarFooter>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton onClick={onLogout} tooltip="Выйти">
-              <LogOut />
-              <span>Выйти</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {/* Для менеджеров оставляем кнопки в сайдбаре */}
+          {isManager && (
+            <>
+              {onShowFeedbackForm && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={onShowFeedbackForm} tooltip="Обратная связь">
+                    <MessageSquare />
+                    <span>Обратная связь</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => setShowLogoutDialog(true)} tooltip="Выйти">
+                  <LogOut />
+                  <span>Выйти</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </>
+          )}
+          {/* Для гостей кнопки убраны - они теперь в header */}
         </SidebarMenu>
       </SidebarFooter>
       </Sidebar>
+
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Подтверждение выхода</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите выйти?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowLogoutDialog(false);
+                onLogout();
+              }}
+            >
+              Выйти
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -35,9 +35,9 @@ import {
   Eye,
   EyeOff,
   Bell,
-  MessageSquare,
   CreditCard,
   MoreVertical,
+  MessageSquare,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -62,6 +62,16 @@ import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { MobileNav } from "@/components/navigation/MobileNav";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Вспомогательная функция для проверки прав менеджера или разработчика
 const isManagerOrDeveloper = (user: User | null): boolean => {
@@ -87,6 +97,7 @@ export default function Dashboard() {
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   // Фильтры и сортировка
   const [filterType, setFilterType] = useState<
@@ -566,6 +577,10 @@ export default function Dashboard() {
   }, [dateFilterEnabled, checkInDate, checkOutDate, rooms, selectedHotel]);
 
   const handleLogout = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const confirmLogout = () => {
     localStorage.removeItem("currentUser");
     router.push("/");
   };
@@ -686,13 +701,13 @@ export default function Dashboard() {
     // Если есть ошибка - показываем сообщение об ошибке
     if (error) {
       return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-background">
           <div className="text-center">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <div className="text-lg text-gray-900 mb-4">
+            <div className="text-lg text-gray-900 dark:text-foreground mb-4">
               Ошибка загрузки данных
             </div>
-            <div className="text-sm light:text-gray-600 dark:text-gray-600 mb-4">{error}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">{error}</div>
             <button
               onClick={() => {
                 setError(null);
@@ -710,24 +725,24 @@ export default function Dashboard() {
 
     // Скелетон загрузки
     return (
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-gray-50 dark:bg-background flex">
         {/* Skeleton Sidebar - только для десктопа */}
-        <aside className="hidden lg:block w-64 bg-white border-r border-gray-200 h-screen">
+        <aside className="hidden lg:block w-64 bg-white dark:bg-card border-r border-gray-200 dark:border-border h-screen">
           <div className="h-full flex flex-col">
             {/* Sidebar Header */}
-            <div className="p-4 border-b border-gray-200">
-              <div className="h-6 w-24 bg-gray-200 rounded animate-pulse"></div>
+            <div className="p-4 border-b border-gray-200 dark:border-border">
+              <div className="h-6 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
             </div>
             {/* Navigation skeleton */}
             <nav className="flex-1 p-4 space-y-2">
-              <div className="h-3 w-16 bg-gray-100 rounded mb-3"></div>
+              <div className="h-3 w-16 bg-gray-100 dark:bg-gray-800 rounded mb-3"></div>
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="h-10 bg-gray-100 rounded-lg animate-pulse"
+                  className="h-10 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse"
                 ></div>
               ))}
-              <div className="h-10 bg-gray-200 rounded-lg animate-pulse mt-4"></div>
+              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse mt-4"></div>
             </nav>
           </div>
         </aside>
@@ -736,8 +751,8 @@ export default function Dashboard() {
         <main className="flex-1 p-4 lg:p-6">
           {/* Header skeleton */}
           <div className="flex items-center justify-between mb-6">
-            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse"></div>
-            <div className="h-10 w-10 bg-gray-200 rounded-full animate-pulse"></div>
+            <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+            <div className="h-10 w-10 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
           </div>
 
           {/* Cards skeleton */}
@@ -745,13 +760,13 @@ export default function Dashboard() {
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="bg-white rounded-xl p-5 border border-gray-100"
+                className="bg-white dark:bg-card rounded-xl p-5 border border-gray-100 dark:border-border"
               >
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-gray-100 rounded-lg animate-pulse"></div>
-                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse"></div>
+                  <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
                 </div>
-                <div className="h-6 w-16 bg-gray-100 rounded animate-pulse"></div>
+                <div className="h-6 w-16 bg-gray-100 dark:bg-gray-800 rounded animate-pulse"></div>
               </div>
             ))}
           </div>
@@ -761,12 +776,12 @@ export default function Dashboard() {
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <div
                 key={i}
-                className="bg-white rounded-xl p-4 border border-gray-100"
+                className="bg-white dark:bg-card rounded-xl p-4 border border-gray-100 dark:border-border"
                 style={{ animationDelay: `${i * 50}ms` }}
               >
-                <div className="h-4 w-12 bg-gray-200 rounded animate-pulse mb-3"></div>
-                <div className="h-3 w-16 bg-gray-100 rounded animate-pulse mb-2"></div>
-                <div className="h-5 w-14 bg-gray-100 rounded animate-pulse"></div>
+                <div className="h-4 w-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-3"></div>
+                <div className="h-3 w-16 bg-gray-100 dark:bg-gray-800 rounded animate-pulse mb-2"></div>
+                <div className="h-5 w-14 bg-gray-100 dark:bg-gray-800 rounded animate-pulse"></div>
               </div>
             ))}
           </div>
@@ -977,7 +992,7 @@ export default function Dashboard() {
   const floorRooms = hotelRooms.filter((r) => r.floor === selectedFloor);
 
   return (
-    <SidebarProvider className="min-h-screen bg-gray-50 flex">
+    <SidebarProvider className="min-h-screen bg-gray-50 dark:bg-background flex">
       {/* Sidebar */}
       {(currentUser.role === "guest" || isManagerOrDeveloper(currentUser)) && (
         <AppSidebar
@@ -989,6 +1004,7 @@ export default function Dashboard() {
           onTabChange={(tab) => setActiveTab(tab as "hotels" | "bookings")}
           onLogout={handleLogout}
           onLoadBookings={loadBookings}
+          onShowFeedbackForm={() => setShowFeedbackForm(true)}
         />
       )}
 
@@ -1042,16 +1058,34 @@ export default function Dashboard() {
                 {/* Переключатель темы */}
                 <ModeToggle />
 
-                {/* Кнопка обратной связи */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setShowFeedbackForm(true)}
-                  title="Отправить отзыв / Сообщить об ошибке"
-                >
-                  <MessageSquare className="h-[1.2rem] w-[1.2rem]" />
-                  <span className="sr-only">Отправить отзыв</span>
-                </Button>
+                {/* Кнопки для обычных пользователей */}
+                {currentUser.role === "guest" && (
+                  <>
+                    {/* Кнопка обратной связи */}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowFeedbackForm(true)}
+                      title="Обратная связь"
+                      className="h-9 w-9"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="sr-only">Обратная связь</span>
+                    </Button>
+
+                    {/* Кнопка выхода */}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleLogout}
+                      title="Выйти"
+                      className="h-9 w-9"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span className="sr-only">Выйти</span>
+                    </Button>
+                  </>
+                )}
 
                 {/* Кнопка CMS для менеджеров */}
                 {isManagerOrDeveloper(currentUser) && (
@@ -1195,10 +1229,10 @@ export default function Dashboard() {
               {dateFilterEnabled && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-foreground mb-1.5 flex items-center gap-2">
                       Дата заезда
                       {loadingAvailability && checkInDate && checkOutDate && (
-                        <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-3 h-3 border-2 border-gray-400 dark:border-gray-500 border-t-transparent rounded-full animate-spin"></div>
                       )}
                     </label>
                     <DatePicker
@@ -1237,7 +1271,7 @@ export default function Dashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-foreground mb-1.5">
                       Дата выезда
                     </label>
                     <DatePicker
@@ -1327,10 +1361,10 @@ export default function Dashboard() {
                   {showHotels && hotels.length > 0 && (
                     <div className="space-y-6">
                       <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-foreground mb-2">
                           Выберите отель
                         </h1>
-                        <p className="light:text-gray-600 dark:text-gray-600">
+                        <p className="text-gray-600 dark:text-gray-400">
                           Выберите отель для просмотра доступных номеров
                         </p>
                       </div>
@@ -1363,8 +1397,8 @@ export default function Dashboard() {
                                       className="w-full h-full object-cover"
                                     />
                                   ) : (
-                                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                                      <Building2 className="w-16 h-16 text-gray-400" />
+                                    <div className="w-full h-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
+                                      <Building2 className="w-16 h-16 text-gray-400 dark:text-gray-500" />
                                     </div>
                                   )}
                                 </div>
@@ -1373,29 +1407,29 @@ export default function Dashboard() {
                                 <div className="flex-1 p-4 sm:p-6 flex flex-col justify-between">
                                   <div>
                                     <div className="flex justify-between items-start mb-2">
-                                      <h3 className="text-xl sm:text-2xl font-bold text-gray-900 pr-4">
+                                      <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-foreground pr-4">
                                         {hotel.name}
                                       </h3>
                                       {minPrice > 0 && (
                                         <div className="text-right flex-shrink-0">
-                                          <div className="text-lg sm:text-xl font-bold text-gray-900">
+                                          <div className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground">
                                             От € {minPrice}
                                           </div>
-                                          <div className="text-xs text-gray-500">
+                                          <div className="text-xs text-gray-500 dark:text-gray-400">
                                             за ночь
                                           </div>
                                         </div>
                                       )}
                                     </div>
-                                    <p className="text-sm sm:text-base light:text-gray-600 dark:text-gray-600 mb-2">
+                                    <p className="text-sm sm:text-base light:text-gray-600 dark:text-gray-300 mb-2">
                                       {hotel.address}
                                     </p>
                                     {hotel.description && (
-                                      <p className="text-sm text-gray-500 mb-3 line-clamp-2">
+                                      <p className="text-sm text-gray-500 mb-3 line-clamp-2 dark:text-foreground-300">
                                         {hotel.description}
                                       </p>
                                     )}
-                                    <div className="flex flex-wrap gap-3 text-xs sm:text-sm light:text-gray-600 dark:text-gray-600">
+                                    <div className="flex flex-wrap gap-3 text-xs sm:text-sm light:text-gray-600 dark:text-gray-400">
                                       {hotel.floors && (
                                         <div className="flex items-center gap-1">
                                           <Building2 className="w-4 h-4" />
@@ -1434,7 +1468,7 @@ export default function Dashboard() {
                                       e.stopPropagation();
                                       setSelectedHotel(hotel.id);
                                     }}
-                                    className="mt-4 bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors w-full sm:w-auto"
+                                    className="mt-4 bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors w-full sm:w-auto dark:bg-primary dark:hover:bg-primary-500 dark:text-primary-foreground"
                                   >
                                     Выбрать отель
                                   </button>
@@ -1492,9 +1526,9 @@ export default function Dashboard() {
 
               {/* Список комнат с фильтрами - только для менеджеров и разработчиков */}
               {isManagerOrDeveloper(currentUser) && (
-                <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+                <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4">
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground">
                       Комнаты этажа {selectedFloor}
                     </h2>
 
@@ -1504,8 +1538,8 @@ export default function Dashboard() {
                           onClick={() => setShowFilters(!showFilters)}
                           className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                             showFilters
-                              ? "bg-gray-900 text-white"
-                              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                              ? "bg-gray-900 dark:bg-gray-700 text-white"
+                              : "bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-gray-800"
                           }`}
                         >
                           <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1531,7 +1565,7 @@ export default function Dashboard() {
 
                   {/* Панель фильтров */}
                   {showFilters && (
-                    <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="mb-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-border">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         <div>
                           <label className="block text-xs font-semibold text-gray-700 mb-1.5">
@@ -1550,7 +1584,7 @@ export default function Dashboard() {
                                   | "App"
                               )
                             }
-                            className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                            className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                           >
                             <option value="all">Все</option>
                             <option value="FZ">FZ</option>
@@ -1571,7 +1605,7 @@ export default function Dashboard() {
                             onChange={(e) =>
                               setFilterPriceMin(Number(e.target.value))
                             }
-                            className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                            className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                             min="0"
                           />
                         </div>
@@ -1586,7 +1620,7 @@ export default function Dashboard() {
                             onChange={(e) =>
                               setFilterPriceMax(Number(e.target.value))
                             }
-                            className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                            className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                             min="0"
                           />
                         </div>
@@ -1601,7 +1635,7 @@ export default function Dashboard() {
                             onChange={(e) =>
                               setFilterCapacity(Number(e.target.value))
                             }
-                            className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                            className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                             min="0"
                           />
                         </div>
@@ -1675,7 +1709,7 @@ export default function Dashboard() {
                                 {!room.isCommon && room.price > 0 && (
                                   <span className="font-semibold text-gray-700">
                                     {room.price}€
-                                    {room.pricePerPerson ? "/Per" : ""}/ночь
+                                    {room.pricePerPerson ? "/p.P." : ""}/ночь
                                   </span>
                                 )}
                               </div>
@@ -1762,7 +1796,7 @@ export default function Dashboard() {
           {/* Таблица всех комнат отеля - показывается только в режиме списка */}
           {viewMode === "list" && selectedHotel && (
             <div className="space-y-6">
-              <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+              <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4">
                   <div>
                     {currentHotel && (
@@ -1796,7 +1830,7 @@ export default function Dashboard() {
                         {hasActiveFilters && (
                           <button
                             onClick={resetFilters}
-                            className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                            className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-gray-800"
                             title="Сбросить фильтры"
                           >
                             <X className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1808,8 +1842,8 @@ export default function Dashboard() {
                           onClick={() => setShowFilters(!showFilters)}
                           className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                             showFilters
-                              ? "bg-gray-900 text-white"
-                              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                              ? "bg-gray-900 dark:bg-gray-700 text-white"
+                              : "bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-gray-800"
                           }`}
                         >
                           <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1822,7 +1856,7 @@ export default function Dashboard() {
 
                 {/* Панель фильтров (только для менеджера) */}
                 {showFilters && isManagerOrDeveloper(currentUser) && (
-                  <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="mb-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-border">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1.5">
@@ -1841,7 +1875,7 @@ export default function Dashboard() {
                                 | "App"
                             )
                           }
-                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                         >
                           <option value="all">Все</option>
                           <option value="FZ">FZ</option>
@@ -1862,7 +1896,7 @@ export default function Dashboard() {
                           onChange={(e) =>
                             setFilterPriceMin(Number(e.target.value))
                           }
-                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                           min="0"
                         />
                       </div>
@@ -1877,7 +1911,7 @@ export default function Dashboard() {
                           onChange={(e) =>
                             setFilterPriceMax(Number(e.target.value))
                           }
-                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                           min="0"
                         />
                       </div>
@@ -1892,7 +1926,7 @@ export default function Dashboard() {
                           onChange={(e) =>
                             setFilterCapacity(Number(e.target.value))
                           }
-                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                           min="0"
                         />
                       </div>
@@ -2068,7 +2102,7 @@ export default function Dashboard() {
                             }`}
                           >
                             <TableCell className="py-2.5">
-                              <div className="font-semibold text-gray-900">
+                              <div className="font-semibold text-gray-900 dark:text-foreground">
                                 {room.number}
                               </div>
                               {room.name && (
@@ -2089,7 +2123,7 @@ export default function Dashboard() {
                             <TableCell className="py-2.5 text-sm font-semibold text-gray-700">
                               {!room.isCommon && room.price > 0
                                 ? `${room.price}€${
-                                    room.pricePerPerson ? "/Per" : ""
+                                    room.pricePerPerson ? "/p.P." : ""
                                   }`
                                 : "-"}
                             </TableCell>
@@ -2187,7 +2221,7 @@ export default function Dashboard() {
           {false && viewMode === "list" && selectedHotel && (
             <div className="space-y-6">
               {/* Таблица всех комнат отеля */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+              <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4">
                   <div>
                     {currentHotel && (
@@ -2221,7 +2255,7 @@ export default function Dashboard() {
                         {hasActiveFilters && (
                           <button
                             onClick={resetFilters}
-                            className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                            className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-gray-800"
                             title="Сбросить фильтры"
                           >
                             <X className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -2233,8 +2267,8 @@ export default function Dashboard() {
                           onClick={() => setShowFilters(!showFilters)}
                           className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                             showFilters
-                              ? "bg-gray-900 text-white"
-                              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                              ? "bg-gray-900 dark:bg-gray-700 text-white"
+                              : "bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-gray-800"
                           }`}
                         >
                           <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -2247,7 +2281,7 @@ export default function Dashboard() {
 
                 {/* Панель фильтров (только для менеджера) */}
                 {showFilters && isManagerOrDeveloper(currentUser) && (
-                  <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="mb-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-border">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1.5">
@@ -2266,7 +2300,7 @@ export default function Dashboard() {
                                 | "App"
                             )
                           }
-                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                         >
                           <option value="all">Все</option>
                           <option value="FZ">FZ</option>
@@ -2287,7 +2321,7 @@ export default function Dashboard() {
                           onChange={(e) =>
                             setFilterPriceMin(Number(e.target.value))
                           }
-                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                           min="0"
                         />
                       </div>
@@ -2302,7 +2336,7 @@ export default function Dashboard() {
                           onChange={(e) =>
                             setFilterPriceMax(Number(e.target.value))
                           }
-                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                           min="0"
                         />
                       </div>
@@ -2317,7 +2351,7 @@ export default function Dashboard() {
                           onChange={(e) =>
                             setFilterCapacity(Number(e.target.value))
                           }
-                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                          className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                           min="0"
                         />
                       </div>
@@ -2493,7 +2527,7 @@ export default function Dashboard() {
                             }`}
                           >
                             <TableCell className="py-2.5">
-                              <div className="font-semibold text-gray-900">
+                              <div className="font-semibold text-gray-900 dark:text-foreground">
                                 {room.number}
                               </div>
                               {room.name && (
@@ -2514,7 +2548,7 @@ export default function Dashboard() {
                             <TableCell className="py-2.5 text-sm font-semibold text-gray-700">
                               {!room.isCommon && room.price > 0
                                 ? `${room.price}€${
-                                    room.pricePerPerson ? "/Per" : ""
+                                    room.pricePerPerson ? "/p.P." : ""
                                   }`
                                 : "-"}
                             </TableCell>
@@ -2647,12 +2681,18 @@ export default function Dashboard() {
                     setActiveTab("bookings");
                   },
                 },
-                {
-                  id: "logout",
-                  label: "Выйти",
-                  icon: LogOut,
-                  onClick: handleLogout,
-                },
+                // {
+                //   id: "feedback",
+                //   label: "Обратная связь",
+                //   icon: MessageSquare,
+                //   onClick: () => setShowFeedbackForm(true),
+                // },
+                // {
+                //   id: "logout",
+                //   label: "Выйти",
+                //   icon: LogOut,
+                //   onClick: handleLogout,
+                // },
               ]}
               activeId={!selectedHotel && activeTab ? activeTab : "hotels"}
             />
@@ -2665,6 +2705,29 @@ export default function Dashboard() {
               onClose={() => setShowFeedbackForm(false)}
             />
           )}
+
+          {/* Диалог подтверждения выхода */}
+          <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Подтверждение выхода</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Вы уверены, что хотите выйти?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    setShowLogoutDialog(false);
+                    confirmLogout();
+                  }}
+                >
+                  Выйти
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
       </SidebarInset>
     </SidebarProvider>
   );
@@ -3469,7 +3532,7 @@ function CashMonitoringView({ selectedHotel }: { selectedHotel: string }) {
                           minute: "2-digit",
                         })}
                       </TableCell>
-                      <TableCell className="py-2.5 text-sm font-semibold text-gray-900">
+                      <TableCell className="py-2.5 text-sm font-semibold text-gray-900 dark:text-foreground">
                         #{payment.roomNumber}
                       </TableCell>
                       <TableCell className="py-2.5 text-sm text-gray-700">
@@ -4769,9 +4832,9 @@ function BookingsView({
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-foreground flex items-center gap-2">
             <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
             {isManagerOrDeveloper(currentUser)
               ? "Бронирования"
@@ -4782,7 +4845,7 @@ function BookingsView({
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
-                className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 <X className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Сбросить</span>
@@ -4793,7 +4856,7 @@ function BookingsView({
               className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                 showBookingsFilters
                   ? "bg-gray-900 text-white"
-                  : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                  : "bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-gray-800"
               }`}
             >
               <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -4804,7 +4867,7 @@ function BookingsView({
 
         {/* Панель фильтров */}
         {showBookingsFilters && (
-          <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200 dark:bg-gray-900">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {isManagerOrDeveloper(currentUser) && (
                 <div>
@@ -4816,7 +4879,7 @@ function BookingsView({
                     value={filterBookedBy}
                     onChange={(e) => setFilterBookedBy(e.target.value)}
                     placeholder="Имя пользователя"
-                    className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                    className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                   />
                 </div>
               )}
@@ -4829,7 +4892,7 @@ function BookingsView({
                   value={filterRoomNumber}
                   onChange={(e) => setFilterRoomNumber(e.target.value)}
                   placeholder="Номер комнаты"
-                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-gray-900"
+                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-gray-600"
                 />
               </div>
               <div>
@@ -4955,7 +5018,7 @@ function BookingsView({
                       }`}
                     >
                       <TableCell className="py-2.5">
-                        <div className="font-semibold text-gray-900">
+                        <div className="font-semibold text-gray-900 dark:text-foreground">
                           #{booking.roomNumber || "N/A"}
                         </div>
                         {room && (
@@ -4979,7 +5042,7 @@ function BookingsView({
                         </div>
                       </TableCell>
                       <TableCell className="py-2.5">
-                        <div className="text-xs text-gray-700">
+                        <div className="text-xs text-gray-700 dark:text-foreground">
                           {booking.guests && booking.guests.length > 0 ? (
                             <div>
                               <div className="font-semibold mb-1">
@@ -5007,7 +5070,7 @@ function BookingsView({
                                         </span>
                                       </div>
                                     )}
-                                    <span className="text-gray-700 text-xs">
+                                    <span className="text-gray-700 text-xs dark:text-foreground">
                                       {g.name}
                                     </span>
                                   </div>
@@ -5024,7 +5087,7 @@ function BookingsView({
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="py-2.5 sticky right-0 bg-white z-10" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="py-2.5 sticky right-0 bg-white z-10 dark:bg-muted" onClick={(e) => e.stopPropagation()}>
                         <div className="relative z-10">
                           {booking.bookedBy === currentUser.name && booking.id && (
                             <>

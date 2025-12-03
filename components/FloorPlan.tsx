@@ -1942,7 +1942,7 @@ export default function FloorPlan({
                       )}
                       {room.price > 0 && (
                         <div className="font-semibold col-span-2 text-right">
-                          {Math.round(room.price)}€{room.pricePerPerson ? '/Per' : ''}
+                          {Math.round(room.price)}€{room.pricePerPerson ? '/p.P.' : ''}
                         </div>
                       )}
                       </div>
@@ -2012,7 +2012,7 @@ export default function FloorPlan({
                     {/* Цена */}
                     {!room.isCommon && room.price > 0 && (
                       <div className="text-xs font-semibold text-gray-700 dark:text-foreground leading-tight mt-1">
-                        {Math.round(room.price)}€{room.pricePerPerson ? '/Per' : ''}
+                        {Math.round(room.price)}€{room.pricePerPerson ? '/p.P.' : ''}
                       </div>
                     )}
                     

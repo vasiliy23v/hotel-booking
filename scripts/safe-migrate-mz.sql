@@ -24,3 +24,4 @@ WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'RoomType')
 ORDER BY enumsortorder;
 
 
+
