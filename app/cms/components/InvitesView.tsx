@@ -278,7 +278,7 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
                     rows.push(
                       <tr key={`${invite.id}-url`}>
                         <td colSpan={6} className="px-3 py-3 bg-gray-50">
-                          <div className="flex gap-2 items-center">
+                          <div className="flex gap-2 items-center sm:flex-row flex-col">
                             <input
                               type="text"
                               value={inviteUrls[invite.id]}

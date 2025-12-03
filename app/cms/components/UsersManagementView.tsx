@@ -419,12 +419,12 @@ export default function UsersManagementView({
               {activeRegistrationUrl ? (
                 <div className="bg-gray-50 dark:bg-muted border border-gray-200 dark:border-border rounded-lg p-3">
                   <div className="text-xs text-gray-600 dark:text-muted-foreground mb-2 font-semibold">Ссылка для регистрации:</div>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                     <input
                       type="text"
                       value={activeRegistrationUrl}
                       readOnly
-                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-sm text-gray-700 dark:text-foreground"
+                      className="w-full sm:flex-1 px-3 py-2 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-sm text-gray-700 dark:text-foreground"
                       onClick={(e) => (e.target as HTMLInputElement).select()}
                     />
                     <button
@@ -444,7 +444,7 @@ export default function UsersManagementView({
                           });
                         }
                       }}
-                      className="px-4 py-2 bg-gray-700 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/80 text-white dark:text-primary-foreground rounded-lg flex items-center gap-2 text-sm font-semibold shrink-0 transition-colors"
+                      className="w-full sm:w-auto px-4 py-2 bg-gray-700 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/80 text-white dark:text-primary-foreground rounded-lg flex items-center justify-center gap-2 text-sm font-semibold sm:shrink-0 transition-colors"
                     >
                       {copiedRegistrationUrl ? (
                         <>
