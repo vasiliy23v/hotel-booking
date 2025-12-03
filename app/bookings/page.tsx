@@ -537,7 +537,7 @@ export default function BookingsPage() {
                                       {totalPrice.toFixed(2)}€
                                       {room && room.price > 0 && (
                                         <span className="text-xs text-gray-500 font-normal ml-1">
-                                          ({room.price}€{room.pricePerPerson ? '/p.P.' : ''}/ночь)
+                                          ({room.price}€{room.pricePerPerson ? ' p.P.' : ''}/ночь)
                                         </span>
                                       )}
                                     </div>
@@ -817,7 +817,7 @@ export default function BookingsPage() {
                             </div>
                             {room && room.price > 0 && (
                               <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                {room.price}€{room.pricePerPerson ? '/p.P.' : ''}/ночь
+                                {room.price}€{room.pricePerPerson ? ' p.P.' : ''}/ночь
                               </div>
                             )}
                           </TableCell>

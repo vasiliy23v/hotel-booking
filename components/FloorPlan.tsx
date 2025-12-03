@@ -1942,7 +1942,7 @@ export default function FloorPlan({
                       )}
                       {room.price > 0 && (
                         <div className="font-semibold col-span-2 text-right">
-                          {Math.round(room.price)}€{room.pricePerPerson ? '/p.P.' : ''}
+                          {Math.round(room.price)}€{room.pricePerPerson ? ' p.P.' : ''}
                         </div>
                       )}
                       </div>
@@ -2012,7 +2012,7 @@ export default function FloorPlan({
                     {/* Цена */}
                     {!room.isCommon && room.price > 0 && (
                       <div className="text-xs font-semibold text-gray-700 dark:text-foreground leading-tight mt-1">
-                        {Math.round(room.price)}€{room.pricePerPerson ? '/p.P.' : ''}
+                        {Math.round(room.price)}€{room.pricePerPerson ? ' p.P.' : ''}
                       </div>
                     )}
                     
@@ -2900,8 +2900,8 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-[10000] p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-card rounded-lg max-w-2xl w-full my-8 max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-[10000] p-4 pb-20 lg:pb-4 overflow-y-auto">
+      <div className="bg-white dark:bg-card rounded-lg max-w-2xl w-full my-8 max-h-[calc(90vh-80px)] lg:max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="p-6">
           <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-foreground">
             {room ? 'Редактировать комнату' : 'Создать новую комнату'}

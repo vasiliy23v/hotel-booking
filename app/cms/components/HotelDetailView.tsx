@@ -587,7 +587,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
           )}
 
           {/* Фильтр по датам */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+          <div className="flex flex-col items-center sm:flex-row sm:items-start sm:items-center gap-4 mb-4">
             <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
               <Calendar className="w-4 h-4" />
               Даты:

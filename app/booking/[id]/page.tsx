@@ -468,7 +468,7 @@ export default function BookingPage() {
             Бронирование комнаты #{room.number}
           </h1>
           <p className="text-gray-600 dark:text-muted-foreground mb-6">
-            {room.type === 'FZ' ? 'FZ' : room.type === 'DZ' ? 'DZ' : room.type === 'EZ' ? 'EZ' : room.type === 'MZ' ? 'MZ' : room.type === 'App' ? 'App' : 'Комната'} · {room.capacity} · {room.price}€{room.pricePerPerson ? '/p.P.' : ''}/ночь
+            {room.type === 'FZ' ? 'FZ' : room.type === 'DZ' ? 'DZ' : room.type === 'EZ' ? 'EZ' : room.type === 'MZ' ? 'MZ' : room.type === 'App' ? 'App' : 'Комната'} · {room.capacity} · {room.price}€{room.pricePerPerson ? ' p.P.' : ''}/ночь
           </p>
 
           <MultiStepForm

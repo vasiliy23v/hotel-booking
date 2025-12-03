@@ -799,8 +799,8 @@ export default function UsersManagementView({
 
       {/* Модальное окно создания приглашения/пользователя */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white dark:bg-card rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4 pb-20 lg:pb-4">
+          <div className="bg-white dark:bg-card rounded-lg max-w-md w-full max-h-[calc(90vh-80px)] lg:max-h-[90vh] overflow-y-auto">
             <div className="p-4 sm:p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl sm:text-2xl font-bold">Добавить пользователя</h2>

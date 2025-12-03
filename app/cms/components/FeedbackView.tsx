@@ -387,8 +387,8 @@ export default function FeedbackView() {
 
       {/* Модальное окно с деталями */}
       {showDetailModal && selectedFeedback && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-card rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 pb-20 lg:pb-4">
+          <div className="bg-white dark:bg-card rounded-lg max-w-3xl w-full max-h-[calc(90vh-80px)] lg:max-h-[90vh] overflow-y-auto shadow-xl">
             <div className="sticky top-0 bg-white dark:bg-card border-b border-gray-200 dark:border-border px-4 sm:px-6 py-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900 dark:text-foreground">Детали отзыва</h2>
               <button

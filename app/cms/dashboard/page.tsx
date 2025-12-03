@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Users, BookOpen, MessageCircle } from 'lucide-react';
+import { Building2, Users, BookOpen, MessageCircle, LogOut } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User, Hotel } from '@/types';
 import HotelsView from '../components/HotelsView';
@@ -14,6 +14,17 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/navigation/AppSidebar';
 import { MobileNav } from '@/components/navigation/MobileNav';
 import { ModeToggle } from '@/components/mode-toggle';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function CMSDashboard() {
   const router = useRouter();
@@ -24,6 +35,7 @@ export default function CMSDashboard() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [bookingStats, setBookingStats] = useState({ unconfirmed: 0, unpaid: 0 });
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const loadHotels = async () => {
     try {
@@ -80,6 +92,10 @@ export default function CMSDashboard() {
   }, [router]);
 
   const handleLogout = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const confirmLogout = () => {
     localStorage.removeItem('currentUser');
     router.push('/');
   };
@@ -114,6 +130,18 @@ export default function CMSDashboard() {
               <div className="flex items-center gap-2 sm:gap-3">
                 {/* Переключатель темы */}
                 <ModeToggle />
+
+                {/* Кнопка выхода */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleLogout}
+                  title="Выйти"
+                  className="h-9 w-9"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="sr-only">Выйти</span>
+                </Button>
 
                 <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:inline">{currentUser.name}</span>
               </div>
@@ -182,8 +210,32 @@ export default function CMSDashboard() {
         <FeedbackForm
           currentUser={currentUser}
           onClose={() => setShowFeedbackForm(false)}
+          telegramUsername="vasiliy_shef"
         />
       )}
+
+      {/* Диалог подтверждения выхода */}
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Подтверждение выхода</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите выйти?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowLogoutDialog(false);
+                confirmLogout();
+              }}
+            >
+              Выйти
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }

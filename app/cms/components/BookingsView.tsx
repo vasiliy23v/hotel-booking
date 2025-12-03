@@ -904,7 +904,7 @@ export default function BookingsView() {
                         </div>
                         {room && room.price > 0 && (
                           <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
-                            {room.price}€{room.pricePerPerson ? '/p.P.' : ''}/ночь
+                            {room.price}€{room.pricePerPerson ? ' p.P.' : ''}/ночь
                           </div>
                         )}
                       </TableCell>
@@ -1048,8 +1048,8 @@ export default function BookingsView() {
         const totalPrice = booking.amount || expectedAmount;
         
         return (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4 overflow-y-auto">
-            <div className="bg-white dark:bg-card rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4 pb-20 lg:pb-4 overflow-y-auto">
+            <div className="bg-white dark:bg-card rounded-lg max-w-4xl w-full max-h-[calc(90vh-80px)] lg:max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-foreground flex items-center gap-2">
@@ -1098,7 +1098,7 @@ export default function BookingsView() {
                             </div>
                             <div>
                               <span className="text-gray-600 dark:text-muted-foreground">Цена за ночь:</span>
-                              <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">{room.price}€{room.pricePerPerson ? '/p.P.' : ''}</span>
+                              <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">{room.price}€{room.pricePerPerson ? ' p.P.' : ''}</span>
                             </div>
                           </>
                         )}

@@ -38,6 +38,7 @@ import {
   CreditCard,
   MoreVertical,
   MessageSquare,
+  Send,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -1015,9 +1016,7 @@ export default function Dashboard() {
           <div className="px-3 sm:px-4 py-2 sm:py-3">
             <div className="flex justify-between items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                {(currentUser.role === "guest" || isManagerOrDeveloper(currentUser)) && (
-                  <SidebarTrigger className="lg:hidden" />
-                )}
+
                 <Link
                   href="/"
                   prefetch={false}
@@ -1058,6 +1057,18 @@ export default function Dashboard() {
                 {/* Переключатель темы */}
                 <ModeToggle />
 
+                {/* Кнопка выхода для всех пользователей */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleLogout}
+                  title="Выйти"
+                  className="h-9 w-9"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="sr-only">Выйти</span>
+                </Button>
+
                 {/* Кнопки для обычных пользователей */}
                 {currentUser.role === "guest" && (
                   <>
@@ -1071,18 +1082,6 @@ export default function Dashboard() {
                     >
                       <MessageSquare className="h-4 w-4" />
                       <span className="sr-only">Обратная связь</span>
-                    </Button>
-
-                    {/* Кнопка выхода */}
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={handleLogout}
-                      title="Выйти"
-                      className="h-9 w-9"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      <span className="sr-only">Выйти</span>
                     </Button>
                   </>
                 )}
@@ -1709,7 +1708,7 @@ export default function Dashboard() {
                                 {!room.isCommon && room.price > 0 && (
                                   <span className="font-semibold text-gray-700">
                                     {room.price}€
-                                    {room.pricePerPerson ? "/p.P." : ""}/ночь
+                                    {room.pricePerPerson ? " p.P." : ""}/ночь
                                   </span>
                                 )}
                               </div>
@@ -2123,7 +2122,7 @@ export default function Dashboard() {
                             <TableCell className="py-2.5 text-sm font-semibold text-gray-700">
                               {!room.isCommon && room.price > 0
                                 ? `${room.price}€${
-                                    room.pricePerPerson ? "/p.P." : ""
+                                    room.pricePerPerson ? " p.P." : ""
                                   }`
                                 : "-"}
                             </TableCell>
@@ -2548,7 +2547,7 @@ export default function Dashboard() {
                             <TableCell className="py-2.5 text-sm font-semibold text-gray-700">
                               {!room.isCommon && room.price > 0
                                 ? `${room.price}€${
-                                    room.pricePerPerson ? "/p.P." : ""
+                                    room.pricePerPerson ? " p.P." : ""
                                   }`
                                 : "-"}
                             </TableCell>
@@ -2703,6 +2702,7 @@ export default function Dashboard() {
             <FeedbackForm
               currentUser={currentUser}
               onClose={() => setShowFeedbackForm(false)}
+              telegramUsername="vasiliy_shef"
             />
           )}
 
@@ -2728,6 +2728,31 @@ export default function Dashboard() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {/* Футер с контактами разработчика */}
+          {currentUser.role === "guest" && (
+            <footer className="hidden lg:block border-t border-gray-200 dark:border-border bg-white dark:bg-background px-4 py-3">
+              <div className="flex items-center justify-center gap-4 text-xs text-gray-600 dark:text-muted-foreground">
+                <span>Связаться с разработчиком:</span>
+                <a
+                  href="mailto:shevchuk.develop@gmail.com"
+                  className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-foreground transition-colors"
+                  title="Email"
+                >
+                  <Mail className="w-3 h-3" />
+                </a>
+                <a
+                  href="https://t.me/vasiliy_shef"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-foreground transition-colors"
+                  title="Telegram"
+                >
+                  <Send className="w-3 h-3" />
+                </a>
+              </div>
+            </footer>
+          )}
       </SidebarInset>
     </SidebarProvider>
   );
@@ -3128,8 +3153,8 @@ function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-3 sm:p-4">
-      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-3 sm:p-4 pb-20 lg:pb-4">
+      <div className="bg-white rounded-lg max-w-md w-full max-h-[calc(90vh-80px)] lg:max-h-[90vh] overflow-y-auto">
         <div className="p-4 sm:p-6">
           <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
             {hotel ? "Редактировать отель" : "Создать отель"}

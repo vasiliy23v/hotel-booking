@@ -229,11 +229,11 @@ export function BookingFormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-card rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-foreground">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4 pb-20 lg:pb-4" onClick={onClose}>
+      <div className="bg-white dark:bg-card rounded-lg max-w-3xl w-full max-h-[calc(90vh-80px)] lg:max-h-[90vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="p-4 sm:p-6">
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-foreground">
               {mode === 'edit' ? 'Редактировать бронирование' : 'Новое бронирование'}
             </h2>
             <button
@@ -245,8 +245,8 @@ export function BookingFormModal({
           </div>
 
           {mode === 'edit' && room && (
-            <div className="mb-6 p-4 bg-gray-50 dark:bg-muted rounded-lg border border-gray-200 dark:border-border">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 dark:bg-muted rounded-lg border border-gray-200 dark:border-border">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                 <div>
                   <span className="text-gray-600 dark:text-muted-foreground">Отель:</span>
                   <span className="ml-2 font-medium text-gray-900 dark:text-foreground">{hotelName || '-'}</span>

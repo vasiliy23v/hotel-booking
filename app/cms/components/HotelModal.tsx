@@ -71,8 +71,8 @@ export default function HotelModal({ hotel, onSave, onClose }: HotelModalProps) 
   };
 
   return (
-    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-3 sm:p-4">
-      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-3 sm:p-4 pb-20 lg:pb-4">
+      <div className="bg-white rounded-lg max-w-md w-full max-h-[calc(90vh-80px)] lg:max-h-[90vh] overflow-y-auto">
         <div className="p-4 sm:p-6">
           <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
             {hotel ? 'Редактировать отель' : 'Создать отель'}

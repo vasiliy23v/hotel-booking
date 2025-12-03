@@ -71,7 +71,7 @@ export function MultiStepForm({
   return (
     <div className={className}>
       {/* Stepper */}
-      <div className="mb-8">
+      <div className="mb-4 sm:mb-8">
         <Stepper
           steps={steps.map((s) => ({ title: s.title, description: s.description }))}
           currentStep={currentStep}
@@ -79,35 +79,35 @@ export function MultiStepForm({
       </div>
 
       {/* Step Content */}
-      <div className="min-h-[400px]">
+      <div className="min-h-[300px] sm:min-h-[400px]">
         {steps[currentStep].content}
       </div>
 
       {/* Navigation Buttons */}
-      <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200 dark:border-border">
+      <div className="flex justify-between items-center mt-4 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200 dark:border-border">
         <div>
           {onCancel && (
             <button
               type="button"
               onClick={onCancel}
               disabled={isSubmitting}
-              className="px-4 py-2 border border-gray-300 dark:border-border rounded-lg text-sm font-medium text-gray-700 dark:text-foreground hover:bg-gray-50 dark:hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-300 dark:border-border rounded-lg text-xs sm:text-sm font-medium text-gray-700 dark:text-foreground hover:bg-gray-50 dark:hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {cancelLabel}
             </button>
           )}
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3">
           {canGoPrevious && (
             <button
               type="button"
               onClick={handlePrevious}
               disabled={isSubmitting}
-              className="px-4 py-2 border border-gray-300 dark:border-border rounded-lg text-sm font-medium text-gray-700 dark:text-foreground hover:bg-gray-50 dark:hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              className="px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-300 dark:border-border rounded-lg text-xs sm:text-sm font-medium text-gray-700 dark:text-foreground hover:bg-gray-50 dark:hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 sm:gap-2"
             >
-              <ArrowLeft className="w-4 h-4" />
-              Назад
+              <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Назад</span>
             </button>
           )}
 
@@ -116,17 +116,17 @@ export function MultiStepForm({
               type="button"
               onClick={handleNext}
               disabled={isSubmitting}
-              className="px-4 py-2 bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white dark:text-primary-foreground rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white dark:text-primary-foreground rounded-lg text-xs sm:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 sm:gap-2"
             >
-              Далее
-              <ArrowRight className="w-4 h-4" />
+              <span className="hidden sm:inline">Далее</span>
+              <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
           ) : (
             <button
               type="button"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="px-4 py-2 bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white dark:text-primary-foreground rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/90 text-white dark:text-primary-foreground rounded-lg text-xs sm:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isSubmitting ? 'Сохранение...' : submitLabel}
             </button>
