@@ -392,7 +392,7 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
                       type="text"
                       value={newInviteName}
                       onChange={(e) => setNewInviteName(e.target.value)}
-                      placeholder="Иван Иванов"
+                      placeholder="Иванов Иван "
                       className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
                       required
                     />

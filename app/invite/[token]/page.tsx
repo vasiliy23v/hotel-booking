@@ -304,7 +304,7 @@ export default function InviteRegistrationPage() {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Иван Иванов"
+                    placeholder="Иванов Иван "
                     className="w-full px-4 py-3 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-900 dark:focus:border-ring focus:outline-none"
                   />
                   <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
@@ -416,7 +416,7 @@ export default function InviteRegistrationPage() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Иван Иванов"
+                  placeholder="Иванов Иван "
                   className="w-full px-4 py-3 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-900 dark:focus:border-ring focus:outline-none"
                 />
                 <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
