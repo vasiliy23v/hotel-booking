@@ -50,7 +50,7 @@ model Hotel {
   description  String?
   floors       Int?
   hasEGFloor   Boolean   @default(true) @map("has_eg_floor")
-  image        String?   @db.VarChar(500)
+  image        Bytes?    @db.ByteA
   displayOrder Int?      @map("display_order")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)

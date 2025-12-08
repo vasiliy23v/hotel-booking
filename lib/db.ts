@@ -4,7 +4,7 @@
 // ============================================
 
 import { prisma } from './prisma';
-import type { User, Room, Hotel, Stairs, BookingInfo, Invite, RegistrationToken } from '@/types';
+import type { User, Room, Hotel, Stairs, BookingInfo, Invite, RegistrationToken, BookingDateRange } from '@/types';
 import { normalizePhone } from './phone';
 
 // ============================================
@@ -334,6 +334,33 @@ export async function deleteUser(id: string): Promise<void> {
 // ============================================
 
 /**
+ * Конвертирует Buffer изображения в base64 data URL
+ */
+function imageBufferToBase64(buffer: Uint8Array | Buffer | null): string | undefined {
+  if (!buffer) return undefined;
+  // Если это Uint8Array (из Prisma), конвертируем в Buffer
+  const nodeBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+  return `data:image/webp;base64,${nodeBuffer.toString('base64')}`;
+}
+
+/**
+ * Конвертирует base64 data URL в Buffer для сохранения в БД
+ * Возвращает Buffer, который совместим с Uint8Array Prisma
+ */
+function base64ToImageBuffer(base64: string | undefined): Buffer | null {
+  if (!base64) return null;
+  
+  // Если это data URL, извлекаем base64 часть
+  if (base64.startsWith('data:')) {
+    const base64Data = base64.split(',')[1];
+    return Buffer.from(base64Data, 'base64');
+  }
+  
+  // Если это просто base64 строка
+  return Buffer.from(base64, 'base64');
+}
+
+/**
  * Получить все отели
  */
 export async function getHotels(): Promise<Hotel[]> {
@@ -351,7 +378,7 @@ export async function getHotels(): Promise<Hotel[]> {
     description: h.description || undefined,
     floors: h.floors || undefined,
     hasEGFloor: h.hasEGFloor,
-    image: h.image || undefined,
+    image: imageBufferToBase64(h.image),
     displayOrder: h.displayOrder || undefined,
   }));
 }
@@ -373,7 +400,7 @@ export async function getHotelById(id: string): Promise<Hotel | null> {
     description: hotel.description || undefined,
     floors: hotel.floors || undefined,
     hasEGFloor: hotel.hasEGFloor,
-    image: hotel.image || undefined,
+    image: imageBufferToBase64(hotel.image),
     displayOrder: hotel.displayOrder || undefined,
   };
 }
@@ -383,6 +410,8 @@ export async function getHotelById(id: string): Promise<Hotel | null> {
  */
 export async function createHotel(hotel: Omit<Hotel, 'id'> & { id?: string }): Promise<Hotel> {
   const hotelId = hotel.id || `hotel-${Date.now()}`;
+  const imageBuffer = base64ToImageBuffer(hotel.image);
+  
   const newHotel = await prisma.hotel.create({
     data: {
       id: hotelId,
@@ -391,7 +420,8 @@ export async function createHotel(hotel: Omit<Hotel, 'id'> & { id?: string }): P
       description: hotel.description || null,
       floors: hotel.floors || null,
       hasEGFloor: hotel.hasEGFloor !== undefined ? hotel.hasEGFloor : true,
-      image: hotel.image || null,
+      // Buffer наследуется от Uint8Array, приводим для совместимости типов
+      image: imageBuffer as any,
       displayOrder: hotel.displayOrder || null,
     },
   });
@@ -403,7 +433,7 @@ export async function createHotel(hotel: Omit<Hotel, 'id'> & { id?: string }): P
     description: newHotel.description || undefined,
     floors: newHotel.floors || undefined,
     hasEGFloor: newHotel.hasEGFloor,
-    image: newHotel.image || undefined,
+    image: imageBufferToBase64(newHotel.image),
     displayOrder: newHotel.displayOrder || undefined,
   };
 }
@@ -501,15 +531,18 @@ export async function updateHotel(id: string, updates: Partial<Hotel>): Promise<
     await migrateHotelFloors(id, updates.hasEGFloor!);
   }
   
-  const updateData: any = {};
+  const updateData: Record<string, any> = {};
   
   if (updates.name !== undefined) updateData.name = updates.name;
   if (updates.address !== undefined) updateData.address = updates.address;
-  if (updates.description !== undefined) updateData.description = updates.description;
-  if (updates.floors !== undefined) updateData.floors = updates.floors;
+  if (updates.description !== undefined) updateData.description = updates.description || null;
+  if (updates.floors !== undefined) updateData.floors = updates.floors || null;
   if (updates.hasEGFloor !== undefined) updateData.hasEGFloor = updates.hasEGFloor;
-  if (updates.image !== undefined) updateData.image = updates.image;
-  if (updates.displayOrder !== undefined) updateData.displayOrder = updates.displayOrder;
+  if (updates.image !== undefined) {
+    // Buffer наследуется от Uint8Array, совместимы на уровне выполнения
+    updateData.image = base64ToImageBuffer(updates.image);
+  }
+  if (updates.displayOrder !== undefined) updateData.displayOrder = updates.displayOrder || null;
   
   const updatedHotel = await prisma.hotel.update({
     where: { id },
@@ -523,7 +556,7 @@ export async function updateHotel(id: string, updates: Partial<Hotel>): Promise<
     description: updatedHotel.description || undefined,
     floors: updatedHotel.floors || undefined,
     hasEGFloor: updatedHotel.hasEGFloor,
-    image: updatedHotel.image || undefined,
+    image: imageBufferToBase64(updatedHotel.image),
     displayOrder: updatedHotel.displayOrder || undefined,
   };
 }
@@ -814,12 +847,6 @@ export async function createBooking(
     throw new Error('Дата заезда должна быть раньше даты выезда');
   }
 
-  // Проверка диапазонов дат фестиваля
-  const isRangeValid = await isDateRangeValid(checkInDate, checkOutDate);
-  if (!isRangeValid) {
-    throw new Error('Выбранные даты не входят в разрешённые диапазоны для бронирования. Пожалуйста, выберите даты в рамках фестиваля.');
-  }
-
   // Проверяем доступность комнаты перед созданием бронирования
   const isAvailable = await isRoomAvailable(booking.roomId, checkInDate, checkOutDate);
   if (!isAvailable) {
@@ -957,12 +984,6 @@ export async function updateBooking(
     // Блокируем только если дата выезда раньше даты заезда
     if (checkInDate > checkOutDate) {
       throw new Error('Дата заезда не может быть позже даты выезда');
-    }
-
-    // Проверка диапазонов дат фестиваля
-    const isRangeValid = await isDateRangeValid(checkInDate, checkOutDate);
-    if (!isRangeValid) {
-      throw new Error('Выбранные даты не входят в разрешённые диапазоны для бронирования. Пожалуйста, выберите даты в рамках фестиваля.');
     }
 
     // EXCLUDE constraint автоматически проверит пересечения при обновлении
@@ -1497,153 +1518,63 @@ export async function createOrUpdateRegistrationToken(hashedToken: string, origi
 // BOOKING DATE RANGES (Диапазоны дат для бронирования)
 // ============================================
 
-export interface BookingDateRange {
-  id: string;
-  name?: string;
-  startDate: string; // ISO date string
-  endDate: string; // ISO date string
-  isActive: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 /**
- * Получить все активные диапазоны дат
- */
-export async function getActiveBookingDateRanges(): Promise<BookingDateRange[]> {
-  if (!prisma.bookingDateRange) {
-    return [];
-  }
-
-  const ranges = await prisma.bookingDateRange.findMany({
-    where: { isActive: true },
-    orderBy: { startDate: 'asc' },
-  });
-
-  return ranges.map(range => ({
-    id: range.id,
-    name: range.name || undefined,
-    startDate: range.startDate.toISOString().split('T')[0],
-    endDate: range.endDate.toISOString().split('T')[0],
-    isActive: range.isActive,
-    createdAt: range.createdAt.toISOString(),
-    updatedAt: range.updatedAt.toISOString(),
-  }));
-}
-
-/**
- * Получить все диапазоны дат (включая неактивные)
+ * Получить все диапазоны дат для бронирования
  */
 export async function getAllBookingDateRanges(): Promise<BookingDateRange[]> {
-  if (!prisma.bookingDateRange) {
-    return [];
-  }
-
   const ranges = await prisma.bookingDateRange.findMany({
-    orderBy: { startDate: 'asc' },
+    orderBy: { startDate: 'desc' },
   });
-
-  return ranges.map(range => ({
-    id: range.id,
-    name: range.name || undefined,
-    startDate: range.startDate.toISOString().split('T')[0],
-    endDate: range.endDate.toISOString().split('T')[0],
-    isActive: range.isActive,
-    createdAt: range.createdAt.toISOString(),
-    updatedAt: range.updatedAt.toISOString(),
+  
+  return ranges.map(r => ({
+    id: r.id,
+    name: r.name || undefined,
+    startDate: r.startDate.toISOString().split('T')[0],
+    endDate: r.endDate.toISOString().split('T')[0],
+    isActive: r.isActive,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
   }));
 }
 
 /**
- * Проверить, находится ли дата в каком-либо активном диапазоне
+ * Получить активные диапазоны дат для бронирования
  */
-export async function isDateInValidRange(date: Date): Promise<boolean> {
-  if (!prisma.bookingDateRange) {
-    // Если модель не существует, разрешаем все даты (для обратной совместимости)
-    return true;
-  }
-
-  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  
-  const ranges = await prisma.bookingDateRange.findMany({
-    where: {
-      isActive: true,
-      startDate: { lte: dateOnly },
-      endDate: { gte: dateOnly },
-    },
-  });
-
-  return ranges.length > 0;
-}
-
-/**
- * Проверить, находится ли диапазон дат полностью в валидных диапазонах
- */
-export async function isDateRangeValid(checkIn: Date, checkOut: Date): Promise<boolean> {
-  if (!prisma.bookingDateRange) {
-    // Если модель не существует, разрешаем все даты (для обратной совместимости)
-    return true;
-  }
-
-  const checkInOnly = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
-  const checkOutOnly = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
-
-  // Получаем все активные диапазоны
+export async function getActiveBookingDateRanges(): Promise<BookingDateRange[]> {
   const ranges = await prisma.bookingDateRange.findMany({
     where: { isActive: true },
     orderBy: { startDate: 'asc' },
   });
-
-  if (ranges.length === 0) {
-    // Если нет активных диапазонов, запрещаем все бронирования
-    return false;
-  }
-
-  // Проверяем, что каждая дата в диапазоне checkIn-checkOut находится в каком-либо активном диапазоне
-  const currentDate = new Date(checkInOnly);
-  while (currentDate < checkOutOnly) {
-    const dateInRange = ranges.some(range => {
-      const rangeStart = new Date(range.startDate);
-      const rangeEnd = new Date(range.endDate);
-      return currentDate >= rangeStart && currentDate <= rangeEnd;
-    });
-
-    if (!dateInRange) {
-      return false;
-    }
-
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-
-  return true;
+  
+  return ranges.map(r => ({
+    id: r.id,
+    name: r.name || undefined,
+    startDate: r.startDate.toISOString().split('T')[0],
+    endDate: r.endDate.toISOString().split('T')[0],
+    isActive: r.isActive,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  }));
 }
 
 /**
- * Создать новый диапазон дат
+ * Создать новый диапазон дат для бронирования
  */
-export async function createBookingDateRange(
-  data: Omit<BookingDateRange, 'id' | 'createdAt' | 'updatedAt'>
-): Promise<BookingDateRange> {
-  if (!prisma.bookingDateRange) {
-    throw new Error('BookingDateRange model is not available. Please restart the development server after running "npx prisma generate"');
-  }
-
-  const startDate = new Date(data.startDate);
-  const endDate = new Date(data.endDate);
-
-  if (startDate >= endDate) {
-    throw new Error('Дата начала должна быть раньше даты окончания');
-  }
-
+export async function createBookingDateRange(data: {
+  name?: string;
+  startDate: string;
+  endDate: string;
+  isActive?: boolean;
+}): Promise<BookingDateRange> {
   const range = await prisma.bookingDateRange.create({
     data: {
       name: data.name || null,
-      startDate,
-      endDate,
-      isActive: data.isActive,
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
+      isActive: data.isActive !== undefined ? data.isActive : true,
     },
   });
-
+  
   return {
     id: range.id,
     name: range.name || undefined,
@@ -1656,31 +1587,34 @@ export async function createBookingDateRange(
 }
 
 /**
- * Обновить диапазон дат
+ * Обновить диапазон дат для бронирования
  */
 export async function updateBookingDateRange(
   id: string,
-  data: Partial<Omit<BookingDateRange, 'id' | 'createdAt' | 'updatedAt'>>
-): Promise<BookingDateRange> {
-  if (!prisma.bookingDateRange) {
-    throw new Error('BookingDateRange model is not available. Please restart the development server after running "npx prisma generate"');
+  data: {
+    name?: string;
+    startDate?: string;
+    endDate?: string;
+    isActive?: boolean;
   }
-
-  const updateData: any = {};
+): Promise<BookingDateRange> {
+  const updateData: {
+    name?: string | null;
+    startDate?: Date;
+    endDate?: Date;
+    isActive?: boolean;
+  } = {};
+  
   if (data.name !== undefined) updateData.name = data.name || null;
   if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
   if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate);
   if (data.isActive !== undefined) updateData.isActive = data.isActive;
-
-  if (updateData.startDate && updateData.endDate && updateData.startDate >= updateData.endDate) {
-    throw new Error('Дата начала должна быть раньше даты окончания');
-  }
-
+  
   const range = await prisma.bookingDateRange.update({
     where: { id },
     data: updateData,
   });
-
+  
   return {
     id: range.id,
     name: range.name || undefined,
@@ -1693,13 +1627,9 @@ export async function updateBookingDateRange(
 }
 
 /**
- * Удалить диапазон дат
+ * Удалить диапазон дат для бронирования
  */
 export async function deleteBookingDateRange(id: string): Promise<void> {
-  if (!prisma.bookingDateRange) {
-    throw new Error('BookingDateRange model is not available. Please restart the development server after running "npx prisma generate"');
-  }
-
   await prisma.bookingDateRange.delete({
     where: { id },
   });

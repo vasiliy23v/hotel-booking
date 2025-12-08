@@ -142,5 +142,15 @@ export interface RegistrationToken {
   updatedAt: string;
 }
 
+export interface BookingDateRange {
+  id: string;
+  name?: string; // Название диапазона (например, "Фестиваль 2024")
+  startDate: string; // Дата начала в формате YYYY-MM-DD
+  endDate: string; // Дата окончания в формате YYYY-MM-DD
+  isActive: boolean; // Активен ли диапазон
+  createdAt: string;
+  updatedAt: string;
+}
+
 
 
