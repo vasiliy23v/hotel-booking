@@ -71,12 +71,19 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
     }
   }, [hotel?.hasEGFloor, hotel?.floors]);
 
-  // Автоматически выбираем первый доступный этаж, если текущий не доступен
+  // Автоматически выбираем первый доступный этаж при изменении списка этажей
   useEffect(() => {
     if (getAvailableFloors.length > 0 && !getAvailableFloors.includes(selectedFloor)) {
       setSelectedFloor(getAvailableFloors[0]);
     }
-  }, [getAvailableFloors, selectedFloor]);
+  }, [getAvailableFloors]);
+  
+  // При первой загрузке отеля устанавливаем первый доступный этаж (EG, если есть)
+  useEffect(() => {
+    if (hotel && getAvailableFloors.length > 0) {
+      setSelectedFloor(getAvailableFloors[0]);
+    }
+  }, [hotel?.id]);
 
   useEffect(() => {
     loadHotel();
