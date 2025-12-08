@@ -23,6 +23,8 @@ interface DatePickerProps {
   minDate?: Date
   maxDate?: Date
   className?: string
+  allowedDateRanges?: Array<{ startDate: string; endDate: string }>
+  defaultMonth?: Date
 }
 
 export function DatePicker({
@@ -33,8 +35,40 @@ export function DatePicker({
   minDate,
   maxDate,
   className,
+  allowedDateRanges,
+  defaultMonth,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
+
+  // Функция для проверки, разрешена ли дата
+  const isDateAllowed = (dateToCheck: Date): boolean => {
+    const dateOnly = new Date(dateToCheck.getFullYear(), dateToCheck.getMonth(), dateToCheck.getDate());
+
+    // Проверка minDate/maxDate
+    if (minDate) {
+      const minDateOnly = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
+      if (dateOnly < minDateOnly) return false;
+    }
+    if (maxDate) {
+      const maxDateOnly = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
+      if (dateOnly > maxDateOnly) return false;
+    }
+
+    // Проверка диапазонов дат фестиваля
+    if (allowedDateRanges && allowedDateRanges.length > 0) {
+      const isInAnyRange = allowedDateRanges.some(range => {
+        const rangeStart = new Date(range.startDate);
+        const rangeEnd = new Date(range.endDate);
+        const rangeStartOnly = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+        const rangeEndOnly = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate());
+        return dateOnly >= rangeStartOnly && dateOnly <= rangeEndOnly;
+      });
+      return isInAnyRange;
+    }
+
+    // Если нет ограничений по диапазонам, разрешаем дату
+    return true;
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -56,7 +90,7 @@ export function DatePicker({
         <Calendar
           mode="single"
           selected={date}
-          defaultMonth={date || minDate || new Date()}
+          defaultMonth={date || defaultMonth || minDate || new Date()}
           onSelect={(selectedDate) => {
             onSelect?.(selectedDate)
             if (selectedDate) {
@@ -64,17 +98,10 @@ export function DatePicker({
             }
           }}
           disabled={(dateToCheck) => {
-            if (minDate) {
-              const minDateOnly = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
-              const dateOnly = new Date(dateToCheck.getFullYear(), dateToCheck.getMonth(), dateToCheck.getDate());
-              if (dateOnly < minDateOnly) return true;
-            }
-            if (maxDate) {
-              const maxDateOnly = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
-              const dateOnly = new Date(dateToCheck.getFullYear(), dateToCheck.getMonth(), dateToCheck.getDate());
-              if (dateOnly > maxDateOnly) return true;
-            }
-            return false;
+            return !isDateAllowed(dateToCheck);
+          }}
+          modifiersClassNames={{
+            disabled: "opacity-50 cursor-not-allowed text-gray-400 dark:text-muted-foreground",
           }}
           initialFocus
           locale={ru}
@@ -99,6 +126,7 @@ interface DateRangePickerProps {
   minDate?: Date
   maxDate?: Date
   className?: string
+  allowedDateRanges?: Array<{ startDate: string; endDate: string }>
 }
 
 export function DateRangePicker({
@@ -110,6 +138,7 @@ export function DateRangePicker({
   minDate,
   maxDate,
   className,
+  allowedDateRanges,
 }: DateRangePickerProps) {
   const [open, setOpen] = React.useState(false)
   
@@ -123,6 +152,36 @@ export function DateRangePicker({
     if (range?.from && range?.to) {
       setOpen(false)
     }
+  }
+
+  // Функция для проверки, разрешена ли дата
+  const isDateAllowed = (dateToCheck: Date): boolean => {
+    const dateOnly = new Date(dateToCheck.getFullYear(), dateToCheck.getMonth(), dateToCheck.getDate());
+
+    // Проверка minDate/maxDate
+    if (minDate) {
+      const minDateOnly = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
+      if (dateOnly < minDateOnly) return false;
+    }
+    if (maxDate) {
+      const maxDateOnly = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
+      if (dateOnly > maxDateOnly) return false;
+    }
+
+    // Проверка диапазонов дат фестиваля
+    if (allowedDateRanges && allowedDateRanges.length > 0) {
+      const isInAnyRange = allowedDateRanges.some(range => {
+        const rangeStart = new Date(range.startDate);
+        const rangeEnd = new Date(range.endDate);
+        const rangeStartOnly = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+        const rangeEndOnly = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate());
+        return dateOnly >= rangeStartOnly && dateOnly <= rangeEndOnly;
+      });
+      return isInAnyRange;
+    }
+
+    // Если нет ограничений по диапазонам, разрешаем дату
+    return true;
   }
 
   return (
@@ -159,17 +218,10 @@ export function DateRangePicker({
           onSelect={handleSelect}
           numberOfMonths={2}
           disabled={(dateToCheck) => {
-            if (minDate) {
-              const minDateOnly = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
-              const dateOnly = new Date(dateToCheck.getFullYear(), dateToCheck.getMonth(), dateToCheck.getDate());
-              if (dateOnly < minDateOnly) return true;
-            }
-            if (maxDate) {
-              const maxDateOnly = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
-              const dateOnly = new Date(dateToCheck.getFullYear(), dateToCheck.getMonth(), dateToCheck.getDate());
-              if (dateOnly > maxDateOnly) return true;
-            }
-            return false;
+            return !isDateAllowed(dateToCheck);
+          }}
+          modifiersClassNames={{
+            disabled: "opacity-50 cursor-not-allowed text-gray-400 dark:text-muted-foreground",
           }}
           initialFocus
           locale={ru}

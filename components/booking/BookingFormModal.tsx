@@ -221,6 +221,9 @@ export function BookingFormModal({
           checkIn={checkIn}
           checkOut={checkOut}
           nights={calculateNights()}
+          roomPrice={room?.price}
+          pricePerPerson={room?.pricePerPerson}
+          guestsCount={guests.length}
         />
       ),
     },

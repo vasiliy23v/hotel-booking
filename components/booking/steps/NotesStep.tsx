@@ -10,6 +10,9 @@ interface NotesStepProps {
   checkIn?: string;
   checkOut?: string;
   nights?: number;
+  roomPrice?: number;
+  pricePerPerson?: boolean;
+  guestsCount?: number;
 }
 
 export function NotesStep({
@@ -20,7 +23,14 @@ export function NotesStep({
   checkIn,
   checkOut,
   nights,
+  roomPrice,
+  pricePerPerson,
+  guestsCount,
 }: NotesStepProps) {
+  // Вычисляем общую сумму
+  const totalPrice = roomPrice && nights ? 
+    (pricePerPerson && guestsCount ? roomPrice * nights * guestsCount : roomPrice * nights) 
+    : null;
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
@@ -66,6 +76,22 @@ export function NotesStep({
               <div className="flex justify-between">
                 <span>Ночей:</span>
                 <span className="font-medium">{nights}</span>
+              </div>
+            )}
+            {roomPrice && (
+              <div className="flex justify-between">
+                <span>Цена за ночь:</span>
+                <span className="font-medium">
+                  {roomPrice.toFixed(2)}€{pricePerPerson ? ' p.P.' : ''}
+                </span>
+              </div>
+            )}
+            {totalPrice && (
+              <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 dark:border-border">
+                <span className="font-semibold text-gray-900 dark:text-foreground">Итого:</span>
+                <span className="font-bold text-lg text-gray-900 dark:text-foreground">
+                  {totalPrice.toFixed(2)}€
+                </span>
               </div>
             )}
           </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Building2, BookOpen, Users, MessageCircle, LogOut, ChevronDown, MessageSquare } from 'lucide-react';
+import { Building2, BookOpen, Users, MessageCircle, LogOut, ChevronDown, MessageSquare, Calendar } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -250,6 +250,16 @@ export function AppSidebar({
                   >
                     <BookOpen />
                     <span>Бронирования</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={viewMode === 'dateRanges'}
+                    onClick={() => onViewModeChange?.('dateRanges')}
+                    tooltip="Диапазоны дат"
+                  >
+                    <Calendar />
+                    <span>Диапазоны дат</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>

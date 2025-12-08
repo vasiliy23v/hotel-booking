@@ -9,6 +9,7 @@ import HotelsView from '../components/HotelsView';
 import UsersManagementView from '../components/UsersManagementView';
 import BookingsView from '../components/BookingsView';
 import FeedbackView from '../components/FeedbackView';
+import BookingDateRangesView from '../components/BookingDateRangesView';
 import FeedbackForm from '@/components/FeedbackForm';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/navigation/AppSidebar';
@@ -29,7 +30,7 @@ import {
 export default function CMSDashboard() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [viewMode, setViewMode] = useState<'hotels' | 'users' | 'bookings' | 'feedback'>('hotels');
+  const [viewMode, setViewMode] = useState<'hotels' | 'users' | 'bookings' | 'feedback' | 'dateRanges'>('hotels');
   const [selectedHotel, setSelectedHotel] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -112,7 +113,7 @@ export default function CMSDashboard() {
         hotels={hotels}
         selectedHotel={selectedHotel}
         viewMode={viewMode}
-        onViewModeChange={(mode) => setViewMode(mode as 'hotels' | 'users' | 'bookings' | 'feedback')}
+        onViewModeChange={(mode) => setViewMode(mode as 'hotels' | 'users' | 'bookings' | 'feedback' | 'dateRanges')}
         onHotelSelect={setSelectedHotel}
         onLogout={handleLogout}
         onShowFeedbackForm={() => setShowFeedbackForm(true)}
@@ -169,6 +170,10 @@ export default function CMSDashboard() {
 
         {viewMode === 'feedback' && (
           <FeedbackView />
+        )}
+
+        {viewMode === 'dateRanges' && (
+          <BookingDateRangesView />
         )}
         </main>
       </SidebarInset>

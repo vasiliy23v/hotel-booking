@@ -251,3 +251,21 @@ model RegistrationToken {
   @@index([isActive])
   @@map("registration_tokens")
 }
+
+// ============================================
+// BOOKING DATE RANGES (Диапазоны дат для бронирования)
+// ============================================
+model BookingDateRange {
+  id          String   @id @default(uuid())
+  name        String?  // Название диапазона (например, "Фестиваль 2024")
+  startDate   DateTime @map("start_date") @db.Date
+  endDate     DateTime @map("end_date") @db.Date
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([startDate])
+  @@index([endDate])
+  @@index([isActive])
+  @@map("booking_date_ranges")
+}

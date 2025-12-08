@@ -18,6 +18,7 @@ export default function BookingsView() {
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [statisticsLoading, setStatisticsLoading] = useState(true);
   const [filterHotelId, setFilterHotelId] = useState<string>('');
+  const [allowedDateRanges, setAllowedDateRanges] = useState<Array<{ startDate: string; endDate: string }>>([]);
   
   // Поиск
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -123,6 +124,20 @@ export default function BookingsView() {
       setCurrentUser(user);
     }
     loadAllData();
+    
+    // Загружаем активные диапазоны дат для валидации и подчёркивания невалидных дат
+    const loadDateRanges = async () => {
+      try {
+        const ranges = await api.getBookingDateRanges(true);
+        setAllowedDateRanges(ranges.map((r: any) => ({
+          startDate: r.startDate,
+          endDate: r.endDate,
+        })));
+      } catch (error) {
+        console.error('Error loading date ranges:', error);
+      }
+    };
+    loadDateRanges();
   }, []);
 
   useEffect(() => {
@@ -452,6 +467,24 @@ export default function BookingsView() {
       setSortBy(column);
       setSortDirection('asc');
     }
+  };
+
+  // Функция для проверки, находится ли дата в валидном диапазоне
+  const isDateInValidRange = (date: Date): boolean => {
+    if (allowedDateRanges.length === 0) {
+      // Если нет диапазонов, считаем все даты валидными (для обратной совместимости)
+      return true;
+    }
+
+    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    return allowedDateRanges.some(range => {
+      const rangeStart = new Date(range.startDate);
+      const rangeEnd = new Date(range.endDate);
+      const rangeStartOnly = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+      const rangeEndOnly = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate());
+      return dateOnly >= rangeStartOnly && dateOnly <= rangeEndOnly;
+    });
   };
 
   // Функция для выделения найденного текста (выделяет все вхождения)
@@ -845,13 +878,21 @@ export default function BookingsView() {
                       </TableCell>
                       
                       <TableCell className="py-3">
-                        <div className="text-sm text-gray-700 dark:text-foreground">
+                        <div className={`text-sm ${
+                          !isDateInValidRange(new Date(booking.checkIn))
+                            ? 'text-red-600 dark:text-red-400 underline decoration-2 decoration-red-600 dark:decoration-red-400'
+                            : 'text-gray-700 dark:text-foreground'
+                        }`}>
                           {new Date(booking.checkIn).toLocaleDateString('ru-RU')}
                         </div>
                       </TableCell>
                       
                       <TableCell className="py-3">
-                        <div className="text-sm text-gray-700 dark:text-foreground">
+                        <div className={`text-sm ${
+                          !isDateInValidRange(new Date(booking.checkOut))
+                            ? 'text-red-600 dark:text-red-400 underline decoration-2 decoration-red-600 dark:decoration-red-400'
+                            : 'text-gray-700 dark:text-foreground'
+                        }`}>
                           {new Date(booking.checkOut).toLocaleDateString('ru-RU')}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">

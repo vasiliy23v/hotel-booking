@@ -303,6 +303,30 @@ export class ApiClient {
       method: 'POST',
     });
   }
+
+  // Booking Date Ranges
+  async getBookingDateRanges(activeOnly = false) {
+    const query = activeOnly ? '?activeOnly=true' : '';
+    return this.request<any[]>(`/booking-date-ranges${query}`);
+  }
+
+  async createBookingDateRange(range: any) {
+    return this.request<any>('/booking-date-ranges', {
+      method: 'POST',
+      body: JSON.stringify(range),
+    });
+  }
+
+  async updateBookingDateRange(id: string, range: any) {
+    return this.request<any>(`/booking-date-ranges/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(range),
+    });
+  }
+
+  async deleteBookingDateRange(id: string) {
+    return this.request(`/booking-date-ranges/${id}`, { method: 'DELETE' });
+  }
 }
 
 export const api = new ApiClient();

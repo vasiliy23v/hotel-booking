@@ -418,7 +418,6 @@ export default function UsersManagementView({
               {/* Ссылка для копирования */}
               {activeRegistrationUrl ? (
                 <div className="bg-gray-50 dark:bg-muted border border-gray-200 dark:border-border rounded-lg p-3">
-                  <div className="text-xs text-gray-600 dark:text-muted-foreground mb-2 font-semibold">Ссылка для регистрации:</div>
                   <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                     <input
                       type="text"

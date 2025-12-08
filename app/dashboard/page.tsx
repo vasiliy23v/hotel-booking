@@ -195,8 +195,12 @@ export default function Dashboard() {
           "6OG": 6,
         };
 
-        // Сортируем этажи в правильном порядке
+        // Сортируем этажи в правильном порядке (EG первый, если существует)
         const sortedFloors = allFloorsFromRooms.sort((a, b) => {
+          // Если один из этажей - EG, он должен быть первым
+          if (a === 'EG' && b !== 'EG') return -1;
+          if (b === 'EG' && a !== 'EG') return 1;
+          
           const orderA = floorOrder[a] ?? 999;
           const orderB = floorOrder[b] ?? 999;
           return orderA - orderB;
@@ -445,6 +449,16 @@ export default function Dashboard() {
           } else {
             // Если отель не найден, очищаем из localStorage
             localStorage.removeItem("dashboard_selectedHotel");
+            // Выбираем первый отель по displayOrder
+            if (hotelsData.length > 0) {
+              setSelectedHotel(hotelsData[0].id);
+            }
+          }
+        } else {
+          // Если нет сохраненного отеля, автоматически выбираем первый по displayOrder
+          // API уже возвращает отели отсортированными по displayOrder
+          if (hotelsData.length > 0) {
+            setSelectedHotel(hotelsData[0].id);
           }
         }
         // Восстанавливаем фильтр по датам

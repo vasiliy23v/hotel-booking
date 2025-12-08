@@ -814,6 +814,12 @@ export async function createBooking(
     throw new Error('Дата заезда должна быть раньше даты выезда');
   }
 
+  // Проверка диапазонов дат фестиваля
+  const isRangeValid = await isDateRangeValid(checkInDate, checkOutDate);
+  if (!isRangeValid) {
+    throw new Error('Выбранные даты не входят в разрешённые диапазоны для бронирования. Пожалуйста, выберите даты в рамках фестиваля.');
+  }
+
   // Проверяем доступность комнаты перед созданием бронирования
   const isAvailable = await isRoomAvailable(booking.roomId, checkInDate, checkOutDate);
   if (!isAvailable) {
@@ -951,6 +957,12 @@ export async function updateBooking(
     // Блокируем только если дата выезда раньше даты заезда
     if (checkInDate > checkOutDate) {
       throw new Error('Дата заезда не может быть позже даты выезда');
+    }
+
+    // Проверка диапазонов дат фестиваля
+    const isRangeValid = await isDateRangeValid(checkInDate, checkOutDate);
+    if (!isRangeValid) {
+      throw new Error('Выбранные даты не входят в разрешённые диапазоны для бронирования. Пожалуйста, выберите даты в рамках фестиваля.');
     }
 
     // EXCLUDE constraint автоматически проверит пересечения при обновлении
@@ -1479,4 +1491,216 @@ export async function createOrUpdateRegistrationToken(hashedToken: string, origi
     createdAt: newToken.createdAt.toISOString(),
     updatedAt: newToken.updatedAt.toISOString(),
   };
+}
+
+// ============================================
+// BOOKING DATE RANGES (Диапазоны дат для бронирования)
+// ============================================
+
+export interface BookingDateRange {
+  id: string;
+  name?: string;
+  startDate: string; // ISO date string
+  endDate: string; // ISO date string
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Получить все активные диапазоны дат
+ */
+export async function getActiveBookingDateRanges(): Promise<BookingDateRange[]> {
+  if (!prisma.bookingDateRange) {
+    return [];
+  }
+
+  const ranges = await prisma.bookingDateRange.findMany({
+    where: { isActive: true },
+    orderBy: { startDate: 'asc' },
+  });
+
+  return ranges.map(range => ({
+    id: range.id,
+    name: range.name || undefined,
+    startDate: range.startDate.toISOString().split('T')[0],
+    endDate: range.endDate.toISOString().split('T')[0],
+    isActive: range.isActive,
+    createdAt: range.createdAt.toISOString(),
+    updatedAt: range.updatedAt.toISOString(),
+  }));
+}
+
+/**
+ * Получить все диапазоны дат (включая неактивные)
+ */
+export async function getAllBookingDateRanges(): Promise<BookingDateRange[]> {
+  if (!prisma.bookingDateRange) {
+    return [];
+  }
+
+  const ranges = await prisma.bookingDateRange.findMany({
+    orderBy: { startDate: 'asc' },
+  });
+
+  return ranges.map(range => ({
+    id: range.id,
+    name: range.name || undefined,
+    startDate: range.startDate.toISOString().split('T')[0],
+    endDate: range.endDate.toISOString().split('T')[0],
+    isActive: range.isActive,
+    createdAt: range.createdAt.toISOString(),
+    updatedAt: range.updatedAt.toISOString(),
+  }));
+}
+
+/**
+ * Проверить, находится ли дата в каком-либо активном диапазоне
+ */
+export async function isDateInValidRange(date: Date): Promise<boolean> {
+  if (!prisma.bookingDateRange) {
+    // Если модель не существует, разрешаем все даты (для обратной совместимости)
+    return true;
+  }
+
+  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  
+  const ranges = await prisma.bookingDateRange.findMany({
+    where: {
+      isActive: true,
+      startDate: { lte: dateOnly },
+      endDate: { gte: dateOnly },
+    },
+  });
+
+  return ranges.length > 0;
+}
+
+/**
+ * Проверить, находится ли диапазон дат полностью в валидных диапазонах
+ */
+export async function isDateRangeValid(checkIn: Date, checkOut: Date): Promise<boolean> {
+  if (!prisma.bookingDateRange) {
+    // Если модель не существует, разрешаем все даты (для обратной совместимости)
+    return true;
+  }
+
+  const checkInOnly = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
+  const checkOutOnly = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
+
+  // Получаем все активные диапазоны
+  const ranges = await prisma.bookingDateRange.findMany({
+    where: { isActive: true },
+    orderBy: { startDate: 'asc' },
+  });
+
+  if (ranges.length === 0) {
+    // Если нет активных диапазонов, запрещаем все бронирования
+    return false;
+  }
+
+  // Проверяем, что каждая дата в диапазоне checkIn-checkOut находится в каком-либо активном диапазоне
+  const currentDate = new Date(checkInOnly);
+  while (currentDate < checkOutOnly) {
+    const dateInRange = ranges.some(range => {
+      const rangeStart = new Date(range.startDate);
+      const rangeEnd = new Date(range.endDate);
+      return currentDate >= rangeStart && currentDate <= rangeEnd;
+    });
+
+    if (!dateInRange) {
+      return false;
+    }
+
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return true;
+}
+
+/**
+ * Создать новый диапазон дат
+ */
+export async function createBookingDateRange(
+  data: Omit<BookingDateRange, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<BookingDateRange> {
+  if (!prisma.bookingDateRange) {
+    throw new Error('BookingDateRange model is not available. Please restart the development server after running "npx prisma generate"');
+  }
+
+  const startDate = new Date(data.startDate);
+  const endDate = new Date(data.endDate);
+
+  if (startDate >= endDate) {
+    throw new Error('Дата начала должна быть раньше даты окончания');
+  }
+
+  const range = await prisma.bookingDateRange.create({
+    data: {
+      name: data.name || null,
+      startDate,
+      endDate,
+      isActive: data.isActive,
+    },
+  });
+
+  return {
+    id: range.id,
+    name: range.name || undefined,
+    startDate: range.startDate.toISOString().split('T')[0],
+    endDate: range.endDate.toISOString().split('T')[0],
+    isActive: range.isActive,
+    createdAt: range.createdAt.toISOString(),
+    updatedAt: range.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * Обновить диапазон дат
+ */
+export async function updateBookingDateRange(
+  id: string,
+  data: Partial<Omit<BookingDateRange, 'id' | 'createdAt' | 'updatedAt'>>
+): Promise<BookingDateRange> {
+  if (!prisma.bookingDateRange) {
+    throw new Error('BookingDateRange model is not available. Please restart the development server after running "npx prisma generate"');
+  }
+
+  const updateData: any = {};
+  if (data.name !== undefined) updateData.name = data.name || null;
+  if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
+  if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate);
+  if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+  if (updateData.startDate && updateData.endDate && updateData.startDate >= updateData.endDate) {
+    throw new Error('Дата начала должна быть раньше даты окончания');
+  }
+
+  const range = await prisma.bookingDateRange.update({
+    where: { id },
+    data: updateData,
+  });
+
+  return {
+    id: range.id,
+    name: range.name || undefined,
+    startDate: range.startDate.toISOString().split('T')[0],
+    endDate: range.endDate.toISOString().split('T')[0],
+    isActive: range.isActive,
+    createdAt: range.createdAt.toISOString(),
+    updatedAt: range.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * Удалить диапазон дат
+ */
+export async function deleteBookingDateRange(id: string): Promise<void> {
+  if (!prisma.bookingDateRange) {
+    throw new Error('BookingDateRange model is not available. Please restart the development server after running "npx prisma generate"');
+  }
+
+  await prisma.bookingDateRange.delete({
+    where: { id },
+  });
 }

@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Calendar } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface DatesStepProps {
   checkIn: string;
@@ -24,8 +26,68 @@ export function DatesStep({
   checkingAvailability,
   minDate,
 }: DatesStepProps) {
+  const [allowedDateRanges, setAllowedDateRanges] = useState<Array<{ startDate: string; endDate: string }>>([]);
+  const [defaultMonth, setDefaultMonth] = useState<Date | undefined>(undefined);
   const checkInDate = checkIn ? new Date(checkIn) : undefined;
   const checkOutDate = checkOut ? new Date(checkOut) : undefined;
+
+  useEffect(() => {
+    // Загружаем активные диапазоны дат
+    const loadDateRanges = async () => {
+      try {
+        const ranges = await api.getBookingDateRanges(true);
+        const dateRanges = ranges.map((r: any) => ({
+          startDate: r.startDate,
+          endDate: r.endDate,
+        }));
+        setAllowedDateRanges(dateRanges);
+
+        // Находим ближайшую доступную дату и автоматически выбираем её
+        if (dateRanges.length > 0 && !checkIn) {
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          
+          // Ищем первый диапазон, который еще не закончился
+          const upcomingRange = dateRanges.find((range: any) => {
+            const endDate = new Date(range.endDate);
+            return endDate >= today;
+          });
+          
+          if (upcomingRange) {
+            const rangeStartDate = new Date(upcomingRange.startDate);
+            
+            // Определяем ближайшую доступную дату (сегодня или начало диапазона)
+            let nearestDate: Date;
+            if (rangeStartDate > today) {
+              // Если диапазон еще не начался, берем его начало
+              nearestDate = rangeStartDate;
+            } else {
+              // Если диапазон уже начался, берем сегодня
+              nearestDate = today;
+            }
+            
+            // Устанавливаем defaultMonth для календаря
+            setDefaultMonth(nearestDate);
+            
+            // Автоматически выбираем ближайшую доступную дату для checkIn
+            const dateStr = `${nearestDate.getFullYear()}-${String(nearestDate.getMonth() + 1).padStart(2, '0')}-${String(nearestDate.getDate()).padStart(2, '0')}`;
+            onCheckInChange(dateStr);
+            
+            // Автоматически устанавливаем checkOut на следующий день
+            const nextDay = new Date(nearestDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const nextDayStr = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
+            onCheckOutChange(nextDayStr);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading date ranges:', error);
+        // Если не удалось загрузить, разрешаем все даты (для обратной совместимости)
+      }
+    };
+    loadDateRanges();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -57,6 +119,8 @@ export function DatesStep({
             }}
             placeholder="Выберите дату заезда"
             minDate={minDate}
+            allowedDateRanges={allowedDateRanges}
+            defaultMonth={defaultMonth}
             className="w-full"
           />
         </div>
@@ -83,6 +147,8 @@ export function DatesStep({
             }}
             placeholder="Выберите дату выезда"
             minDate={checkIn ? new Date(new Date(checkIn).getTime() + 86400000) : undefined}
+            allowedDateRanges={allowedDateRanges}
+            defaultMonth={defaultMonth}
             className="w-full"
           />
         </div>
