@@ -2847,13 +2847,67 @@ function RoomEditModal({ room, hotelId, floor, onSave, onClose }: any) {
     return `${Date.now()}-${idCounterRef.current}-${Math.random().toString(36).substr(2, 9)}`;
   };
 
+  // Функция для нормализации кроватей в читаемый формат
+  const normalizeBeds = (beds: string[] | undefined): string => {
+    if (!beds || beds.length === 0) return '';
+    
+    // Стандартные типы кроватей (короткие коды)
+    const standardBedTypes = ['DB', 'HB', 'EB', 'QB', 'KB', 'SB', 'TB', 'FB', 'DZ', 'EZ', 'MZ', 'FZ'];
+    
+    // Объединяем все элементы массива в одну строку для обработки
+    const allBeds = beds.join(', ');
+    
+    // Разбиваем по запятым
+    const bedItems = allBeds.split(',').map(b => b.trim()).filter(b => b);
+    
+    const result: string[] = [];
+    const bedCounts: Record<string, number> = {};
+    
+    bedItems.forEach(item => {
+      if (!item) return;
+      
+      // Проверяем формат "число-тип" (например, "2-HB" или "1-Sofa")
+      const matchWithCount = item.match(/^(\d+)[-](.+)$/);
+      if (matchWithCount) {
+        const count = parseInt(matchWithCount[1]);
+        const type = matchWithCount[2].trim();
+        
+        // Если это стандартный тип кровати - группируем
+        if (standardBedTypes.includes(type.toUpperCase())) {
+          const upperType = type.toUpperCase();
+          bedCounts[upperType] = (bedCounts[upperType] || 0) + count;
+        } else {
+          // Если это описание (не стандартный тип) - добавляем без числа
+          result.push(type);
+        }
+      } else {
+        // Проверяем, является ли это стандартным типом без количества
+        if (standardBedTypes.includes(item.toUpperCase())) {
+          const upperType = item.toUpperCase();
+          bedCounts[upperType] = (bedCounts[upperType] || 0) + 1;
+        } else {
+          // Это описание - добавляем как есть
+          result.push(item);
+        }
+      }
+    });
+    
+    // Форматируем сгруппированные стандартные типы кроватей
+    const formattedBeds = Object.entries(bedCounts)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([type, count]) => `${count}-${type}`);
+    
+    // Объединяем стандартные типы и описания
+    return [...formattedBeds, ...result].join(', ');
+  };
+
   const [formData, setFormData] = useState({
     number: room?.number || '',
     name: room?.name || '',
     type: room?.type || 'DZ',
     capacity: room?.capacity || '2 чел.',
     maxCapacity: room?.maxCapacity || 2,
-    beds: room?.beds?.join(', ') || '',
+    beds: normalizeBeds(room?.beds),
     price: room?.price || 0,
     description: room?.description || '',
     isCommon: room?.isCommon || false,
