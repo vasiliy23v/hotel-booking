@@ -86,13 +86,30 @@ export function NotesStep({
                 </span>
               </div>
             )}
-            {totalPrice && (
-              <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 dark:border-border">
-                <span className="font-semibold text-gray-900 dark:text-foreground">Итого:</span>
-                <span className="font-bold text-lg text-gray-900 dark:text-foreground">
-                  {totalPrice.toFixed(2)}€
-                </span>
+            {pricePerPerson && guestsCount && (
+              <div className="flex justify-between">
+                <span>Количество гостей:</span>
+                <span className="font-medium">{guestsCount}</span>
               </div>
+            )}
+            {totalPrice && (
+              <>
+                <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 dark:border-border">
+                  <span className="font-semibold text-gray-900 dark:text-foreground">Итого:</span>
+                  <span className="font-bold text-xl text-blue-600 dark:text-blue-400">
+                    {totalPrice.toFixed(2)}€
+                  </span>
+                </div>
+                {pricePerPerson && guestsCount && roomPrice ? (
+                  <div className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
+                    {roomPrice.toFixed(2)}€ × {guestsCount} гост. × {nights} ноч. = {totalPrice.toFixed(2)}€
+                  </div>
+                ) : roomPrice ? (
+                  <div className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
+                    {roomPrice.toFixed(2)}€ × {nights} ноч. = {totalPrice.toFixed(2)}€
+                  </div>
+                ) : null}
+              </>
             )}
           </div>
         </div>

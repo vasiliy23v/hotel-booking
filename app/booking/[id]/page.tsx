@@ -455,6 +455,9 @@ export default function BookingPage() {
           checkIn={checkIn}
           checkOut={checkOut}
           nights={nights}
+          roomPrice={room?.price}
+          pricePerPerson={room?.pricePerPerson}
+          guestsCount={guests.length}
         />
       ),
     },
