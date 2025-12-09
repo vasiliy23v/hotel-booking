@@ -424,6 +424,7 @@ export default function BookingPage() {
           isAvailable={isAvailable}
           checkingAvailability={checkingAvailability}
           minDate={new Date()}
+          currentUser={currentUser}
         />
       ),
       validate: validateDates,

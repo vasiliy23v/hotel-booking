@@ -177,6 +177,7 @@ export function BookingFormModal({
           availabilityError={availabilityError}
           isAvailable={isAvailable}
           checkingAvailability={checkingAvailability}
+          currentUser={currentUser}
         />
       ),
       validate: validateDates,

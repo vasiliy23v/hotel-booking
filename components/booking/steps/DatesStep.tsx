@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Calendar } from 'lucide-react';
 import { api } from '@/lib/api';
+import type { User } from '@/types';
 
 interface DatesStepProps {
   checkIn: string;
@@ -14,6 +15,7 @@ interface DatesStepProps {
   isAvailable?: boolean | null;
   checkingAvailability?: boolean;
   minDate?: Date;
+  currentUser?: User | null;
 }
 
 export function DatesStep({
@@ -25,18 +27,28 @@ export function DatesStep({
   isAvailable,
   checkingAvailability,
   minDate,
+  currentUser,
 }: DatesStepProps) {
   const [allowedDateRanges, setAllowedDateRanges] = useState<Array<{ startDate: string; endDate: string }>>([]);
   const [defaultMonth, setDefaultMonth] = useState<Date | undefined>(undefined);
   const checkInDate = checkIn ? new Date(checkIn) : undefined;
   const checkOutDate = checkOut ? new Date(checkOut) : undefined;
+  
+  // Developer и manager могут бронировать на любые даты
+  const canBookAnyDate = currentUser?.role === 'developer' || currentUser?.role === 'manager';
 
   useEffect(() => {
-    // Загружаем активные диапазоны дат
+    // Загружаем активные диапазоны дат (только если пользователь НЕ developer/manager)
     const loadDateRanges = async () => {
+      if (canBookAnyDate) {
+        // Developer и manager не ограничены диапазонами
+        setAllowedDateRanges([]);
+        return;
+      }
+      
       try {
         const ranges = await api.getBookingDateRanges(true);
-        const dateRanges = ranges.map((r: any) => ({
+        const dateRanges = ranges.map((r) => ({
           startDate: r.startDate,
           endDate: r.endDate,
         }));
@@ -48,7 +60,7 @@ export function DatesStep({
           const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           
           // Ищем первый диапазон, который еще не закончился
-          const upcomingRange = dateRanges.find((range: any) => {
+          const upcomingRange = dateRanges.find((range) => {
             const endDate = new Date(range.endDate);
             return endDate >= today;
           });
@@ -87,7 +99,7 @@ export function DatesStep({
     };
     loadDateRanges();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [canBookAnyDate]);
 
   return (
     <div className="space-y-6">
@@ -96,6 +108,14 @@ export function DatesStep({
         <h2 className="text-xl font-medium text-gray-900 dark:text-foreground">Выберите даты</h2>
         <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">Укажите даты заезда и выезда</p>
       </div>
+
+      {canBookAnyDate && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm text-blue-800 dark:text-blue-300">
+            🔓 <strong>{currentUser?.role === 'developer' ? 'Разработчик' : 'Менеджер'}:</strong> Вы можете бронировать на любые даты без ограничений по диапазонам.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-4">
         <div>
@@ -119,7 +139,7 @@ export function DatesStep({
             }}
             placeholder="Выберите дату заезда"
             minDate={minDate}
-            allowedDateRanges={allowedDateRanges}
+            allowedDateRanges={canBookAnyDate ? [] : allowedDateRanges}
             defaultMonth={defaultMonth}
             className="w-full"
           />
@@ -147,7 +167,7 @@ export function DatesStep({
             }}
             placeholder="Выберите дату выезда"
             minDate={checkIn ? new Date(new Date(checkIn).getTime() + 86400000) : undefined}
-            allowedDateRanges={allowedDateRanges}
+            allowedDateRanges={canBookAnyDate ? [] : allowedDateRanges}
             defaultMonth={defaultMonth}
             className="w-full"
           />
