@@ -37,17 +37,19 @@ export function ConfirmCancelBookingDialog({
             <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
             Отменить бронирование
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-700 dark:text-gray-300 space-y-2">
+          <AlertDialogDescription className="text-gray-700 dark:text-gray-300">
             {bookedBy && (
-              <div className="font-medium text-gray-900 dark:text-gray-100">
-                Бронирование для: <span className="font-semibold">{bookedBy}</span>
-              </div>
+              <>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  Бронирование для: <span className="font-semibold">{bookedBy}</span>
+                </span>
+                <br />
+                <br />
+              </>
             )}
-            <div>
-              {roomNumber
-                ? `Вы уверены, что хотите отменить бронирование комнаты #${roomNumber}? Это действие нельзя отменить.`
-                : 'Вы уверены, что хотите отменить бронирование? Это действие нельзя отменить.'}
-            </div>
+            {roomNumber
+              ? `Вы уверены, что хотите отменить бронирование комнаты #${roomNumber}? Это действие нельзя отменить.`
+              : 'Вы уверены, что хотите отменить бронирование? Это действие нельзя отменить.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

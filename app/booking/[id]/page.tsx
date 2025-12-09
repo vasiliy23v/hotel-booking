@@ -315,24 +315,35 @@ export default function BookingPage() {
       const cleanPhone = bookingPhone.replace(/\s/g, '');
 
       // Добавляем основного пользователя в гости, если его там нет
+      // ВАЖНО: Менеджер НЕ учитывается, он бронирует для клиента
       let finalGuests = validGuests;
       const mainUserName = bookedByName;
       const mainUserInGuests = validGuests.some(g => g.name === mainUserName);
       
-      if (!mainUserInGuests && validGuests.length === 0) {
-        // Если нет гостей, добавляем основного пользователя как гостя
-        finalGuests = [{ 
-          name: mainUserName, 
-          email: bookingEmail, 
-          phone: cleanPhone 
-        }];
-      } else if (!mainUserInGuests && currentUser!.role === 'guest') {
-        // Для обычного пользователя добавляем его в начало списка гостей
+      if (currentUser!.role === 'guest' && !mainUserInGuests) {
+        // Для обычного пользователя добавляем ЕГО в список гостей
+        // Он сам является одним из проживающих
         finalGuests = [{ 
           name: mainUserName, 
           email: bookingEmail, 
           phone: cleanPhone 
         }, ...validGuests];
+      } else if (currentUser!.role === 'manager') {
+        // Для менеджера используем только validGuests
+        // Менеджер НЕ проживает, он бронирует для клиента
+        finalGuests = validGuests;
+      }
+
+      // Рассчитываем сумму с учётом perPerson
+      const nights = Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24));
+      let amount: number;
+      if (room?.pricePerPerson) {
+        // Для комнат с ценой за человека: цена * ночи * количество людей (включая основного пользователя)
+        const totalPeople = finalGuests.length;
+        amount = Number(room.price) * nights * totalPeople;
+      } else {
+        // Для обычных комнат: цена * ночи
+        amount = Number(room?.price || 0) * nights;
       }
 
       const booking: BookingInfo = {
@@ -344,7 +355,8 @@ export default function BookingPage() {
         checkIn,
         checkOut,
         guests: finalGuests.length > 0 ? finalGuests : undefined,
-        notes: notes.trim() || undefined
+        notes: notes.trim() || undefined,
+        amount: amount
       };
 
       await api.createBooking(booking);
@@ -391,7 +403,9 @@ export default function BookingPage() {
 
   const validateContact = () => {
     if (currentUser?.role === 'manager') {
-      return !!(manualUserName && manualUserPhone);
+      // Проверяем, что имя заполнено, телефон заполнен И имя содержит только латинские буквы
+      const isNameValid = manualUserName && /^[A-Za-z\s-]+$/.test(manualUserName.trim());
+      return !!(isNameValid && manualUserPhone);
     }
     return !!phone;
   };
@@ -441,8 +455,13 @@ export default function BookingPage() {
           onGuestsChange={setGuests}
           maxCapacity={room?.maxCapacity || 4}
           onGuestImageUpload={handleGuestImageUpload}
+          currentUser={currentUser}
         />
       ),
+      validate: () => {
+        // Проверяем, что все гости с именем имеют валидное имя (только латинские буквы)
+        return guests.every(g => !g.name || /^[A-Za-z\s-]+$/.test(g.name.trim()));
+      },
     },
     {
       title: 'Примечания',
@@ -457,7 +476,7 @@ export default function BookingPage() {
           nights={nights}
           roomPrice={room?.price}
           pricePerPerson={room?.pricePerPerson}
-          guestsCount={guests.length}
+          guestsCount={room?.pricePerPerson ? guests.length + 1 : undefined}
         />
       ),
     },

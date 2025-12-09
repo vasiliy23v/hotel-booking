@@ -15,6 +15,11 @@ interface ContactStepProps {
   onManualUserPhoneChange?: (phone: string) => void;
 }
 
+// Проверка на латинские буквы, пробелы и дефисы
+const isValidLatinName = (name: string): boolean => {
+  return /^[A-Za-z\s-]*$/.test(name);
+};
+
 export function ContactStep({
   email,
   phone,
@@ -27,6 +32,7 @@ export function ContactStep({
   onManualUserPhoneChange,
 }: ContactStepProps) {
   const isManager = currentUser?.role === 'manager';
+  const hasNameError = isManager && manualUserName && !isValidLatinName(manualUserName);
 
   return (
     <div className="space-y-6">
@@ -49,10 +55,19 @@ export function ContactStep({
                   type="text"
                   value={manualUserName || ''}
                   onChange={(e) => onManualUserNameChange?.(e.target.value)}
-                  placeholder="Введите имя пользователя"
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-900 dark:focus:border-ring focus:outline-none"
+                  placeholder="Muller Felix"
+                  className={`w-full pl-10 pr-4 py-2 border-2 rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:outline-none ${
+                    hasNameError 
+                      ? 'border-red-500 focus:border-red-600' 
+                      : 'border-gray-300 dark:border-border focus:border-gray-900 dark:focus:border-ring'
+                  }`}
                 />
               </div>
+              {hasNameError ? (
+                <p className="mt-1 text-xs text-red-600 dark:text-red-400">❌ Используйте только латинские буквы, пробелы и дефисы</p>
+              ) : (
+                <p className="mt-1 text-xs text-gray-500 dark:text-muted-foreground">Используйте только латинские буквы</p>
+              )}
             </div>
 
             <div>

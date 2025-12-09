@@ -1,7 +1,7 @@
 'use client';
 
 import { Users, Plus, X, Upload } from 'lucide-react';
-import type { Guest } from '@/types';
+import type { Guest, User } from '@/types';
 import { useState } from 'react';
 
 interface GuestsStepProps {
@@ -9,17 +9,25 @@ interface GuestsStepProps {
   onGuestsChange: (guests: Guest[]) => void;
   maxCapacity?: number;
   onGuestImageUpload?: (index: number, file: File) => Promise<void>;
+  currentUser?: User | null;
 }
+
+// Проверка на латинские буквы, пробелы и дефисы
+const isValidLatinName = (name: string): boolean => {
+  return /^[A-Za-z\s-]*$/.test(name);
+};
 
 export function GuestsStep({
   guests,
   onGuestsChange,
   maxCapacity = 4,
   onGuestImageUpload,
+  currentUser,
 }: GuestsStepProps) {
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
   const updateGuest = (index: number, field: keyof Guest, value: string) => {
+    // Разрешаем ввод любых символов, валидация будет визуальной
     const updatedGuests = [...guests];
     updatedGuests[index] = { ...updatedGuests[index], [field]: value };
     onGuestsChange(updatedGuests);
@@ -53,6 +61,15 @@ export function GuestsStep({
         <h2 className="text-xl font-medium text-gray-900 dark:text-foreground">Гости</h2>
         <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">Добавьте информацию о гостях</p>
       </div>
+
+      {/* Warning message - только для менеджеров и разработчиков */}
+      {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm text-blue-800 dark:text-blue-300">
+            <strong>Важно:</strong> Если вы бронируете комнату с учётом себя (вы сами будете проживать), добавьте себя как гостя в список. Для расчёта стоимости комнат p.P. учитывается количество людей.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-4">
         {guests.map((guest, idx) => (
@@ -91,13 +108,24 @@ export function GuestsStep({
 
               {/* Guest Info */}
               <div className="flex-1 space-y-3">
-                <input
-                  type="text"
-                  value={guest.name}
-                  onChange={(e) => updateGuest(idx, 'name', e.target.value)}
-                  placeholder="Имя гостя"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground text-sm focus:border-gray-900 dark:focus:border-ring focus:outline-none"
-                />
+                <div>
+                  <input
+                    type="text"
+                    value={guest.name}
+                    onChange={(e) => updateGuest(idx, 'name', e.target.value)}
+                    placeholder="Muller Felix"
+                    className={`w-full px-3 py-2 border-2 rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground text-sm focus:outline-none ${
+                      guest.name && !isValidLatinName(guest.name)
+                        ? 'border-red-500 focus:border-red-600'
+                        : 'border-gray-300 dark:border-border focus:border-gray-900 dark:focus:border-ring'
+                    }`}
+                  />
+                  {guest.name && !isValidLatinName(guest.name) && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                      ❌ Только латинские буквы, пробелы и дефисы
+                    </p>
+                  )}
+                </div>
                 <input
                   type="email"
                   value={guest.email || ''}

@@ -28,8 +28,10 @@ export function NotesStep({
   guestsCount,
 }: NotesStepProps) {
   // Вычисляем общую сумму
+  // Для perPerson комнат: цена * количество ночей * (количество гостей + 1 основной пользователь)
+  // Для обычных комнат: цена * количество ночей
   const totalPrice = roomPrice && nights ? 
-    (pricePerPerson && guestsCount ? roomPrice * nights * guestsCount : roomPrice * nights) 
+    (pricePerPerson && guestsCount !== undefined ? roomPrice * nights * guestsCount : roomPrice * nights) 
     : null;
   return (
     <div className="space-y-6">
@@ -88,8 +90,8 @@ export function NotesStep({
             )}
             {pricePerPerson && guestsCount && (
               <div className="flex justify-between">
-                <span>Количество гостей:</span>
-                <span className="font-medium">{guestsCount}</span>
+                <span>Количество людей:</span>
+                <span className="font-medium">{guestsCount} (вы + гости)</span>
               </div>
             )}
             {totalPrice && (
@@ -102,7 +104,7 @@ export function NotesStep({
                 </div>
                 {pricePerPerson && guestsCount && roomPrice ? (
                   <div className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
-                    {roomPrice.toFixed(2)}€ × {guestsCount} гост. × {nights} ноч. = {totalPrice.toFixed(2)}€
+                    {roomPrice.toFixed(2)}€ × {guestsCount} чел. × {nights} ноч. = {totalPrice.toFixed(2)}€
                   </div>
                 ) : roomPrice ? (
                   <div className="text-xs text-gray-500 dark:text-muted-foreground mt-1">

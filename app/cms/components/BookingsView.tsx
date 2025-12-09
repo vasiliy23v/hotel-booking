@@ -100,8 +100,9 @@ export default function BookingsView() {
         const hotel = hotelsData.find((h: Hotel) => h.id === room?.hotelId);
         return {
           ...booking,
-          roomNumber: room?.number || 'N/A',
-          hotelName: hotel?.name || 'N/A'
+          // Используем существующий roomNumber/hotelName если есть, иначе берём из room/hotel
+          roomNumber: (booking as any).roomNumber || room?.number || 'N/A',
+          hotelName: (booking as any).hotelName || hotel?.name || 'N/A'
         };
       });
 
@@ -197,8 +198,9 @@ export default function BookingsView() {
         const hotel = hotelsData.find((h: Hotel) => h.id === room?.hotelId);
         return {
           ...booking,
-          roomNumber: room?.number || 'N/A',
-          hotelName: hotel?.name || 'N/A'
+          // Используем существующий roomNumber/hotelName если есть, иначе берём из room/hotel
+          roomNumber: (booking as any).roomNumber || room?.number || 'N/A',
+          hotelName: (booking as any).hotelName || hotel?.name || 'N/A'
         };
       });
 
@@ -278,8 +280,19 @@ export default function BookingsView() {
       (1000 * 60 * 60 * 24)
     );
     const room = rooms.find(r => r.id === booking.roomId);
-    const totalBookingAmount = nights * (room?.price || 0);
-    const alreadyPaid = booking.amount || 0;
+    
+    // Рассчитываем totalBookingAmount с учётом perPerson
+    let totalBookingAmount: number;
+    if (booking.amount) {
+      totalBookingAmount = booking.amount;
+    } else if (room?.pricePerPerson && booking.guests) {
+      const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
+      totalBookingAmount = nights * (room?.price || 0) * guestsCount;
+    } else {
+      totalBookingAmount = nights * (room?.price || 0);
+    }
+    
+    const alreadyPaid = booking.isPaid ? totalBookingAmount : 0;
     const halfAmount = totalBookingAmount / 2;
     const amountToAdd = halfAmount - alreadyPaid;
 
@@ -299,8 +312,19 @@ export default function BookingsView() {
       (1000 * 60 * 60 * 24)
     );
     const room = rooms.find(r => r.id === booking.roomId);
-    const totalAmount = nights * (room?.price || 0);
-    const alreadyPaid = booking.amount || 0;
+    
+    // Рассчитываем totalAmount с учётом perPerson
+    let totalAmount: number;
+    if (booking.amount) {
+      totalAmount = booking.amount;
+    } else if (room?.pricePerPerson && booking.guests) {
+      const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
+      totalAmount = nights * (room?.price || 0) * guestsCount;
+    } else {
+      totalAmount = nights * (room?.price || 0);
+    }
+    
+    const alreadyPaid = booking.isPaid ? totalAmount : 0;
     const amountToAdd = totalAmount - alreadyPaid;
 
     if (amountToAdd <= 0) {
@@ -323,7 +347,18 @@ export default function BookingsView() {
         (1000 * 60 * 60 * 24)
       );
       const room = rooms.find(r => r.id === paymentBooking.roomId);
-      const totalAmount = nights * (room?.price || 0);
+      
+      // Рассчитываем totalAmount с учётом perPerson
+      let totalAmount: number;
+      if (paymentBooking.amount) {
+        totalAmount = paymentBooking.amount;
+      } else if (room?.pricePerPerson && paymentBooking.guests) {
+        const guestsCount = Array.isArray(paymentBooking.guests) ? paymentBooking.guests.length : 0;
+        totalAmount = nights * (room?.price || 0) * guestsCount;
+      } else {
+        totalAmount = nights * (room?.price || 0);
+      }
+      
       const paymentAmount = paymentType === 'half' ? totalAmount / 2 : totalAmount;
 
       if (paymentBooking.id) {
@@ -549,13 +584,26 @@ export default function BookingsView() {
       (1000 * 60 * 60 * 24)
     );
     const room = rooms.find(r => r.id === booking.roomId);
-    const amount = booking.amount || (nights * (room?.price || 0));
-    totalRevenue += amount;
+    
+    // Рассчитываем общую ожидаемую сумму бронирования
+    let expectedAmount: number;
+    if (booking.amount) {
+      // Используем сохранённую сумму
+      expectedAmount = booking.amount;
+    } else if (room?.pricePerPerson && booking.guests) {
+      // Для perPerson комнат учитываем количество гостей
+      const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
+      expectedAmount = nights * (room?.price || 0) * guestsCount;
+    } else {
+      expectedAmount = nights * (room?.price || 0);
+    }
+    
+    totalRevenue += expectedAmount;
     
     if (booking.isPaid) {
-      paidRevenue += amount;
+      paidRevenue += expectedAmount;
     } else {
-      unpaidAmount += amount;
+      unpaidAmount += expectedAmount;
     }
   });
 
@@ -811,9 +859,23 @@ export default function BookingsView() {
                     (1000 * 60 * 60 * 24)
                   );
                   const room = rooms.find(r => r.id === booking.roomId);
-                  const expectedAmount = nights * (room?.price || 0);
+                  
+                  // Рассчитываем expectedAmount с учётом perPerson
+                  let expectedAmount: number;
+                  if (booking.amount) {
+                    expectedAmount = booking.amount;
+                  } else if (room?.pricePerPerson && booking.guests) {
+                    const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
+                    expectedAmount = nights * (room?.price || 0) * guestsCount;
+                  } else {
+                    expectedAmount = nights * (room?.price || 0);
+                  }
+                  
                   const totalPrice = expectedAmount;
-                  const alreadyPaid = booking.amount || 0;
+                  // alreadyPaid - это сумма, которая УЖЕ была оплачена
+                  // Если isPaid === true, считаем что оплачена полная сумма expectedAmount
+                  // Если isPaid === false, то оплачено 0
+                  const alreadyPaid = booking.isPaid ? expectedAmount : 0;
                   const remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
                   const isFullyPaid = booking.isPaid && alreadyPaid >= expectedAmount;
                   const isHalfPaidOrMore = alreadyPaid >= (totalPrice / 2) && alreadyPaid > 0 && !isFullyPaid;
@@ -847,6 +909,7 @@ export default function BookingsView() {
                           <>
                             <div className="text-sm text-gray-700 dark:text-foreground">
                               #{searchQuery ? highlightText(booking.roomNumber || 'N/A', searchQuery) : (booking.roomNumber || 'N/A')}
+                              {room?.name && <span className="text-gray-500 dark:text-muted-foreground text-xs ml-1">({room.name})</span>}
                             </div>
                             {room && (
                               <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
@@ -1083,10 +1146,22 @@ export default function BookingsView() {
           (1000 * 60 * 60 * 24)
         );
         const room = rooms.find(r => r.id === booking.roomId);
-        const expectedAmount = nights * (room?.price || 0);
-        const alreadyPaid = booking.isPaid ? (booking.amount || 0) : 0;
+        
+        // Рассчитываем expectedAmount с учётом perPerson
+        let expectedAmount: number;
+        if (booking.amount) {
+          expectedAmount = booking.amount;
+        } else if (room?.pricePerPerson && booking.guests) {
+          const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
+          expectedAmount = nights * (room?.price || 0) * guestsCount;
+        } else {
+          expectedAmount = nights * (room?.price || 0);
+        }
+        
+        // Если бронирование оплачено, считаем оплаченной всю сумму
+        const alreadyPaid = booking.isPaid ? expectedAmount : 0;
         const remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
-        const totalPrice = booking.amount || expectedAmount;
+        const totalPrice = expectedAmount;
         
         return (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4 pb-20 lg:pb-4 overflow-y-auto">
@@ -1123,7 +1198,10 @@ export default function BookingsView() {
                         </div>
                         <div>
                           <span className="text-gray-600 dark:text-muted-foreground">Комната:</span>
-                          <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">#{booking.roomNumber || 'N/A'}</span>
+                          <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">
+                            #{booking.roomNumber || 'N/A'}
+                            {room?.name && <span className="text-gray-500 dark:text-muted-foreground font-normal ml-1">({room.name})</span>}
+                          </span>
                         </div>
                         {room && (
                           <>
@@ -1352,8 +1430,19 @@ export default function BookingsView() {
           (1000 * 60 * 60 * 24)
         );
         const room = rooms.find(r => r.id === paymentBooking.roomId);
-        const totalBookingAmount = nights * (room?.price || 0);
-        const alreadyPaid = paymentBooking.amount || 0;
+        
+        // Рассчитываем totalBookingAmount с учётом perPerson
+        let totalBookingAmount: number;
+        if (paymentBooking.amount) {
+          totalBookingAmount = paymentBooking.amount;
+        } else if (room?.pricePerPerson && paymentBooking.guests) {
+          const guestsCount = Array.isArray(paymentBooking.guests) ? paymentBooking.guests.length : 0;
+          totalBookingAmount = nights * (room?.price || 0) * guestsCount;
+        } else {
+          totalBookingAmount = nights * (room?.price || 0);
+        }
+        
+        const alreadyPaid = paymentBooking.isPaid ? totalBookingAmount : 0;
         const paymentAmount = paymentType === 'half' ? totalBookingAmount / 2 : totalBookingAmount;
         const amountToAdd = paymentAmount - alreadyPaid;
 

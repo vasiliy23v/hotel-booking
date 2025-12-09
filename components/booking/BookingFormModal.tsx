@@ -157,7 +157,9 @@ export function BookingFormModal({
 
   const validateContact = () => {
     if (currentUser?.role === 'manager') {
-      return !!(manualUserName && manualUserPhone);
+      // Проверяем, что имя заполнено, телефон заполнен И имя содержит только латинские буквы
+      const isNameValid = manualUserName && /^[A-Za-z\s-]+$/.test(manualUserName.trim());
+      return !!(isNameValid && manualUserPhone);
     }
     return !!phone;
   };
@@ -205,9 +207,14 @@ export function BookingFormModal({
           guests={guests}
           onGuestsChange={setGuests}
           maxCapacity={room?.maxCapacity || 4}
+          currentUser={currentUser}
         />
       ),
-      validate: () => guests.length > 0,
+      validate: () => {
+        // Проверяем, что есть хотя бы один гость И все имена валидны
+        if (guests.length === 0) return false;
+        return guests.every(g => !g.name || /^[A-Za-z\s-]+$/.test(g.name.trim()));
+      },
     },
     {
       title: 'Примечания',
@@ -223,7 +230,7 @@ export function BookingFormModal({
           nights={calculateNights()}
           roomPrice={room?.price}
           pricePerPerson={room?.pricePerPerson}
-          guestsCount={guests.length}
+          guestsCount={room?.pricePerPerson ? guests.length + 1 : undefined}
         />
       ),
     },

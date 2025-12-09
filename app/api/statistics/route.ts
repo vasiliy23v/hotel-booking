@@ -45,15 +45,30 @@ export async function GET(request: NextRequest) {
     
     const activeBookings = bookedRooms;
     
-    // Подсчитываем доход от активных бронирований
+    // Подсчитываем доход от активных бронирований (только ОПЛАЧЕННЫЕ)
     const revenue = roomsWithBookings
-      .filter((r: Room) => r.booking && r.price)
+      .filter((r: Room) => r.booking && r.booking.isPaid && r.price)
       .reduce((sum: number, r: Room) => {
         try {
-          const checkIn = new Date(r.booking!.checkIn);
-          const checkOut = new Date(r.booking!.checkOut);
-          const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-          return sum + (Number(r.price) * nights);
+          // Рассчитываем сумму бронирования
+          let expectedAmount: number;
+          if (r.booking!.amount) {
+            expectedAmount = Number(r.booking!.amount);
+          } else {
+            const checkIn = new Date(r.booking!.checkIn);
+            const checkOut = new Date(r.booking!.checkOut);
+            const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+            
+            if (r.pricePerPerson && r.booking!.guests) {
+              // Для perPerson комнат учитываем количество гостей
+              const guestsCount = Array.isArray(r.booking!.guests) ? r.booking!.guests.length : 0;
+              expectedAmount = Number(r.price) * nights * guestsCount;
+            } else {
+              expectedAmount = Number(r.price) * nights;
+            }
+          }
+          
+          return sum + expectedAmount;
         } catch (e) {
           console.error('Error calculating revenue for room:', r.id, e);
           return sum;
@@ -68,9 +83,22 @@ export async function GET(request: NextRequest) {
           const checkIn = new Date(r.booking!.checkIn);
           const checkOut = new Date(r.booking!.checkOut);
           const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-          const expectedAmount = Number(r.price) * nights;
+          
+          let expectedAmount: number;
+          if (r.booking!.amount) {
+            // Если есть сохранённая сумма, используем её
+            expectedAmount = Number(r.booking!.amount);
+          } else if (r.pricePerPerson && r.booking!.guests) {
+            // Для perPerson комнат учитываем количество гостей
+            const guestsCount = Array.isArray(r.booking!.guests) ? r.booking!.guests.length : 0;
+            expectedAmount = Number(r.price) * nights * guestsCount;
+          } else {
+            expectedAmount = Number(r.price) * nights;
+          }
+          
           // Если уже была частичная оплата, вычитаем её
-          const alreadyPaid = r.booking!.amount || 0;
+          // Но только если amount не установлен (для старых бронирований)
+          const alreadyPaid = r.booking!.amount ? 0 : 0;
           const remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
           return sum + remainingAmount;
         } catch (e) {

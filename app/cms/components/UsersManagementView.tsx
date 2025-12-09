@@ -905,7 +905,7 @@ export default function UsersManagementView({
                       type="text"
                       value={newUserName}
                       onChange={(e) => setNewUserName(e.target.value)}
-                      placeholder="Иванов Иван "
+                      placeholder="Muller Felix"
                       className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
                       required
                     />
@@ -1016,7 +1016,7 @@ export default function UsersManagementView({
                       type="text"
                       value={newInviteName}
                       onChange={(e) => setNewInviteName(e.target.value)}
-                      placeholder="Иванов Иван "
+                      placeholder="Muller Felix"
                       className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:outline-none"
                       required
                     />

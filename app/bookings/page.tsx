@@ -430,7 +430,17 @@ export default function BookingsPage() {
                           (1000 * 60 * 60 * 24)
                         );
                         const room = rooms.find(r => r.id === booking.roomId);
-                        const totalPrice = booking.amount || (nights * (room?.price || 0));
+                        
+                        // Рассчитываем totalPrice с учётом perPerson
+                        let totalPrice: number;
+                        if (booking.amount) {
+                          totalPrice = booking.amount;
+                        } else if (room?.pricePerPerson && booking.guests) {
+                          const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
+                          totalPrice = nights * (room?.price || 0) * guestsCount;
+                        } else {
+                          totalPrice = nights * (room?.price || 0);
+                        }
                         
                         return (
                           <div
@@ -677,7 +687,18 @@ export default function BookingsPage() {
                       (1000 * 60 * 60 * 24)
                     );
                     const room = rooms.find(r => r.id === booking.roomId);
-                    const totalPrice = booking.amount || (nights * (room?.price || 0));
+                    
+                    // Рассчитываем totalPrice с учётом perPerson
+                    let totalPrice: number;
+                    if (booking.amount) {
+                      totalPrice = booking.amount;
+                    } else if (room?.pricePerPerson && booking.guests) {
+                      const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
+                      totalPrice = nights * (room?.price || 0) * guestsCount;
+                    } else {
+                      totalPrice = nights * (room?.price || 0);
+                    }
+                    
                     const canCancel = currentUser.role === 'manager' || booking.bookedBy === currentUser.name;
 
                     if (currentUser.role === 'manager') {
