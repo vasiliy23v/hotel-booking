@@ -1003,14 +1003,64 @@ export default function BookingsView() {
                       </TableCell>
                       
                       <TableCell className="py-3">
-                        <div className="text-sm text-gray-700 dark:text-foreground">
-                          {totalPrice > 0 ? `${totalPrice.toFixed(2)}€` : '-'}
-                        </div>
-                        {room && room.price > 0 && (
-                          <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
-                            {room.price}€{room.pricePerPerson ? ' p.P.' : ''}/ночь
-                          </div>
-                        )}
+                        {(() => {
+                          const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
+                          
+                          // Если нет room, показываем только сохраненную сумму
+                          if (!room) {
+                            return (
+                              <div className="text-sm font-semibold text-gray-700 dark:text-foreground">
+                                {totalPrice > 0 ? `${totalPrice.toFixed(2)}€` : <span className="text-red-500">Комната не найдена</span>}
+                              </div>
+                            );
+                          }
+                          
+                          // Определяем, учитывались ли люди в расчете
+                          const simpleCalc = nights * room.price;
+                          const isPerPerson = guestsCount > 0 && (room.pricePerPerson || totalPrice > simpleCalc + 0.01);
+                          
+                          return (
+                            <>
+                              <div className="text-sm font-semibold text-gray-700 dark:text-foreground">
+                                {totalPrice > 0 ? `${totalPrice.toFixed(2)}€` : <span className="text-orange-500">Не рассчитано</span>}
+                              </div>
+                              {room.price > 0 ? (
+                                <div className="text-xs text-gray-500 dark:text-muted-foreground mt-1 space-y-0.5">
+                                  {isPerPerson ? (
+                                    <>
+                                      <div className="font-medium text-blue-600 dark:text-blue-400">
+                                        {room.price}€ за чел/ночь
+                                      </div>
+                                      <div className="text-[11px] text-gray-600 dark:text-gray-400">
+                                        {guestsCount} чел × {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'} × {room.price}€
+                                      </div>
+                                      <div className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
+                                        {guestsCount} × {nights} × {room.price} = {(guestsCount * nights * room.price).toFixed(2)}€
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="font-medium text-green-600 dark:text-green-400">
+                                        {room.price}€ за комнату/ночь
+                                      </div>
+                                      <div className="text-[11px] text-gray-600 dark:text-gray-400">
+                                        {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'} × {room.price}€
+                                        {guestsCount > 0 && <span className="text-gray-400"> ({guestsCount} гост{guestsCount === 1 ? 'ь' : guestsCount < 5 ? 'я' : 'ей'})</span>}
+                                      </div>
+                                      <div className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
+                                        {nights} × {room.price} = {(nights * room.price).toFixed(2)}€
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-red-500 dark:text-red-400 mt-1">
+                                  Цена комнаты не установлена
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </TableCell>
                       
                       {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && (
