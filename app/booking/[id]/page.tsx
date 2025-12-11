@@ -50,6 +50,7 @@ export default function BookingPage() {
   const [notes, setNotes] = useState('');
   const [manualUserName, setManualUserName] = useState('');
   const [manualUserPhone, setManualUserPhone] = useState('');
+  const [includeManager, setIncludeManager] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
@@ -315,7 +316,7 @@ export default function BookingPage() {
       const cleanPhone = bookingPhone.replace(/\s/g, '');
 
       // Добавляем основного пользователя в гости, если его там нет
-      // ВАЖНО: Менеджер НЕ учитывается, он бронирует для клиента
+      // ВАЖНО: Менеджер/разработчик учитывается ТОЛЬКО если отмечен чекбокс
       let finalGuests = validGuests;
       const mainUserName = bookedByName;
       const mainUserInGuests = validGuests.some(g => g.name === mainUserName);
@@ -328,10 +329,13 @@ export default function BookingPage() {
           email: bookingEmail, 
           phone: cleanPhone 
         }, ...validGuests];
-      } else if (currentUser!.role === 'manager') {
-        // Для менеджера используем только validGuests
-        // Менеджер НЕ проживает, он бронирует для клиента
-        finalGuests = validGuests;
+      } else if ((currentUser!.role === 'manager' || currentUser!.role === 'developer') && includeManager && !mainUserInGuests) {
+        // Для менеджера/разработчика учитываем его только если отмечен чекбокс
+        finalGuests = [{ 
+          name: currentUser!.name, 
+          email: currentUser!.email || '', 
+          phone: currentUser!.phone || '' 
+        }, ...validGuests];
       }
 
       // Рассчитываем сумму с учётом perPerson
@@ -457,6 +461,8 @@ export default function BookingPage() {
           maxCapacity={room?.maxCapacity || 4}
           onGuestImageUpload={handleGuestImageUpload}
           currentUser={currentUser}
+          includeManager={includeManager}
+          onIncludeManagerChange={setIncludeManager}
         />
       ),
       validate: () => {
@@ -477,7 +483,7 @@ export default function BookingPage() {
           nights={nights}
           roomPrice={room?.price}
           pricePerPerson={room?.pricePerPerson}
-          guestsCount={room?.pricePerPerson ? guests.length + 1 : undefined}
+          guestsCount={room?.pricePerPerson ? (guests.length + (currentUser?.role === 'guest' ? 1 : (includeManager ? 1 : 0))) : undefined}
         />
       ),
     },
