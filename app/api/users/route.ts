@@ -143,8 +143,8 @@ export async function POST(request: NextRequest) {
     
     // Если индивидуальное приглашение не найдено, проверяем общий токен регистрации
     if (!invite) {
-      const hashedToken = hashInviteToken(inviteToken);
-      const isValidRegistrationToken = await verifyRegistrationToken(hashedToken);
+      // Передаем оригинальный токен напрямую, так как в URL используется оригинальный токен
+      const isValidRegistrationToken = await verifyRegistrationToken(inviteToken);
       
       if (isValidRegistrationToken) {
         isRegistrationToken = true;

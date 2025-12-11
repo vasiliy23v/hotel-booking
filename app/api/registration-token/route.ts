@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
 
     // Если запрос на проверку токена
     if (verify === 'true' && token) {
-      const hashedToken = hashInviteToken(token);
-      const isValid = await verifyRegistrationToken(hashedToken);
+      // Передаем оригинальный токен напрямую, так как в URL используется оригинальный токен
+      const isValid = await verifyRegistrationToken(token);
       return NextResponse.json({ valid: isValid });
     }
 

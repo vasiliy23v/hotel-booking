@@ -1461,17 +1461,18 @@ export async function getRegistrationTokenById(id: string): Promise<Registration
 }
 
 /**
- * Проверить токен регистрации (по хэшированному токену)
+ * Проверить токен регистрации (по оригинальному токену из URL)
  */
-export async function verifyRegistrationToken(hashedToken: string): Promise<boolean> {
+export async function verifyRegistrationToken(originalToken: string): Promise<boolean> {
   // Проверяем, что модель доступна
   if (!prisma.registrationToken) {
     throw new Error('RegistrationToken model is not available. Please restart the development server after running "npx prisma generate"');
   }
 
+  // Ищем по originalToken напрямую, так как в URL используется оригинальный токен
   const token = await prisma.registrationToken.findFirst({
     where: {
-      token: hashedToken,
+      originalToken: originalToken,
       isActive: true,
     },
   });

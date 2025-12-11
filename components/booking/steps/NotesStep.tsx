@@ -91,7 +91,7 @@ export function NotesStep({
             {pricePerPerson && guestsCount && (
               <div className="flex justify-between">
                 <span>Количество людей:</span>
-                <span className="font-medium">{guestsCount} (вы + гости)</span>
+                <span className="font-medium">{guestsCount}</span>
               </div>
             )}
             {totalPrice && (

@@ -4887,10 +4887,29 @@ function BookingsView({
     if (!selectedBookingForEdit?.id) return;
     
     try {
+      // Обрабатываем флаг includeManager для менеджеров/разработчиков
+      let finalGuests = [...data.guests];
+      
+      if ((currentUser?.role === 'manager' || currentUser?.role === 'developer') && data.includeManager !== undefined) {
+        const managerInGuests = finalGuests.some(g => g.name === currentUser?.name);
+        
+        if (data.includeManager && !managerInGuests) {
+          // Добавляем менеджера в список гостей
+          finalGuests = [{
+            name: currentUser?.name || '',
+            email: currentUser?.email || '',
+            phone: currentUser?.phone || '',
+          }, ...finalGuests];
+        } else if (!data.includeManager && managerInGuests) {
+          // Убираем менеджера из списка гостей
+          finalGuests = finalGuests.filter(g => g.name !== currentUser?.name);
+        }
+      }
+      
       await api.updateBooking(selectedBookingForEdit.id, {
         checkIn: data.checkIn,
         checkOut: data.checkOut,
-        guests: data.guests,
+        guests: finalGuests,
         email: data.email,
         phone: data.phone,
         notes: data.notes,
@@ -5275,6 +5294,8 @@ function BookingsView({
               email: selectedBookingForEdit.email || '',
               phone: selectedBookingForEdit.phone || '',
               notes: selectedBookingForEdit.notes || '',
+              includeManager: (currentUser?.role === 'manager' || currentUser?.role === 'developer') && 
+                (selectedBookingForEdit.guests || []).some(g => g.name === currentUser?.name),
             }}
             room={bookingRoom || undefined}
             hotelName={hotelName}
