@@ -97,7 +97,7 @@ export function NotesStep({
             {totalPrice && (
               <>
                 <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 dark:border-border">
-                  <span className="font-semibold text-gray-900 dark:text-foreground">Итого:</span>
+                  <span className="font-semibold text-gray-900 dark:text-foreground">Всего к оплате:</span>
                   <span className="font-bold text-xl text-blue-600 dark:text-blue-400">
                     {totalPrice.toFixed(2)}€
                   </span>
@@ -111,6 +111,17 @@ export function NotesStep({
                     {roomPrice.toFixed(2)}€ × {nights} ноч. = {totalPrice.toFixed(2)}€
                   </div>
                 ) : null}
+                
+                {/* Информация о 50% предоплате */}
+                <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 dark:border-border bg-green-50 dark:bg-green-950/20 -mx-4 px-4 py-2 rounded">
+                  <span className="font-semibold text-green-800 dark:text-green-300">К оплате сейчас (50%):</span>
+                  <span className="font-bold text-lg text-green-700 dark:text-green-400">
+                    {(totalPrice * 0.5).toFixed(2)}€
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 dark:text-muted-foreground mt-1 text-center">
+                  Оплата происходит в два этапа: 50% сейчас, оставшиеся 50% при заезде
+                </div>
               </>
             )}
           </div>

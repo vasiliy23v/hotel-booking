@@ -844,6 +844,7 @@ export default function BookingsView() {
                   </TableHead>
                   <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Гости</TableHead>
                   <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Сумма</TableHead>
+                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">К оплате 50%</TableHead>
                   {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && (
                     <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Статус оплаты</TableHead>
                   )}
@@ -1061,6 +1062,16 @@ export default function BookingsView() {
                             </>
                           );
                         })()}
+                      </TableCell>
+                      
+                      {/* К оплате 50% */}
+                      <TableCell className="py-3">
+                        <div className="text-sm font-semibold text-green-700 dark:text-green-400">
+                          {totalPrice > 0 ? `${(totalPrice * 0.5).toFixed(2)}€` : '-'}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
+                          50% предоплата
+                        </div>
                       </TableCell>
                       
                       {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && (
@@ -1349,6 +1360,41 @@ export default function BookingsView() {
                           <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">
                             {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'}
                           </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Стоимость */}
+                    <div className="bg-gray-50 dark:bg-muted rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-foreground mb-3 flex items-center gap-2">
+                        <Euro className="w-4 h-4" />
+                        Стоимость
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        {room && room.price > 0 && (
+                          <div>
+                            <span className="text-gray-600 dark:text-muted-foreground">Цена за ночь:</span>
+                            <span className="ml-2 font-semibold text-gray-900 dark:text-foreground">
+                              {room.price.toFixed(2)}€{room.pricePerPerson ? ' p.P.' : ''}
+                            </span>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-gray-600 dark:text-muted-foreground">Всего к оплате:</span>
+                          <span className="ml-2 font-bold text-lg text-blue-600 dark:text-blue-400">
+                            {totalPrice.toFixed(2)}€
+                          </span>
+                        </div>
+                        <div className="pt-2 mt-2 border-t border-gray-300 dark:border-border bg-green-50 dark:bg-green-950/20 -mx-4 px-4 py-2 rounded">
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold text-green-800 dark:text-green-300">К оплате сейчас (50%):</span>
+                            <span className="font-bold text-lg text-green-700 dark:text-green-400">
+                              {(totalPrice * 0.5).toFixed(2)}€
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                            Оставшиеся 50% оплачиваются при заезде
+                          </div>
                         </div>
                       </div>
                     </div>

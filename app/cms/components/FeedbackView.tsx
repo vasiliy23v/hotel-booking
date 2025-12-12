@@ -207,7 +207,7 @@ export default function FeedbackView() {
       <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-foreground mb-1">Отзывы и обратная связь</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-foreground mb-1">Возникли проблемы? Обратная связь</h2>
             <p className="text-sm text-gray-600 dark:text-muted-foreground">
               Всего отзывов: {feedbacks.length} 
               {filteredFeedbacks.length !== feedbacks.length && ` (найдено: ${filteredFeedbacks.length})`}

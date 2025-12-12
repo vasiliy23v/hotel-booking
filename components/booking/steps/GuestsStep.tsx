@@ -10,8 +10,6 @@ interface GuestsStepProps {
   maxCapacity?: number;
   onGuestImageUpload?: (index: number, file: File) => Promise<void>;
   currentUser?: User | null;
-  includeManager?: boolean;
-  onIncludeManagerChange?: (include: boolean) => void;
 }
 
 // Проверка на латинские буквы, пробелы и дефисы
@@ -25,8 +23,6 @@ export function GuestsStep({
   maxCapacity = 4,
   onGuestImageUpload,
   currentUser,
-  includeManager = false,
-  onIncludeManagerChange,
 }: GuestsStepProps) {
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
@@ -66,25 +62,12 @@ export function GuestsStep({
         <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">Добавьте информацию о гостях</p>
       </div>
 
-      {/* Чекбокс для менеджеров и разработчиков */}
-      {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && onIncludeManagerChange && (
+      {/* Информационное сообщение для менеджеров */}
+      {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && (
         <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={includeManager}
-              onChange={(e) => onIncludeManagerChange(e.target.checked)}
-              className="mt-0.5 w-4 h-4 text-blue-600 bg-white dark:bg-input border-gray-300 dark:border-border rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2"
-            />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                Я также учитываюсь при бронировании
-              </p>
-              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                Отметьте, если вы сами будете проживать в этой комнате. Это повлияет на расчёт стоимости для комнат с ценой за человека (p.P.).
-              </p>
-            </div>
-          </label>
+          <p className="text-sm text-blue-800 dark:text-blue-300">
+            <strong>Важно:</strong> Добавьте всех проживающих гостей в список. Количество гостей влияет на расчёт стоимости для комнат с ценой за человека (p.P.).
+          </p>
         </div>
       )}
 

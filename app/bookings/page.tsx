@@ -132,29 +132,10 @@ export default function BookingsPage() {
       // Для обычного пользователя имя берется из currentUser
       const bookedByName = currentUser?.name || selectedBookingForEdit.bookedBy;
 
-      // Обрабатываем флаг includeManager для менеджеров/разработчиков
-      let finalGuests = [...data.guests];
-      
-      if ((currentUser?.role === 'manager' || currentUser?.role === 'developer') && data.includeManager !== undefined) {
-        const managerInGuests = finalGuests.some(g => g.name === currentUser?.name);
-        
-        if (data.includeManager && !managerInGuests) {
-          // Добавляем менеджера в список гостей
-          finalGuests = [{
-            name: currentUser?.name || '',
-            email: currentUser?.email || '',
-            phone: currentUser?.phone || '',
-          }, ...finalGuests];
-        } else if (!data.includeManager && managerInGuests) {
-          // Убираем менеджера из списка гостей
-          finalGuests = finalGuests.filter(g => g.name !== currentUser?.name);
-        }
-      }
-
       await api.updateBooking(selectedBookingForEdit.id, {
         checkIn: data.checkIn,
         checkOut: data.checkOut,
-        guests: finalGuests,
+        guests: data.guests,
         notes: data.notes,
         email: data.email,
         phone: data.phone,
@@ -650,6 +631,7 @@ export default function BookingsPage() {
                         </TableHead>
                         <TableHead className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap font-normal">Гости</TableHead>
                         <TableHead className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap font-normal">Сумма</TableHead>
+                        <TableHead className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap font-normal">К оплате 50%</TableHead>
                         <TableHead className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap font-normal">Примечания</TableHead>
                         <TableHead className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap font-normal">Действия</TableHead>
                       </>
@@ -693,6 +675,7 @@ export default function BookingsPage() {
                           </div>
                         </TableHead>
                         <TableHead className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap font-normal">Гости</TableHead>
+                        <TableHead className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap font-normal">К оплате 50%</TableHead>
                         <TableHead className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap font-normal">Статус</TableHead>
                         <TableHead className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap font-normal">Действия</TableHead>
                       </>
@@ -862,6 +845,16 @@ export default function BookingsPage() {
                             )}
                           </TableCell>
                           
+                          {/* К оплате 50% */}
+                          <TableCell className="py-3">
+                            <div className="text-sm font-semibold text-green-700 dark:text-green-400">
+                              {totalPrice > 0 ? `${(totalPrice * 0.5).toFixed(2)}€` : '-'}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                              50% предоплата
+                            </div>
+                          </TableCell>
+                          
                           {/* Примечания */}
                           <TableCell className="py-3">
                             <div className="text-xs text-gray-500 dark:text-gray-400 max-w-xs">
@@ -962,6 +955,17 @@ export default function BookingsPage() {
                               )}
                             </div>
                           </TableCell>
+                          
+                          {/* К оплате 50% */}
+                          <TableCell className="py-3">
+                            <div className="text-sm font-semibold text-green-700 dark:text-green-400">
+                              {totalPrice > 0 ? `${(totalPrice * 0.5).toFixed(2)}€` : '-'}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                              50% предоплата
+                            </div>
+                          </TableCell>
+                          
                           <TableCell className="py-3">
                             {booking.isConfirmed ? (
                               <div className="flex items-center gap-1.5 text-xs text-green-600">
@@ -1030,8 +1034,6 @@ export default function BookingsPage() {
               email: selectedBookingForEdit.email || '',
               phone: selectedBookingForEdit.phone || '',
               notes: selectedBookingForEdit.notes || '',
-              includeManager: (currentUser?.role === 'manager' || currentUser?.role === 'developer') && 
-                (selectedBookingForEdit.guests || []).some(g => g.name === currentUser?.name),
             }}
             room={bookingRoom || undefined}
             hotelName={bookingHotel?.name}

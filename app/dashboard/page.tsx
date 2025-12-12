@@ -1091,11 +1091,20 @@ export default function Dashboard() {
                       variant="outline"
                       size="icon"
                       onClick={() => setShowFeedbackForm(true)}
-                      title="Обратная связь"
-                      className="h-9 w-9"
+                      title="Возникли проблемы?"
+                      className="h-9 w-9 hidden sm:flex"
                     >
                       <MessageSquare className="h-4 w-4" />
-                      <span className="sr-only">Обратная связь</span>
+                      <span className="sr-only">Возникли проблемы?</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowFeedbackForm(true)}
+                      title="Проблемы? Пожелания?"
+                      className="sm:hidden text-xs px-2 py-1 h-8"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                      <span>Проблемы?</span>
                     </Button>
                   </>
                 )}
@@ -4887,29 +4896,10 @@ function BookingsView({
     if (!selectedBookingForEdit?.id) return;
     
     try {
-      // Обрабатываем флаг includeManager для менеджеров/разработчиков
-      let finalGuests = [...data.guests];
-      
-      if ((currentUser?.role === 'manager' || currentUser?.role === 'developer') && data.includeManager !== undefined) {
-        const managerInGuests = finalGuests.some(g => g.name === currentUser?.name);
-        
-        if (data.includeManager && !managerInGuests) {
-          // Добавляем менеджера в список гостей
-          finalGuests = [{
-            name: currentUser?.name || '',
-            email: currentUser?.email || '',
-            phone: currentUser?.phone || '',
-          }, ...finalGuests];
-        } else if (!data.includeManager && managerInGuests) {
-          // Убираем менеджера из списка гостей
-          finalGuests = finalGuests.filter(g => g.name !== currentUser?.name);
-        }
-      }
-      
       await api.updateBooking(selectedBookingForEdit.id, {
         checkIn: data.checkIn,
         checkOut: data.checkOut,
-        guests: finalGuests,
+        guests: data.guests,
         email: data.email,
         phone: data.phone,
         notes: data.notes,
@@ -5103,6 +5093,9 @@ function BookingsView({
                   <TableHead className="text-xs font-semibold text-gray-700">
                     Гости
                   </TableHead>
+                  <TableHead className="text-xs font-semibold text-gray-700">
+                    К оплате 50%
+                  </TableHead>
                   <TableHead className="text-xs font-semibold text-gray-700 sticky right-0 bg-white z-10">
                     Действия
                   </TableHead>
@@ -5199,6 +5192,32 @@ function BookingsView({
                           )}
                         </div>
                       </TableCell>
+                      <TableCell className="py-2.5">
+                        {(() => {
+                          // Рассчитываем сумму к оплате 50%
+                          let totalPrice = 0;
+                          if (booking.amount) {
+                            totalPrice = booking.amount;
+                          } else if (room?.pricePerPerson && booking.guests) {
+                            const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
+                            totalPrice = nights * (room?.price || 0) * guestsCount;
+                          } else {
+                            totalPrice = nights * (room?.price || 0);
+                          }
+                          const halfPayment = totalPrice * 0.5;
+                          
+                          return (
+                            <div className="text-sm">
+                              <div className="font-semibold text-green-700 dark:text-green-400">
+                                {halfPayment.toFixed(2)}€
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-muted-foreground">
+                                из {totalPrice.toFixed(2)}€
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell className="py-2.5 sticky right-0 bg-white z-10 dark:bg-muted" onClick={(e) => e.stopPropagation()}>
                         <div className="relative z-10">
                           {booking.bookedBy === currentUser.name && booking.id && (
@@ -5294,8 +5313,6 @@ function BookingsView({
               email: selectedBookingForEdit.email || '',
               phone: selectedBookingForEdit.phone || '',
               notes: selectedBookingForEdit.notes || '',
-              includeManager: (currentUser?.role === 'manager' || currentUser?.role === 'developer') && 
-                (selectedBookingForEdit.guests || []).some(g => g.name === currentUser?.name),
             }}
             room={bookingRoom || undefined}
             hotelName={hotelName}

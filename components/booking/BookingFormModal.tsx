@@ -31,7 +31,6 @@ export interface BookingFormData {
   notes: string;
   manualUserName?: string;
   manualUserPhone?: string;
-  includeManager?: boolean; // Учитывать ли менеджера при бронировании
 }
 
 export function BookingFormModal({
@@ -53,7 +52,6 @@ export function BookingFormModal({
   const [notes, setNotes] = useState(initialData?.notes || '');
   const [manualUserName, setManualUserName] = useState(initialData?.manualUserName || '');
   const [manualUserPhone, setManualUserPhone] = useState(initialData?.manualUserPhone || '');
-  const [includeManager, setIncludeManager] = useState(initialData?.includeManager || false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
@@ -70,7 +68,6 @@ export function BookingFormModal({
       setNotes(initialData?.notes || '');
       setManualUserName(initialData?.manualUserName || '');
       setManualUserPhone(initialData?.manualUserPhone || '');
-      setIncludeManager(initialData?.includeManager || false);
       setAvailabilityError(null);
       setIsAvailable(null);
     } else {
@@ -83,7 +80,6 @@ export function BookingFormModal({
       setNotes('');
       setManualUserName('');
       setManualUserPhone('');
-      setIncludeManager(false);
       setAvailabilityError(null);
       setIsAvailable(null);
     }
@@ -135,7 +131,6 @@ export function BookingFormModal({
         notes,
         manualUserName,
         manualUserPhone,
-        includeManager,
       });
       onClose();
     } catch (error) {
@@ -214,8 +209,6 @@ export function BookingFormModal({
           onGuestsChange={setGuests}
           maxCapacity={room?.maxCapacity || 4}
           currentUser={currentUser}
-          includeManager={includeManager}
-          onIncludeManagerChange={setIncludeManager}
         />
       ),
       validate: () => {
@@ -238,7 +231,7 @@ export function BookingFormModal({
           nights={calculateNights()}
           roomPrice={room?.price}
           pricePerPerson={room?.pricePerPerson}
-          guestsCount={room?.pricePerPerson ? (guests.length + (currentUser?.role === 'guest' ? 1 : (includeManager ? 1 : 0))) : undefined}
+          guestsCount={room?.pricePerPerson ? (guests.length + (currentUser?.role === 'guest' ? 1 : 0)) : undefined}
         />
       ),
     },

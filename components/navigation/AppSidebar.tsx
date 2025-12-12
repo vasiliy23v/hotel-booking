@@ -285,9 +285,10 @@ export function AppSidebar({
             <>
               {onShowFeedbackForm && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton onClick={onShowFeedbackForm} tooltip="Обратная связь">
+                  <SidebarMenuButton onClick={onShowFeedbackForm} tooltip="Возникли проблемы?">
                     <MessageSquare />
-                    <span>Обратная связь</span>
+                    <span className="hidden sm:inline">Возникли проблемы?</span>
+                    <span className="sm:hidden">Проблемы? Пожелания?</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
