@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Building2, BookOpen, Users, MessageCircle, LogOut, ChevronDown, MessageSquare, Calendar } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Building2, BookOpen, Users, MessageCircle, LogOut, ChevronDown, MessageSquare, Calendar, FileText } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -59,6 +60,7 @@ export function AppSidebar({
   onLoadBookings,
   onShowFeedbackForm,
 }: AppSidebarProps) {
+  const router = useRouter();
   const isManager = currentUser.role === 'manager' || currentUser.role === 'developer';
   const isGuest = currentUser.role === 'guest';
   const [hotelsOpen, setHotelsOpen] = useState(true);
@@ -270,6 +272,15 @@ export function AppSidebar({
                   >
                     <MessageCircle />
                     <span>Отзывы</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => router.push('/cms/logs')}
+                    tooltip="Логи системы"
+                  >
+                    <FileText />
+                    <span>Логи системы</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

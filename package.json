@@ -9,7 +9,14 @@
     "check:db": "npx tsx scripts/check-db-connection.ts",
     "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:db": "jest",
+    "test:db:watch": "jest --watch",
+    "migrate:capacity": "npx tsx scripts/migrate-capacity-safely.ts",
+    "backup": "npx tsx scripts/create-db-backup.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
@@ -40,18 +47,24 @@
     "react-rnd": "^10.5.2",
     "sendpulse-api": "^1.1.7",
     "sharp": "^0.34.5",
+    "sonner": "^1.7.1",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4",
     "tsx": "^4.7.0"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "baseline-browser-mapping": "^2.8.32",
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
+    "jest": "^30.2.0",
     "prisma": "^7.0.1",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

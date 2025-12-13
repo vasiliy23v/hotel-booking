@@ -1,8 +1,21 @@
 // API клиент для работы с бэкендом
+import { api as apiWithRetry } from './api-client';
+
 const API_URL = '/api';
 
+// Получить текущего пользователя из localStorage
+function getCurrentUser() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const user = localStorage.getItem('currentUser');
+    return user ? JSON.parse(user) : null;
+  } catch {
+    return null;
+  }
+}
+
 export class ApiClient {
-  private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  private async request<T>(endpoint: string, options?: RequestInit, withRetry: boolean = true): Promise<T> {
     try {
       // Для FormData не устанавливаем Content-Type, браузер сам установит
       const isFormData = options?.body instanceof FormData;
@@ -13,6 +26,25 @@ export class ApiClient {
             ...options?.headers,
           };
 
+      // Если withRetry = true, используем новый клиент с retry и тостерами
+      if (withRetry && !isFormData) {
+        const user = getCurrentUser();
+        const url = `${API_URL}${endpoint}`;
+        
+        return await apiWithRetry(`${API_URL}${endpoint}`, {
+          ...options,
+          headers,
+          userName: user?.name || 'Неизвестный',
+          userId: user?.id,
+          userRole: user?.role,
+          showSuccessToast: options?.method === 'POST' || options?.method === 'PUT' || options?.method === 'DELETE',
+          successMessage: this.getSuccessMessage(options?.method || 'GET', endpoint),
+          retries: 3,
+          retryDelay: 1000,
+        });
+      }
+
+      // Старый вариант для FormData и без retry
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers,
@@ -38,6 +70,25 @@ export class ApiClient {
       // Иначе создаём новую ошибку
       throw new Error('Ошибка сети. Проверьте подключение к интернету.');
     }
+  }
+
+  private getSuccessMessage(method: string, endpoint: string): string {
+    if (endpoint.includes('/rooms')) {
+      if (method === 'POST') return '✅ Комната создана успешно';
+      if (method === 'PUT') return '✅ Комната сохранена успешно';
+      if (method === 'DELETE') return '✅ Комната удалена';
+    }
+    if (endpoint.includes('/bookings')) {
+      if (method === 'POST') return '✅ Бронирование создано';
+      if (method === 'PUT') return '✅ Бронирование обновлено';
+      if (method === 'DELETE') return '✅ Бронирование отменено';
+    }
+    if (endpoint.includes('/hotels')) {
+      if (method === 'POST') return '✅ Отель создан';
+      if (method === 'PUT') return '✅ Отель обновлен';
+      if (method === 'DELETE') return '✅ Отель удален';
+    }
+    return '✅ Операция выполнена успешно';
   }
 
   // Users

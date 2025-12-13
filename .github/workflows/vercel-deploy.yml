@@ -11,8 +11,43 @@ on:
       - master
 
 jobs:
-  build-and-test:
-    name: Build and Test
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run linter
+        run: npm run lint
+        continue-on-error: false
+
+      - name: Run tests
+        run: npm test
+        env:
+          CI: true
+          # Тесты без БД будут пропущены (без ALLOW_DB_TESTS)
+          # Это безопасно - тесты просто пропустятся без ошибок
+        continue-on-error: false
+
+  build-and-deploy:
+    name: Build and Deploy
+    needs: test
     runs-on: ubuntu-latest
     
     steps:
@@ -39,7 +74,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Build Next.js application
-        run: npm run build:next
+        run: npm run build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NODE_ENV: production
@@ -54,7 +89,7 @@ jobs:
 
   deploy:
     name: Deploy to Vercel
-    needs: build-and-test
+    needs: build-and-deploy
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     
