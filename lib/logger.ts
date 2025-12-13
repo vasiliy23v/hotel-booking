@@ -3,6 +3,7 @@
  */
 
 import { prisma } from './prisma';
+import type { Prisma } from './generated/prisma';
 
 export type LogAction = 
   | 'room_created' 
@@ -26,10 +27,10 @@ export interface LogData {
   userId?: string;
   userName: string;
   userRole?: string;
-  action: LogAction;
-  entity: LogEntity;
+  action: LogAction | string;
+  entity: LogEntity | string;
   entityId?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   status: LogStatus;
   errorMessage?: string;
   ipAddress?: string;
@@ -52,7 +53,7 @@ export async function logActivity(data: LogData): Promise<void> {
           action: data.action,
           entity: data.entity,
           entityId: data.entityId,
-          details: data.details || {},
+          details: data.details as Prisma.InputJsonValue,
           status: data.status,
           errorMessage: data.errorMessage,
           ipAddress: data.ipAddress,
@@ -60,6 +61,7 @@ export async function logActivity(data: LogData): Promise<void> {
           duration: data.duration,
         },
       });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (dbError) {
       // Если таблица не существует, логируем в консоль
       console.log('[Activity Log]', JSON.stringify(data, null, 2));
@@ -73,11 +75,12 @@ export async function logActivity(data: LogData): Promise<void> {
 /**
  * Получить логи с фильтрацией
  */
+
 export async function getActivityLogs(filters: {
   userId?: string;
   userName?: string;
-  action?: LogAction;
-  entity?: LogEntity;
+  action?: LogAction | string;
+  entity?: LogEntity | string;
   status?: LogStatus;
   startDate?: Date;
   endDate?: Date;
@@ -85,7 +88,7 @@ export async function getActivityLogs(filters: {
   offset?: number;
 }) {
   try {
-    const where: any = {};
+    const where: Prisma.ActivityLogWhereInput = {};
 
     if (filters.userId) where.userId = filters.userId;
     if (filters.userName) where.userName = { contains: filters.userName, mode: 'insensitive' };
@@ -121,7 +124,7 @@ export async function getActivityLogs(filters: {
  */
 export async function getUserActivityStats(startDate?: Date, endDate?: Date) {
   try {
-    const where: any = {};
+    const where: Prisma.ActivityLogWhereInput = {};
     
     if (startDate || endDate) {
       where.createdAt = {};
@@ -190,19 +193,21 @@ export async function withLogging<T>(
     });
     
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
     const duration = Date.now() - startTime;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
     await logActivity({
       ...logData,
       status: 'error',
-      errorMessage: error?.message || 'Unknown error',
+      errorMessage,
       duration,
     });
     
     throw error;
   }
 }
+
 
 
 

@@ -71,7 +71,7 @@ export function generateRoomsForHotel(
   hotelId: string,
   template: 'hotel1' | 'hotel2' | 'legacy' = 'legacy'
 ): Room[] {
-  let templateRooms: any[] = [];
+  let templateRooms: Record<string, unknown>[] = [];
 
   if (template === 'hotel1') {
     templateRooms = REACT_TS_ROOMS_DATA.filter(r => r.hotelId === 'hotel-1');
@@ -82,26 +82,29 @@ export function generateRoomsForHotel(
     templateRooms = INITIAL_ROOMS_DATA;
   }
 
-  return templateRooms.map((room: any) => {
-    const maxCapacity = room.maxCapacity || parseMaxCapacity(room.capacity);
+  return templateRooms.map((room: Record<string, unknown>) => {
+    const capacityStr = typeof room.capacity === 'string' ? room.capacity : '';
+    const maxCapacity = (typeof room.maxCapacity === 'number' ? room.maxCapacity : null) || parseMaxCapacity(capacityStr);
     
     return {
       id: `${hotelId}-${room.id}`,
-      number: room.number,
+      number: typeof room.number === 'string' ? room.number : '',
       hotelId: hotelId,
-      name: room.name || '',
+      name: typeof room.name === 'string' ? room.name : '',
       type: room.type as 'FZ' | 'DZ' | 'EZ' | 'MZ' | 'App' | 'COMMON',
-      capacity: room.capacity,
+      capacity: capacityStr,
       maxCapacity: maxCapacity,
-      beds: Array.isArray(room.beds) ? room.beds : [],
+      beds: Array.isArray(room.beds) ? room.beds as string[] : [],
       floor: room.floor as 'EG' | '1OG' | '2OG',
-      price: room.price || 0,
-      position: room.position || { x: 0, y: 0 },
-      width: room.width || 120,
-      height: room.height || 100,
-      zIndex: room.zIndex || 1,
+      price: typeof room.price === 'number' ? room.price : 0,
+      position: (typeof room.position === 'object' && room.position !== null && 'x' in room.position && 'y' in room.position) 
+        ? room.position as { x: number; y: number }
+        : { x: 0, y: 0 },
+      width: typeof room.width === 'number' ? room.width : 120,
+      height: typeof room.height === 'number' ? room.height : 100,
+      zIndex: typeof room.zIndex === 'number' ? room.zIndex : 1,
       isCommon: false,
-      description: room.description || undefined,
+      description: typeof room.description === 'string' ? room.description : undefined,
     } as Room;
   });
 }

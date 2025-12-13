@@ -56,25 +56,33 @@ export default function UsersView({
         currentUser.id!
       );
       
-      setResetPasswordLinks(prev => ({
-        ...prev,
-        [user.id!]: invite.inviteUrl
-      }));
-      
-      // Автоматически копируем ссылку в буфер обмена
-      try {
-        await navigator.clipboard.writeText(invite.inviteUrl);
-        setCopiedUserId(user.id!);
-        setTimeout(() => setCopiedUserId(null), 2000);
+      const resetPasswordUrl = invite.inviteUrl || '';
+      if (resetPasswordUrl) {
+        setResetPasswordLinks(prev => ({
+          ...prev,
+          [user.id!]: resetPasswordUrl
+        }));
+        
+        // Автоматически копируем ссылку в буфер обмена
+        try {
+          await navigator.clipboard.writeText(resetPasswordUrl);
+          setCopiedUserId(user.id!);
+          setTimeout(() => setCopiedUserId(null), 2000);
+          setToast({
+            message: `Ссылка для сброса пароля создана и скопирована в буфер обмена!`,
+            type: 'success'
+          });
+        } catch {
+          // Если не удалось скопировать в буфер обмена, все равно показываем успех
+          setToast({
+            message: `Ссылка для сброса пароля создана: ${resetPasswordUrl}`,
+            type: 'success'
+          });
+        }
+      } else {
         setToast({
-          message: `Ссылка для сброса пароля создана и скопирована в буфер обмена!`,
-          type: 'success'
-        });
-      } catch {
-        // Если не удалось скопировать в буфер обмена, все равно показываем успех
-        setToast({
-          message: `Ссылка для сброса пароля создана: ${invite.inviteUrl}`,
-          type: 'success'
+          message: 'Ошибка: ссылка для сброса пароля не была создана',
+          type: 'error'
         });
       }
     } catch (error) {

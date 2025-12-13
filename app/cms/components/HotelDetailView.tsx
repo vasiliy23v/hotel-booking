@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -76,14 +77,14 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
     if (getAvailableFloors.length > 0 && !getAvailableFloors.includes(selectedFloor)) {
       setSelectedFloor(getAvailableFloors[0]);
     }
-  }, [getAvailableFloors]);
+  }, [getAvailableFloors, selectedFloor]);
   
   // При первой загрузке отеля устанавливаем первый доступный этаж (EG, если есть)
   useEffect(() => {
     if (hotel && getAvailableFloors.length > 0) {
       setSelectedFloor(getAvailableFloors[0]);
     }
-  }, [hotel?.id]);
+  }, [hotel, getAvailableFloors]);
 
   useEffect(() => {
     loadHotel();
@@ -109,9 +110,9 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
           description: foundHotel.description || '',
           floors: foundHotel.floors || 3,
           hasEGFloor: foundHotel.hasEGFloor !== undefined ? foundHotel.hasEGFloor : true,
-          image: foundHotel.image || '',
+          image: typeof foundHotel.image === 'string' ? foundHotel.image : '',
         });
-        setImagePreview(foundHotel.image || null);
+        setImagePreview(typeof foundHotel.image === 'string' ? foundHotel.image : null);
       }
     } catch (error) {
       console.error('Error loading hotel:', error);
@@ -136,7 +137,13 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
 
   const handleRoomUpdate = async (updatedRoom: Room) => {
     try {
-      await api.updateRoom(updatedRoom.id, updatedRoom);
+      await api.updateRoom(updatedRoom.id, {
+        ...updatedRoom,
+        name: updatedRoom.name || undefined,
+        description: updatedRoom.description || undefined,
+        width: updatedRoom.width || undefined,
+        height: updatedRoom.height || undefined,
+      });
       await loadRoomsAndStairs();
     } catch (error) {
       console.error('Error updating room:', error);
@@ -145,7 +152,13 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
 
   const handleRoomCreate = async (newRoom: Room) => {
     try {
-      await api.createRoom(newRoom);
+      await api.createRoom({
+        ...newRoom,
+        name: newRoom.name || undefined,
+        description: newRoom.description || undefined,
+        width: newRoom.width || undefined,
+        height: newRoom.height || undefined,
+      });
       await loadRoomsAndStairs();
     } catch (error) {
       console.error('Error creating room:', error);
@@ -157,9 +170,15 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
       for (const stair of updatedStairs) {
         const existing = stairs.find(s => s.id === stair.id);
         if (existing) {
-          await api.updateStairs(stair.id, stair);
+          await api.updateStairs(stair.id, {
+            ...stair,
+            targetFloor: stair.targetFloor || undefined,
+          });
         } else {
-          await api.createStairs(stair);
+          await api.createStairs({
+            ...stair,
+            targetFloor: stair.targetFloor || undefined,
+          });
         }
       }
       
@@ -241,7 +260,10 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
     }
 
     try {
-      await api.updateHotel(hotel.id, formData);
+      await api.updateHotel(hotel.id, {
+        ...formData,
+        image: formData.image ? (typeof formData.image === 'string' ? Buffer.from(formData.image) : formData.image) : undefined,
+      });
       setEditing(false);
       await loadHotel();
       onHotelUpdate();
@@ -333,9 +355,9 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
         description: hotel.description || '',
         floors: hotel.floors || 3,
         hasEGFloor: hotel.hasEGFloor !== undefined ? hotel.hasEGFloor : true,
-        image: hotel.image || '',
+        image: typeof hotel.image === 'string' ? hotel.image : '',
       });
-      setImagePreview(hotel.image || null);
+      setImagePreview(typeof hotel.image === 'string' ? hotel.image : null);
     }
     setEditing(false);
   };

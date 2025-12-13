@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Building2, ArrowRight, Settings } from 'lucide-react';
@@ -89,10 +90,22 @@ export default function HotelsView({
   const handleSaveHotel = async (hotelData: Partial<Hotel> & { name: string; address: string }) => {
     try {
       if (editingHotel) {
-        await api.updateHotel(editingHotel.id, hotelData);
+        await api.updateHotel(editingHotel.id, {
+          ...hotelData,
+          description: hotelData.description || undefined,
+          floors: hotelData.floors || undefined,
+          displayOrder: hotelData.displayOrder || undefined,
+          image: typeof hotelData.image === 'string' ? Buffer.from(hotelData.image) : (hotelData.image || undefined),
+        });
         setHotels(hotels.map(h => h.id === editingHotel.id ? { ...h, ...hotelData } : h));
       } else {
-        const newHotel = await api.createHotel(hotelData);
+        const newHotel = await api.createHotel({
+          ...hotelData,
+          description: hotelData.description || undefined,
+          floors: hotelData.floors || undefined,
+          displayOrder: hotelData.displayOrder || undefined,
+          image: typeof hotelData.image === 'string' ? Buffer.from(hotelData.image) : (hotelData.image || undefined),
+        });
         setHotels([...hotels, newHotel]);
       }
       setShowHotelModal(false);
@@ -154,7 +167,7 @@ export default function HotelsView({
                 setViewingHotelId(hotel.id);
                 onSelectHotel(hotel.id);
               }}>
-                {hotel.image ? (
+                {hotel.image && typeof hotel.image === 'string' ? (
                   <img
                     src={hotel.image}
                     alt={hotel.name}

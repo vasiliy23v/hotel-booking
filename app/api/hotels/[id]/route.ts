@@ -15,8 +15,9 @@ export async function GET(
     }
     
     return NextResponse.json(hotel);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -31,11 +32,12 @@ export async function PUT(
     const updatedHotel = await updateHotel(id, body);
     
     return NextResponse.json(updatedHotel);
-  } catch (error: any) {
-    if (error.message === 'Отель не найден') {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    if (errorMessage === 'Отель не найден') {
       return NextResponse.json({ error: 'Hotel not found' }, { status: 404 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -49,8 +51,9 @@ export async function DELETE(
     await deleteHotel(id);
     
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

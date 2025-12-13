@@ -27,7 +27,7 @@ interface ActivityLog {
   action: string;
   entity: string;
   entityId?: string;
-  details?: any;
+  details?: Record<string, unknown>;
   status: 'success' | 'error' | 'warning';
   errorMessage?: string;
   ipAddress?: string;
@@ -48,7 +48,7 @@ export default function LogsPage() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [userStats, setUserStats] = useState<UserStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
   
   // Фильтры
   const [selectedUser, setSelectedUser] = useState<string>('');
@@ -76,14 +76,16 @@ export default function LogsPage() {
     }
 
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   const loadData = async () => {
     setLoading(true);
     try {
       await Promise.all([loadLogs(), loadUserStats()]);
-    } catch (error: any) {
-      toast.error('Ошибка загрузки данных: ' + error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      toast.error('Ошибка загрузки данных: ' + errorMessage);
     } finally {
       setLoading(false);
     }
@@ -128,7 +130,8 @@ export default function LogsPage() {
     if (currentUser) {
       loadLogs();
     }
-  }, [selectedUser, statusFilter, entityFilter, startDate, endDate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUser, statusFilter, entityFilter, startDate, endDate, currentUser]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -417,6 +420,7 @@ export default function LogsPage() {
     </div>
   );
 }
+
 
 
 

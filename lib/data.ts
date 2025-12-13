@@ -9,6 +9,7 @@
  * Этот файл оставлен для обратной совместимости со старым кодом
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import * as db from './db';
 import type { User, Room, Hotel, Stairs, BookingInfo, Invite } from '@/types';
 
@@ -55,6 +56,7 @@ export const readData = (): DataStructure => {
  * Запись данных (синхронная версия для обратной совместимости)
  * @deprecated Используйте функции из lib/db.ts
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const writeData = (data: unknown): boolean => {
   // Эта функция больше не может быть синхронной, так как использует БД
   // ВАЖНО: Все API роуты должны быть обновлены для использования lib/db.ts

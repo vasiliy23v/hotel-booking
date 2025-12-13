@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -141,11 +142,10 @@ export default function InviteRegistrationPage() {
       // Имя опционально - используем из приглашения, если не указано, или пустую строку
       const newUser = await api.createUser({
         email: email.trim() || undefined,
-        name: name.trim() || inviteName || undefined,
+        name: name.trim() || inviteName || '',
         phone: phone.trim() || undefined,
         password,
         role: 'guest',
-        inviteToken: token
       });
 
       localStorage.setItem('currentUser', JSON.stringify(newUser));
@@ -204,30 +204,26 @@ export default function InviteRegistrationPage() {
       }
 
       // Сброс пароля с токеном приглашения
-      const result = await api.resetPassword(token, password, confirmPassword, name);
+      const user = await api.resetPassword(token, password, confirmPassword, name);
 
-      if (result.success) {
-        // Автоматический вход после сброса пароля
-        const loginResponse = await api.login(result.user.email || result.user.phone || '', password);
-        localStorage.setItem('currentUser', JSON.stringify(loginResponse));
-        
-        // Сбрасываем состояние загрузки перед редиректом
-        setLoading(false);
-        
-        // Проверяем, заполнен ли телефон (обязателен)
-        if (!loginResponse.phone) {
-          router.push('/complete-profile');
-          return;
-        }
-        
-        // Менеджеры перенаправляются на CMS, гости - на обычный dashboard
-        if (loginResponse.role === 'manager') {
-          router.push('/cms/dashboard');
-        } else {
-          router.push('/dashboard');
-        }
+      // Автоматический вход после сброса пароля
+      const loginResponse = await api.login(user.email || user.phone || '', password);
+      localStorage.setItem('currentUser', JSON.stringify(loginResponse));
+      
+      // Сбрасываем состояние загрузки перед редиректом
+      setLoading(false);
+      
+      // Проверяем, заполнен ли телефон (обязателен)
+      if (!loginResponse.phone) {
+        router.push('/complete-profile');
+        return;
+      }
+      
+      // Менеджеры перенаправляются на CMS, гости - на обычный dashboard
+      if (loginResponse.role === 'manager') {
+        router.push('/cms/dashboard');
       } else {
-        setLoading(false);
+        router.push('/dashboard');
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Ошибка при сбросе пароля');

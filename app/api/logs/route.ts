@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
     const filters = {
       userId: searchParams.get('userId') || undefined,
       userName: searchParams.get('userName') || undefined,
-      action: searchParams.get('action') as any || undefined,
-      entity: searchParams.get('entity') as any || undefined,
-      status: searchParams.get('status') as any || undefined,
+      action: searchParams.get('action') || undefined,
+      entity: searchParams.get('entity') || undefined,
+      status: searchParams.get('status') as 'success' | 'error' | 'warning' | undefined,
       startDate: searchParams.get('startDate') ? new Date(searchParams.get('startDate')!) : undefined,
       endDate: searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : undefined,
       limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 100,
@@ -39,11 +39,13 @@ export async function GET(request: NextRequest) {
     
     const result = await getActivityLogs(filters);
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Logs API Error]', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
+
 
 
 

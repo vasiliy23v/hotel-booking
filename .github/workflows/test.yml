@@ -68,3 +68,4 @@ jobs:
             echo "📝 Тесты с БД: не настроены (TEST_DATABASE_URL не установлен)"
           fi
 
+

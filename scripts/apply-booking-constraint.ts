@@ -1,7 +1,9 @@
 // Скрипт для применения EXCLUDE constraint к таблице bookings
 // Запуск: npx tsx scripts/apply-booking-constraint.ts
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { PrismaClient } from '../lib/generated/prisma';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { PrismaNeon } from '@prisma/adapter-neon';
 import { neon } from '@neondatabase/serverless';
 

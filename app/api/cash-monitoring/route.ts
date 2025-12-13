@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const hotelId = searchParams.get('hotelId');
     
-    let bookings = await getBookings(undefined, hotelId || undefined);
+    const bookings = await getBookings(undefined, hotelId || undefined);
     
     // Логирование для отладки
     if (process.env.NODE_ENV === 'development') {
@@ -98,8 +98,9 @@ export async function GET(request: NextRequest) {
       cashThisMonth,
       recentCashPayments: recentCashPayments.slice(0, 50) // Последние 50 платежей
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

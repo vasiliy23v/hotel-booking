@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, X, Copy, CheckCircle, AlertCircle, Clock, ArrowRight, KeyRound, Mail, Trash2, Key, RefreshCw } from 'lucide-react';
+import { Users, Plus, X, Copy, CheckCircle, AlertCircle, ArrowRight, KeyRound, Mail, Trash2, Key, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { User, Invite } from '@/types';
@@ -41,7 +41,7 @@ export default function UsersManagementView({
   const [resetPasswordLinks, setResetPasswordLinks] = useState<Record<string, string>>({});
   const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
-  const [registrationToken, setRegistrationToken] = useState<any>(null);
+  const [registrationToken, setRegistrationToken] = useState<{ id: string; originalToken?: string; isActive: boolean; exists?: boolean; createdAt?: string; updatedAt?: string } | null>(null);
   const [registrationTokenLoading, setRegistrationTokenLoading] = useState(false);
   const [copiedRegistrationUrl, setCopiedRegistrationUrl] = useState(false);
   const [activeRegistrationUrl, setActiveRegistrationUrl] = useState<string | null>(null);
@@ -57,7 +57,13 @@ export default function UsersManagementView({
       // Загружаем информацию об общем токене регистрации
       try {
         const tokenData = await api.getRegistrationToken(true); // Запрашиваем с ссылкой
-        setRegistrationToken(tokenData);
+        setRegistrationToken({
+          id: tokenData.id,
+          originalToken: tokenData.originalToken ?? undefined,
+          isActive: tokenData.isActive,
+          createdAt: tokenData.createdAt.toISOString(),
+          updatedAt: tokenData.updatedAt.toISOString()
+        });
         // Если есть ссылка, сохраняем её
         if (tokenData.registrationUrl) {
           setActiveRegistrationUrl(tokenData.registrationUrl);
@@ -67,7 +73,7 @@ export default function UsersManagementView({
           setActiveRegistrationUrl(null);
           localStorage.removeItem('activeRegistrationUrl');
         }
-      } catch (error) {
+      } catch {
         // Если токен не создан, это нормально
         setRegistrationToken(null);
       }
@@ -82,8 +88,8 @@ export default function UsersManagementView({
         return dateA - dateB;
       });
       setInvites(sortedInvites);
-    } catch (error) {
-      console.error('Error loading data:', error);
+    } catch (_error) {
+      console.error('Error loading data:', _error);
       alert('Ошибка при загрузке данных');
     } finally {
       setLoading(false);
@@ -99,17 +105,17 @@ export default function UsersManagementView({
     }
   }, []);
 
-  const getInviteStatus = (invite: Invite) => {
-    if (invite.used) {
-      return { label: 'Использовано', color: 'bg-gray-500', icon: CheckCircle };
-    }
-    const now = new Date();
-    const expiresAt = new Date(invite.expiresAt);
-    if (now > expiresAt) {
-      return { label: 'Истекло', color: 'bg-red-500', icon: AlertCircle };
-    }
-    return { label: 'Активно', color: 'bg-green-500', icon: Clock };
-  };
+  // const _getInviteStatus = (invite: Invite) => {
+  //   if (invite.used) {
+  //     return { label: 'Использовано', color: 'bg-gray-500', icon: CheckCircle };
+  //   }
+  //   const now = new Date();
+  //   const expiresAt = new Date(invite.expiresAt);
+  //   if (now > expiresAt) {
+  //     return { label: 'Истекло', color: 'bg-red-500', icon: AlertCircle };
+  //   }
+  //   return { label: 'Активно', color: 'bg-green-500', icon: Clock };
+  // };
 
   const handleCreateInvite = async () => {
     if (!newInviteName.trim()) {
@@ -127,12 +133,15 @@ export default function UsersManagementView({
         currentUser.id!
       );
       
-      setNewInviteToken(invite.inviteUrl);
+      const inviteUrl = invite.inviteUrl || '';
+      setNewInviteToken(inviteUrl || null);
       // Сохраняем URL перед загрузкой данных, чтобы он был доступен после обновления
-      setInviteUrls(prev => ({ ...prev, [invite.id]: invite.inviteUrl }));
+      setInviteUrls(prev => ({ ...prev, [invite.id]: inviteUrl }));
       setNewInviteName('');
-      await navigator.clipboard.writeText(invite.inviteUrl);
-      setCopiedToken(invite.inviteUrl);
+      if (inviteUrl) {
+        await navigator.clipboard.writeText(inviteUrl);
+        setCopiedToken(inviteUrl);
+      }
       setTimeout(() => setCopiedToken(null), 2000);
       setToast({
         message: 'Приглашение создано и скопировано в буфер обмена!',
@@ -171,13 +180,12 @@ export default function UsersManagementView({
     }
 
     try {
-      const newUser = await api.createUser({
+      await api.createUser({
         name: newUserName.trim(),
         email: newUserEmail.trim() || undefined,
         phone: newUserPhone.trim() || undefined,
         password: newUserPassword.trim() || undefined,
         role: newUserRole,
-        directCreate: true, // Флаг для прямого создания
       });
       
       // Очищаем форму
@@ -215,14 +223,17 @@ export default function UsersManagementView({
       await loadData();
       const updatedInvites = await api.getInvites();
       const inviteId = updatedInvites.find((inv: Invite) => inv.name === name)?.id;
+      const inviteUrl = invite.inviteUrl || '';
       if (inviteId) {
-        setInviteUrls(prev => ({ ...prev, [inviteId]: invite.inviteUrl }));
+        setInviteUrls(prev => ({ ...prev, [inviteId]: inviteUrl }));
         // Показываем приглашение после регенерации
         setVisibleInviteUrl(inviteId);
       }
       
-      await navigator.clipboard.writeText(invite.inviteUrl);
-      setCopiedToken(invite.inviteUrl);
+      if (inviteUrl) {
+        await navigator.clipboard.writeText(inviteUrl);
+        setCopiedToken(inviteUrl);
+      }
       setTimeout(() => setCopiedToken(null), 2000);
       setToast({
         message: 'Приглашение создано и скопировано в буфер обмена!',
@@ -266,19 +277,22 @@ export default function UsersManagementView({
         currentUser.id!
       );
       
+      const resetPasswordUrl = invite.inviteUrl || '';
       setResetPasswordLinks(prev => ({
         ...prev,
-        [user.id!]: invite.inviteUrl
+        [user.id!]: resetPasswordUrl
       }));
       
       try {
-        await navigator.clipboard.writeText(invite.inviteUrl);
-        setCopiedUserId(user.id!);
-        setTimeout(() => setCopiedUserId(null), 2000);
-        setToast({
-          message: `Ссылка для сброса пароля создана и скопирована в буфер обмена!`,
-          type: 'success'
-        });
+        if (resetPasswordUrl) {
+          await navigator.clipboard.writeText(resetPasswordUrl);
+          setCopiedUserId(user.id!);
+          setTimeout(() => setCopiedUserId(null), 2000);
+          setToast({
+            message: `Ссылка для сброса пароля создана и скопирована в буфер обмена!`,
+            type: 'success'
+          });
+        }
       } catch {
         setToast({
           message: `Ссылка для сброса пароля создана: ${invite.inviteUrl}`,
@@ -405,7 +419,7 @@ export default function UsersManagementView({
               <div className="bg-gray-50 dark:bg-muted rounded-lg p-3 border border-gray-200 dark:border-border">
                 <div className="text-xs text-gray-600 dark:text-muted-foreground mb-2">Создан:</div>
                 <div className="text-sm text-gray-900 dark:text-foreground">
-                  {new Date(registrationToken.createdAt).toLocaleString('ru-RU', {
+                  {registrationToken.createdAt && new Date(registrationToken.createdAt).toLocaleString('ru-RU', {
                     day: '2-digit',
                     month: '2-digit',
                     year: 'numeric',
@@ -436,7 +450,7 @@ export default function UsersManagementView({
                             type: 'success'
                           });
                           setTimeout(() => setCopiedRegistrationUrl(false), 2000);
-                        } catch (error) {
+                        } catch {
                           setToast({
                             message: 'Ошибка при копировании ссылки',
                             type: 'error'
@@ -480,7 +494,7 @@ export default function UsersManagementView({
                             });
                           } else if (tokenData.urlUnavailable) {
                             setToast({
-                              message: tokenData.message || 'Ссылка недоступна. Токен был создан до обновления системы. Создайте новый токен для получения ссылки.',
+                              message: 'Ссылка недоступна. Токен был создан до обновления системы. Создайте новый токен для получения ссылки.',
                               type: 'error'
                             });
                           } else {
@@ -513,20 +527,28 @@ export default function UsersManagementView({
                       setRegistrationTokenLoading(true);
                       const result = await api.createOrUpdateRegistrationToken();
                       setRegistrationToken({
+                        id: result.id,
+                        originalToken: result.originalToken ?? undefined,
+                        isActive: result.isActive,
                         exists: true,
-                        createdAt: result.createdAt,
-                        updatedAt: result.updatedAt,
+                        createdAt: result.createdAt.toISOString(),
+                        updatedAt: result.updatedAt.toISOString(),
                       });
                       // Сохраняем ссылку в состоянии
-                      setActiveRegistrationUrl(result.registrationUrl);
+                      const registrationUrl = result.registrationUrl ?? null;
+                      setActiveRegistrationUrl(registrationUrl);
                       // Сохраняем ссылку в localStorage для сохранения после перезагрузки
-                      localStorage.setItem('activeRegistrationUrl', result.registrationUrl);
+                      if (registrationUrl) {
+                        localStorage.setItem('activeRegistrationUrl', registrationUrl);
+                      }
                       setToast({
                         message: 'Новый токен регистрации создан. Старый токен автоматически деактивирован.',
                         type: 'success'
                       });
                       // Копируем новую ссылку в буфер обмена
-                      await navigator.clipboard.writeText(result.registrationUrl);
+                      if (registrationUrl) {
+                        await navigator.clipboard.writeText(registrationUrl);
+                      }
                       setCopiedRegistrationUrl(true);
                       setTimeout(() => setCopiedRegistrationUrl(false), 2000);
                     } catch (error) {
@@ -559,20 +581,28 @@ export default function UsersManagementView({
                     setRegistrationTokenLoading(true);
                     const result = await api.createOrUpdateRegistrationToken();
                     setRegistrationToken({
+                      id: result.id,
+                      originalToken: result.originalToken ?? undefined,
+                      isActive: result.isActive,
                       exists: true,
-                      createdAt: result.createdAt,
-                      updatedAt: result.updatedAt,
+                      createdAt: result.createdAt.toISOString(),
+                      updatedAt: result.updatedAt.toISOString(),
                     });
                     // Сохраняем ссылку в состоянии
-                    setActiveRegistrationUrl(result.registrationUrl);
+                    const registrationUrl = result.registrationUrl ?? null;
+                    setActiveRegistrationUrl(registrationUrl);
                     // Сохраняем ссылку в localStorage для сохранения после перезагрузки
-                    localStorage.setItem('activeRegistrationUrl', result.registrationUrl);
+                    if (registrationUrl) {
+                      localStorage.setItem('activeRegistrationUrl', registrationUrl);
+                    }
                     setToast({
                       message: 'Токен регистрации создан! Ссылка скопирована в буфер обмена.',
                       type: 'success'
                     });
                     // Копируем ссылку в буфер обмена
-                    await navigator.clipboard.writeText(result.registrationUrl);
+                    if (registrationUrl) {
+                      await navigator.clipboard.writeText(registrationUrl);
+                    }
                     setCopiedRegistrationUrl(true);
                     setTimeout(() => setCopiedRegistrationUrl(false), 2000);
                   } catch (error) {

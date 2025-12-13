@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
       comment: comment.trim(),
       screenshot: screenshotPath || undefined,
       userAgent: request.headers.get('user-agent') || undefined,
+      isProcessed: false,
     });
 
     // Также сохраняем в JSON файл для резервной копии

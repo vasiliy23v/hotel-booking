@@ -23,10 +23,11 @@ export async function GET() {
       unconfirmed: unconfirmedCount,
       unpaid: unpaidCount,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching booking stats:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
-      { error: error.message },
+      { error: errorMessage },
       { status: 500 }
     );
   }

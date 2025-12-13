@@ -83,7 +83,8 @@ checkDatabaseConnection()
     process.exit(0);
   })
   .catch((error) => {
-    console.error('❌ Проверка не пройдена:', error.message);
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    console.error('❌ Проверка не пройдена:', errorMessage);
     process.exit(1);
   });
 

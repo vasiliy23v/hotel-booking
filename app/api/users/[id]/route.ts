@@ -15,7 +15,8 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     
-    const { password, ...userWithoutPassword } = user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...userWithoutPassword } = user;
     return NextResponse.json(userWithoutPassword);
   } catch (error: unknown) {
     console.error('Error in GET /api/users/[id]:', error);
@@ -72,7 +73,8 @@ export async function PUT(
     
     const updatedUser = await updateUser(id, body);
     
-    const { password, ...userWithoutPassword } = updatedUser;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...userWithoutPassword } = updatedUser;
     return NextResponse.json(userWithoutPassword);
   } catch (error: unknown) {
     console.error('Error in PUT /api/users/[id]:', error);

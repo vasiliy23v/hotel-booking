@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { Users, Plus, X, Upload } from 'lucide-react';
 import type { Guest, User } from '@/types';

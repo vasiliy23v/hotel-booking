@@ -15,8 +15,9 @@ export async function GET(
     }
     
     return NextResponse.json(booking);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -31,19 +32,20 @@ export async function PUT(
     const updatedBooking = await updateBooking(id, body);
     
     return NextResponse.json(updatedBooking);
-  } catch (error: any) {
-    if (error.message === 'Бронирование не найдено') {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка при обновлении бронирования';
+    if (errorMessage === 'Бронирование не найдено') {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
     // Если это ошибка о занятости комнаты, возвращаем 409 Conflict
-    if (error.message && error.message.includes('уже забронирована')) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
+    if (errorMessage.includes('уже забронирована')) {
+      return NextResponse.json({ error: errorMessage }, { status: 409 });
     }
     // Для других ошибок валидации возвращаем 400
-    if (error.message && (error.message.includes('Дата заезда') || error.message.includes('формат'))) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    if (errorMessage.includes('Дата заезда') || errorMessage.includes('формат')) {
+      return NextResponse.json({ error: errorMessage }, { status: 400 });
     }
-    return NextResponse.json({ error: error.message || 'Ошибка при обновлении бронирования' }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -57,8 +59,9 @@ export async function DELETE(
     await deleteBooking(id);
     
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

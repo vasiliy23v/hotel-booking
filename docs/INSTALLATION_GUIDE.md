@@ -263,3 +263,4 @@ psql $DATABASE_URL -f prisma/migrations/add_activity_logs.sql
 
 
 
+

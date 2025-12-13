@@ -1,11 +1,12 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut, ArrowLeft, Euro, Edit, CheckCircle, Plus } from 'lucide-react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut, ArrowLeft, Euro, Edit, CheckCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DatePicker } from '@/components/ui/date-picker';
+// import { DatePicker } from '@/components/ui/date-picker';
 import { BookingFormModal, type BookingFormData } from '@/components/booking/BookingFormModal';
 import { ConfirmCancelBookingDialog } from '@/components/booking/ConfirmCancelBookingDialog';
 import {
@@ -18,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { User, Room, Hotel, BookingInfo, Guest } from '@/types';
+import type { User, Room, Hotel, BookingInfo } from '@/types';
 import Link from 'next/link';
 
 export default function BookingsPage() {
@@ -78,11 +79,28 @@ export default function BookingsPage() {
       setHotels(hotelsData);
 
       // Обогащаем бронирования информацией о комнатах и отелях
-      const enrichedBookings = bookingsData.map((booking: BookingInfo) => {
+      const enrichedBookings = bookingsData.map((booking) => {
         const room = roomsData.find((r: Room) => r.id === booking.roomId);
         const hotel = hotelsData.find((h: Hotel) => h.id === room?.hotelId);
         return {
-          ...booking,
+          id: booking.id,
+          roomId: booking.roomId,
+          bookedBy: booking.bookedBy,
+          bookedDate: booking.bookedDate instanceof Date ? booking.bookedDate.toISOString() : String(booking.bookedDate),
+          email: booking.email || undefined,
+          phone: booking.phone,
+          checkIn: booking.checkIn instanceof Date ? booking.checkIn.toISOString().split('T')[0] : String(booking.checkIn),
+          checkOut: booking.checkOut instanceof Date ? booking.checkOut.toISOString().split('T')[0] : String(booking.checkOut),
+          guests: Array.isArray(booking.guests) ? booking.guests.map((g: { name: string; age?: number }) => ({ name: g.name, email: undefined, phone: undefined, image: undefined })) : undefined,
+          notes: booking.notes || undefined,
+          isConfirmed: booking.isConfirmed,
+          confirmedBy: booking.confirmedBy || undefined,
+          confirmedDate: booking.confirmedDate ? (booking.confirmedDate instanceof Date ? booking.confirmedDate.toISOString() : String(booking.confirmedDate)) : undefined,
+          isPaid: booking.isPaid,
+          paymentMethod: booking.paymentMethod || undefined,
+          paymentDate: booking.paymentDate ? (booking.paymentDate instanceof Date ? booking.paymentDate.toISOString() : String(booking.paymentDate)) : undefined,
+          paidBy: booking.paidBy || undefined,
+          amount: booking.amount ? Number(booking.amount) : undefined,
           roomNumber: room?.number || 'N/A',
           hotelName: hotel?.name || 'N/A'
         };
@@ -130,7 +148,7 @@ export default function BookingsPage() {
     
     try {
       // Для обычного пользователя имя берется из currentUser
-      const bookedByName = currentUser?.name || selectedBookingForEdit.bookedBy;
+      // const _bookedByName = currentUser?.name || selectedBookingForEdit.bookedBy;
 
       // Обрабатываем флаг includeManager для менеджеров/разработчиков
       let finalGuests = [...data.guests];
@@ -158,7 +176,6 @@ export default function BookingsPage() {
         notes: data.notes,
         email: data.email,
         phone: data.phone,
-        bookedBy: bookedByName,
       });
       setShowEditModal(false);
       setSelectedBookingForEdit(null);

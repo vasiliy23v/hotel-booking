@@ -9,6 +9,24 @@
  */
 
 import { prisma } from '../lib/prisma';
+import { createInterface } from 'readline';
+
+// Типы для миграции
+type RoomForMigration = {
+  id: string;
+  number: string;
+  name: string | null;
+  capacity: string;
+  maxCapacity: number;
+  beds: unknown; // JSON поле из Prisma
+  description: string | null;
+};
+
+type MigrationError = {
+  roomId: string;
+  roomNumber: string;
+  error: string;
+};
 
 // Цвета для консоли
 const colors = {
@@ -80,9 +98,9 @@ async function analyzeData() {
 /**
  * Шаг 2: Формирование нового описания
  */
-function buildNewDescription(room: any): string {
+function buildNewDescription(room: RoomForMigration): string {
   const parts: string[] = [];
-  const beds = Array.isArray(room.beds) ? room.beds : [];
+  const beds = Array.isArray(room.beds) ? (room.beds as string[]) : [];
 
   // Добавляем информацию о вместимости
   if (room.capacity && room.capacity.trim() !== '') {
@@ -110,7 +128,7 @@ function buildNewDescription(room: any): string {
 /**
  * Шаг 3: Превью миграции (без сохранения)
  */
-async function previewMigration(rooms: any[]) {
+async function previewMigration(rooms: RoomForMigration[]) {
   log('\n=== ШАГ 2: ПРЕВЬЮ МИГРАЦИИ ===\n', 'bright');
   log('Показываем как будут выглядеть данные после миграции:\n', 'yellow');
 
@@ -133,7 +151,7 @@ async function previewMigration(rooms: any[]) {
     log(`\n${index + 1}. Комната ${item.room}:`, 'blue');
     log(`   БЫЛО:`, 'red');
     log(`     capacity: "${item.old.capacity}"`);
-    log(`     beds: [${item.old.beds.map(b => `"${b}"`).join(', ')}]`);
+    log(`     beds: [${item.old.beds.map((b: string) => `"${b}"`).join(', ')}]`);
     log(`     description: ${item.old.description ? `"${item.old.description}"` : 'null'}`);
     log(`   СТАНЕТ:`, 'green');
     log(`     description: "${item.new.description}"`);
@@ -162,7 +180,7 @@ async function executeMigration(dryRun: boolean = true) {
   const rooms = await prisma.room.findMany();
   let updated = 0;
   let skipped = 0;
-  const errors: any[] = [];
+  const errors: MigrationError[] = [];
 
   for (const room of rooms) {
     try {
@@ -185,9 +203,10 @@ async function executeMigration(dryRun: boolean = true) {
 
       updated++;
       log(`✓ Обновлена комната ${room.number}`, 'green');
-    } catch (error: any) {
-      errors.push({ room: room.number, error: error.message });
-      log(`✗ Ошибка для комнаты ${room.number}: ${error.message}`, 'red');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      errors.push({ roomId: room.id, roomNumber: room.number, error: errorMessage });
+      log(`✗ Ошибка для комнаты ${room.number}: ${errorMessage}`, 'red');
     }
   }
 
@@ -198,7 +217,7 @@ async function executeMigration(dryRun: boolean = true) {
 
   if (errors.length > 0) {
     log(`\n⚠️  Ошибки:`, 'red');
-    errors.forEach(e => log(`  - Комната ${e.room}: ${e.error}`));
+    errors.forEach(e => log(`  - Комната ${e.roomNumber}: ${e.error}`));
   }
 
   if (dryRun) {
@@ -303,7 +322,7 @@ async function dropOldColumns() {
   log(`  - Всего комнат: ${rooms.length}`);
   log(`  - С описанием: ${rooms.filter(r => r.description).length}`);
 
-  const readline = require('readline').createInterface({
+  const readline = createInterface({
     input: process.stdin,
     output: process.stdout,
   });
@@ -326,8 +345,9 @@ async function dropOldColumns() {
           log('  3. Обновите types/index.ts (уберите capacity и beds)');
           log('  4. Обновите UI компоненты');
           log('  5. Перезапустите приложение\n');
-        } catch (error: any) {
-          log(`\n❌ Ошибка при удалении: ${error.message}`, 'red');
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+          log(`\n❌ Ошибка при удалении: ${errorMessage}`, 'red');
         }
       } else {
         log('\nУдаление отменено. Колонки оставлены в БД.', 'yellow');
@@ -361,7 +381,7 @@ async function main() {
         break;
 
       case 'execute':
-        const readline = require('readline').createInterface({
+        const readline = createInterface({
           input: process.stdin,
           output: process.stdout,
         });
@@ -407,8 +427,9 @@ async function main() {
         log('  8. drop-columns - УДАЛИТЬ старые колонки (необратимо!)\n');
         log('💡 Между шагом 5 и 8 должно пройти время для проверки!', 'red');
     }
-  } catch (error: any) {
-    log(`\n❌ Ошибка: ${error.message}`, 'red');
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    log(`\n❌ Ошибка: ${errorMessage}`, 'red');
     console.error(error);
   } finally {
     if (command !== 'execute' && command !== 'drop-columns') {

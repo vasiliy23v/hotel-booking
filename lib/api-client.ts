@@ -17,6 +17,7 @@ export interface ApiClientOptions {
   userId?: string;
   userName?: string;
   userRole?: string;
+  headers?: HeadersInit;
 }
 
 const DEFAULT_OPTIONS: ApiClientOptions = {
@@ -70,7 +71,7 @@ function parseAction(method: string, url: string): { action: string; entity: str
 /**
  * API запрос с retry логикой
  */
-export async function apiRequest<T = any>(
+export async function apiRequest<T = unknown>(
   url: string,
   options: RequestInit & ApiClientOptions = {}
 ): Promise<T> {
@@ -126,13 +127,14 @@ export async function apiRequest<T = any>(
       // Логирование успешного запроса
       if (logAction) {
         const { action, entity } = parseAction(method, url);
+        const dataWithId = data as { id?: string } | null;
         await logActivity({
           userId,
           userName,
           userRole,
-          action: action as any,
-          entity: entity as any,
-          entityId: data?.id,
+          action,
+          entity,
+          entityId: dataWithId?.id,
           details: {
             url,
             method,
@@ -144,20 +146,21 @@ export async function apiRequest<T = any>(
       }
 
       return data;
-    } catch (error: any) {
-      lastError = error;
+    } catch (error: unknown) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      lastError = errorObj;
       const isLastAttempt = attempt === retries;
       
       // Если это не последняя попытка и ошибка не связана с отменой
-      if (!isLastAttempt && error.name !== 'AbortError') {
-        console.warn(`Попытка ${attempt + 1}/${retries + 1} не удалась. Повтор через ${retryDelay}мс...`, error.message);
+      if (!isLastAttempt && errorObj.name !== 'AbortError') {
+        console.warn(`Попытка ${attempt + 1}/${retries + 1} не удалась. Повтор через ${retryDelay}мс...`, errorObj.message);
         await delay(retryDelay * (attempt + 1)); // Увеличиваем задержку с каждой попыткой
         continue;
       }
 
       // Последняя попытка - показываем ошибку
       const duration = Date.now() - startTime;
-      const errorMsg = error.message || 'Неизвестная ошибка';
+      const errorMsg = errorObj.message || 'Неизвестная ошибка';
       
       if (showErrorToast) {
         toast.error(errorMessage || `Ошибка: ${errorMsg}`, { id: toastId });
@@ -172,8 +175,8 @@ export async function apiRequest<T = any>(
           userId,
           userName,
           userRole,
-          action: action as any,
-          entity: entity as any,
+          action,
+          entity,
           details: {
             url,
             method,
@@ -185,7 +188,7 @@ export async function apiRequest<T = any>(
         });
       }
 
-      throw error;
+      throw errorObj;
     }
   }
 
@@ -196,28 +199,33 @@ export async function apiRequest<T = any>(
  * Утилиты для конкретных методов
  */
 export const api = {
-  get: <T = any>(url: string, options?: ApiClientOptions) =>
+  get: <T = unknown>(url: string, options?: ApiClientOptions) =>
     apiRequest<T>(url, { ...options, method: 'GET' }),
 
-  post: <T = any>(url: string, data?: any, options?: ApiClientOptions) =>
-    apiRequest<T>(url, {
-      ...options,
+  post: <T = unknown>(url: string, data?: unknown, options?: ApiClientOptions) => {
+    const { headers, ...restOptions } = options || {};
+    return apiRequest<T>(url, {
+      ...restOptions,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(data),
-    }),
+    });
+  },
 
-  put: <T = any>(url: string, data?: any, options?: ApiClientOptions) =>
-    apiRequest<T>(url, {
-      ...options,
+  put: <T = unknown>(url: string, data?: unknown, options?: ApiClientOptions) => {
+    const { headers, ...restOptions } = options || {};
+    return apiRequest<T>(url, {
+      ...restOptions,
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(data),
-    }),
+    });
+  },
 
-  delete: <T = any>(url: string, options?: ApiClientOptions) =>
+  delete: <T = unknown>(url: string, options?: ApiClientOptions) =>
     apiRequest<T>(url, { ...options, method: 'DELETE' }),
 };
+
 
 
 

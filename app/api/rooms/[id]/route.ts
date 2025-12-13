@@ -19,8 +19,9 @@ export async function GET(
     const roomWithBooking = activeBooking ? { ...room, booking: activeBooking } : room;
     
     return NextResponse.json(roomWithBooking);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -39,11 +40,12 @@ export async function PUT(
     const roomWithBooking = activeBooking ? { ...updatedRoom, booking: activeBooking } : updatedRoom;
     
     return NextResponse.json(roomWithBooking);
-  } catch (error: any) {
-    if (error.message === 'Комната не найдена') {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    if (errorMessage === 'Комната не найдена') {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -57,8 +59,9 @@ export async function DELETE(
     await deleteRoom(id);
     
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

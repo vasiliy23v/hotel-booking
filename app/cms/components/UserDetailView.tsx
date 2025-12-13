@@ -59,12 +59,32 @@ export default function UserDetailView({
       });
 
       const userBookings = bookingsData
-        .filter((b: BookingInfo) => b.bookedBy === foundUser.name)
-        .map((booking: BookingInfo) => {
+        .filter((b) => b.bookedBy === foundUser.name)
+        .map((booking) => {
+          const bookingInfo: BookingInfo = {
+            id: booking.id,
+            roomId: booking.roomId,
+            bookedBy: booking.bookedBy,
+            bookedDate: booking.bookedDate instanceof Date ? booking.bookedDate.toISOString() : String(booking.bookedDate),
+            email: booking.email || undefined,
+            phone: booking.phone,
+            checkIn: booking.checkIn instanceof Date ? booking.checkIn.toISOString().split('T')[0] : String(booking.checkIn),
+            checkOut: booking.checkOut instanceof Date ? booking.checkOut.toISOString().split('T')[0] : String(booking.checkOut),
+            guests: Array.isArray(booking.guests) ? booking.guests.map((g: { name: string; age?: number }) => ({ name: g.name, email: undefined, phone: undefined, image: undefined })) : undefined,
+            notes: booking.notes || undefined,
+            isConfirmed: booking.isConfirmed,
+            confirmedBy: booking.confirmedBy || undefined,
+            confirmedDate: booking.confirmedDate ? (booking.confirmedDate instanceof Date ? booking.confirmedDate.toISOString() : String(booking.confirmedDate)) : undefined,
+            isPaid: booking.isPaid,
+            paymentMethod: (booking.paymentMethod === 'cash' || booking.paymentMethod === 'transfer') ? booking.paymentMethod : undefined,
+            paymentDate: booking.paymentDate ? (booking.paymentDate instanceof Date ? booking.paymentDate.toISOString() : String(booking.paymentDate)) : undefined,
+            paidBy: booking.paidBy || undefined,
+            amount: booking.amount ? Number(booking.amount) : undefined,
+          };
           const room = roomsData.find((r: Room) => r.id === booking.roomId);
           const hotel = hotelsData.find((h: Hotel) => h.id === room?.hotelId);
           return {
-            ...booking,
+            ...bookingInfo,
             roomNumber: room?.number || 'N/A',
             hotelName: hotel?.name || 'N/A'
           };
@@ -96,7 +116,7 @@ export default function UserDetailView({
         currentUser.id!
       );
       
-      setNewInviteToken(invite.inviteUrl);
+      setNewInviteToken(invite.inviteUrl || null);
       await loadUserData();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Ошибка при создании приглашения';
@@ -118,7 +138,7 @@ export default function UserDetailView({
         currentUser.id!
       );
       
-      setNewInviteToken(invite.inviteUrl);
+      setNewInviteToken(invite.inviteUrl || null);
       await loadUserData();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Ошибка при пересоздании приглашения';
@@ -140,7 +160,7 @@ export default function UserDetailView({
         currentUser.id!
       );
       
-      setNewInviteToken(invite.inviteUrl);
+      setNewInviteToken(invite.inviteUrl || null);
       await loadUserData();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Ошибка при создании ссылки для сброса пароля';
@@ -178,7 +198,6 @@ export default function UserDetailView({
         name: editFormData.name.trim(),
         email: editFormData.email.trim(),
         phone: editFormData.phone.trim() || undefined,
-        role: editFormData.role
       });
 
       setUser(updatedUser);
@@ -186,6 +205,7 @@ export default function UserDetailView({
       
       // Если редактируется текущий пользователь, обновляем localStorage
       if (currentUser.id === user.id) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { password: _password, ...userWithoutPassword } = updatedUser;
         localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
       }

@@ -49,8 +49,8 @@ export function DatesStep({
       try {
         const ranges = await api.getBookingDateRanges(true);
         const dateRanges = ranges.map((r) => ({
-          startDate: r.startDate,
-          endDate: r.endDate,
+          startDate: r.startDate instanceof Date ? r.startDate.toISOString().split('T')[0] : r.startDate,
+          endDate: r.endDate instanceof Date ? r.endDate.toISOString().split('T')[0] : r.endDate,
         }));
         setAllowedDateRanges(dateRanges);
 

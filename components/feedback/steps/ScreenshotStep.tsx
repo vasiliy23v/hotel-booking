@@ -1,6 +1,7 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { Image as ImageIcon, X } from 'lucide-react';
 
 interface ScreenshotStepProps {
@@ -11,14 +12,15 @@ interface ScreenshotStepProps {
 }
 
 export function ScreenshotStep({
-  screenshot,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  screenshot: _screenshot,
   screenshotPreview,
   onScreenshotChange,
   onScreenshotPreviewChange,
 }: ScreenshotStepProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const processImageFile = (file: File) => {
+  const processImageFile = useCallback((file: File) => {
     // Проверка типа файла
     if (!file.type.startsWith('image/')) {
       alert('Пожалуйста, выберите изображение');
@@ -39,7 +41,7 @@ export function ScreenshotStep({
       onScreenshotPreviewChange(reader.result as string);
     };
     reader.readAsDataURL(file);
-  };
+  }, [onScreenshotChange, onScreenshotPreviewChange]);
 
   const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,7 +73,7 @@ export function ScreenshotStep({
     return () => {
       document.removeEventListener('paste', handlePaste);
     };
-  }, []);
+  }, [processImageFile]);
 
   const handleRemoveScreenshot = () => {
     onScreenshotChange(null);

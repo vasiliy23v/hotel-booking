@@ -1,6 +1,7 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
@@ -34,7 +35,6 @@ import {
   List,
   Eye,
   EyeOff,
-  Bell,
   CreditCard,
   MoreVertical,
   MessageSquare,
@@ -58,7 +58,7 @@ import Link from "next/link";
 import FeedbackForm from "@/components/FeedbackForm";
 import { BookingFormModal, type BookingFormData } from "@/components/booking/BookingFormModal";
 import { ConfirmCancelBookingDialog } from "@/components/booking/ConfirmCancelBookingDialog";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { MobileNav } from "@/components/navigation/MobileNav";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -156,6 +156,7 @@ export default function Dashboard() {
   const [bookingsSortDirection, setBookingsSortDirection] = useState<
     "asc" | "desc"
   >("desc");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [bookingStats, setBookingStats] = useState({
     unconfirmed: 0,
     unpaid: 0,
@@ -510,14 +511,31 @@ export default function Dashboard() {
       ]);
 
       // Обогащаем бронирования информацией о комнатах и отелях
-      const enrichedBookings = bookingsData.map((booking: BookingInfo) => {
+      const enrichedBookings = bookingsData.map((booking) => {
         const room = roomsData.find((r: Room) => r.id === booking.roomId);
         const hotel = hotelsData.find((h: Hotel) => h.id === room?.hotelId);
+        const convertDate = (date: Date | string | null | undefined): string | undefined => {
+          if (!date) return undefined;
+          if (date instanceof Date) return date.toISOString();
+          return date;
+        };
         return {
           ...booking,
+          bookedDate: convertDate(booking.bookedDate) || '',
+          checkIn: convertDate(booking.checkIn) || '',
+          checkOut: convertDate(booking.checkOut) || '',
+          createdAt: convertDate(booking.createdAt),
+          updatedAt: convertDate(booking.updatedAt),
+          confirmedDate: convertDate(booking.confirmedDate),
+          paymentDate: convertDate(booking.paymentDate),
+          email: booking.email ?? undefined,
+          notes: booking.notes ?? undefined,
+          amount: booking.amount ?? undefined,
+          confirmedBy: booking.confirmedBy ?? undefined,
+          paidBy: booking.paidBy ?? undefined,
           roomNumber: room?.number || "N/A",
           hotelName: hotel?.name || "N/A",
-        };
+        } as BookingInfo & { roomNumber?: string; hotelName?: string };
       });
 
       setBookings(enrichedBookings);
@@ -606,7 +624,7 @@ export default function Dashboard() {
     try {
       await api.deleteRoom(id);
       setRooms(rooms.filter((r) => r.id !== id));
-    } catch (error) {
+    } catch {
       alert("Ошибка при удалении комнаты");
     }
   };
@@ -634,26 +652,61 @@ export default function Dashboard() {
   ) => {
     try {
       if (editingRoom) {
-        await api.updateRoom(editingRoom.id, roomData);
+        const updateData = { 
+          ...roomData, 
+          name: roomData.name ?? undefined,
+          width: roomData.width ?? undefined,
+          height: roomData.height ?? undefined,
+          description: roomData.description ?? undefined,
+        };
+        await api.updateRoom(editingRoom.id, updateData);
         setRooms(
           rooms.map((r) =>
             r.id === editingRoom.id ? { ...r, ...roomData } : r
           )
         );
       } else {
-        const newRoom = await api.createRoom(roomData);
+        const createData = { 
+          number: roomData.number,
+          hotelId: roomData.hotelId,
+          type: roomData.type,
+          floor: roomData.floor,
+          capacity: roomData.capacity || '',
+          maxCapacity: roomData.maxCapacity || 0,
+          beds: roomData.beds || [],
+          price: roomData.price || 0,
+          name: roomData.name ?? undefined,
+          width: roomData.width ?? undefined,
+          height: roomData.height ?? undefined,
+          description: roomData.description ?? undefined,
+          position: roomData.position,
+          isCommon: roomData.isCommon,
+          zIndex: roomData.zIndex,
+          hasShower: roomData.hasShower,
+          hasToilet: roomData.hasToilet,
+          pricePerPerson: roomData.pricePerPerson,
+          textVertical: roomData.textVertical,
+        };
+        const newRoom = await api.createRoom(createData);
         setRooms([...rooms, newRoom]);
       }
       setShowRoomModal(false);
       setEditingRoom(null);
-    } catch (error) {
+    } catch {
       alert("Ошибка при сохранении комнаты");
     }
   };
 
   const handleRoomUpdate = async (updatedRoom: Room) => {
     try {
-      await api.updateRoom(updatedRoom.id, updatedRoom);
+      const updateData = {
+        ...updatedRoom,
+        name: updatedRoom.name ?? undefined,
+        width: updatedRoom.width ?? undefined,
+        height: updatedRoom.height ?? undefined,
+        description: updatedRoom.description ?? undefined,
+      };
+      await api.updateRoom(updatedRoom.id, updateData);
       setRooms((prevRooms) =>
         prevRooms.map((r) => (r.id === updatedRoom.id ? updatedRoom : r))
       );
@@ -664,7 +717,28 @@ export default function Dashboard() {
 
   const handleRoomCreate = async (newRoom: Room) => {
     try {
-      const created = await api.createRoom(newRoom);
+      const createData = {
+        number: newRoom.number,
+        hotelId: newRoom.hotelId,
+        type: newRoom.type,
+        floor: newRoom.floor,
+        capacity: newRoom.capacity || '',
+        maxCapacity: newRoom.maxCapacity || 0,
+        beds: newRoom.beds || [],
+        price: newRoom.price || 0,
+        name: newRoom.name ?? undefined,
+        width: newRoom.width ?? undefined,
+        height: newRoom.height ?? undefined,
+        description: newRoom.description ?? undefined,
+        position: newRoom.position,
+        isCommon: newRoom.isCommon,
+        zIndex: newRoom.zIndex,
+        hasShower: newRoom.hasShower,
+        hasToilet: newRoom.hasToilet,
+        pricePerPerson: newRoom.pricePerPerson,
+        textVertical: newRoom.textVertical,
+      };
+      const created = await api.createRoom(createData);
       setRooms((prevRooms) => [...prevRooms, created]);
     } catch (error) {
       console.error("Error creating room:", error);
@@ -675,11 +749,15 @@ export default function Dashboard() {
     try {
       // Обновляем все ступени
       for (const stair of updatedStairs) {
+        const stairData = {
+          ...stair,
+          targetFloor: stair.targetFloor ?? undefined,
+        };
         const existing = stairs.find((s) => s.id === stair.id);
         if (existing) {
-          await api.updateStairs(stair.id, stair);
+          await api.updateStairs(stair.id, stairData);
         } else {
-          await api.createStairs(stair);
+          await api.createStairs(stairData);
         }
       }
 
@@ -810,6 +888,7 @@ export default function Dashboard() {
   const availableRooms = hotelRooms.filter(
     (r) => !r.booking && !r.isCommon
   ).length;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const myBookingsCount = rooms.filter(
     (r) => r.booking?.bookedBy === currentUser.name
   ).length;
@@ -1139,7 +1218,7 @@ export default function Dashboard() {
                     }`}
                   >
                     <img
-                      src={currentHotel.image}
+                      src={typeof currentHotel.image === 'string' ? currentHotel.image : ''}
                       alt={currentHotel?.name || ""}
                       className="w-full h-full object-cover"
                     />
@@ -1405,7 +1484,7 @@ export default function Dashboard() {
                                 <div className="w-full sm:w-64 h-48 sm:h-auto flex-shrink-0">
                                   {hotel.image ? (
                                     <img
-                                      src={hotel.image}
+                                      src={typeof hotel.image === 'string' ? hotel.image : ''}
                                       alt={hotel.name}
                                       className="w-full h-full object-cover"
                                     />
@@ -3156,6 +3235,7 @@ interface HotelModalProps {
   onClose: () => void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
   const [formData, setFormData] = useState({
     name: hotel?.name || "",
@@ -3165,7 +3245,7 @@ function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
     image: hotel?.image || "",
   });
   const [imagePreview, setImagePreview] = useState<string | null>(
-    hotel?.image || null
+    (typeof hotel?.image === 'string' ? hotel.image : null) || null
   );
   const [uploading, setUploading] = useState(false);
 
@@ -3365,8 +3445,10 @@ function HotelModal({ hotel, onSave, onClose }: HotelModalProps) {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function StatisticsView({
   selectedHotel,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   hotels,
 }: {
   selectedHotel: string;
@@ -3374,6 +3456,7 @@ function StatisticsView({
 }) {
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [filterHotelId, setFilterHotelId] = useState<string>(
     selectedHotel || ""
   );
@@ -3392,7 +3475,7 @@ function StatisticsView({
 
   useEffect(() => {
     loadStatistics(filterHotelId || undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [filterHotelId]);
 
   if (!statistics && !loading) return null;
@@ -3501,6 +3584,7 @@ function StatisticsView({
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CashMonitoringView({ selectedHotel }: { selectedHotel: string }) {
   const [cashData, setCashData] = useState<CashMonitoring | null>(null);
   const [loading, setLoading] = useState(true);
@@ -3646,6 +3730,7 @@ function CashMonitoringView({ selectedHotel }: { selectedHotel: string }) {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function InvitesView({ currentUser }: { currentUser: User }) {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3710,11 +3795,14 @@ function InvitesView({ currentUser }: { currentUser: User }) {
         currentUser.id!
       );
 
-      setNewInviteToken(invite.inviteUrl);
+      const inviteUrl = invite.inviteUrl || null;
+      setNewInviteToken(inviteUrl);
       setNewInviteName("");
       // Автоматически копируем ссылку при создании
-      await navigator.clipboard.writeText(invite.inviteUrl);
-      setCopiedToken(invite.inviteUrl);
+      if (inviteUrl) {
+        await navigator.clipboard.writeText(inviteUrl);
+        setCopiedToken(inviteUrl);
+      }
       setTimeout(() => setCopiedToken(null), 2000);
       await loadInvites();
     } catch (error) {
@@ -3743,21 +3831,24 @@ function InvitesView({ currentUser }: { currentUser: User }) {
       );
 
       // Сохраняем URL для этого приглашения
+      const inviteUrl = invite.inviteUrl || '';
       await loadInvites();
       const updatedInvites = await api.getInvites();
       const inviteId = updatedInvites.find(
         (inv: Invite) => inv.name === name
       )?.id;
-      if (inviteId) {
-        setInviteUrls((prev) => ({ ...prev, [inviteId]: invite.inviteUrl }));
+      if (inviteId && inviteUrl) {
+        setInviteUrls((prev) => ({ ...prev, [inviteId]: inviteUrl }));
         // Автоматически показываем ссылку после регенерации
         setVisibleInviteUrl(inviteId);
       }
 
-      setNewInviteToken(invite.inviteUrl);
+      setNewInviteToken(inviteUrl || null);
       // Автоматически копируем ссылку при регенерации
-      await navigator.clipboard.writeText(invite.inviteUrl);
-      setCopiedToken(invite.inviteUrl);
+      if (inviteUrl) {
+        await navigator.clipboard.writeText(inviteUrl);
+        setCopiedToken(inviteUrl);
+      }
       setTimeout(() => setCopiedToken(null), 2000);
       await loadInvites();
     } catch (error) {
@@ -4140,6 +4231,7 @@ function InvitesView({ currentUser }: { currentUser: User }) {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function UsersView({
   currentUser,
   selectedUserId,
@@ -4309,15 +4401,32 @@ function UserDetailView({
 
       // Фильтруем бронирования по имени пользователя
       const userBookings = bookingsData
-        .filter((b: BookingInfo) => b.bookedBy === foundUser.name)
-        .map((booking: BookingInfo) => {
+        .filter((b) => b.bookedBy === foundUser.name)
+        .map((booking) => {
           const room = roomsData.find((r: Room) => r.id === booking.roomId);
           const hotel = hotelsData.find((h: Hotel) => h.id === room?.hotelId);
+          const convertDate = (date: Date | string | null | undefined): string | undefined => {
+            if (!date) return undefined;
+            if (date instanceof Date) return date.toISOString();
+            return date;
+          };
           return {
             ...booking,
+            bookedDate: convertDate(booking.bookedDate) || '',
+            checkIn: convertDate(booking.checkIn) || '',
+            checkOut: convertDate(booking.checkOut) || '',
+            createdAt: convertDate(booking.createdAt),
+            updatedAt: convertDate(booking.updatedAt),
+            confirmedDate: convertDate(booking.confirmedDate),
+            paymentDate: convertDate(booking.paymentDate),
+            email: booking.email ?? undefined,
+            notes: booking.notes ?? undefined,
+            amount: booking.amount ?? undefined,
+            confirmedBy: booking.confirmedBy ?? undefined,
+            paidBy: booking.paidBy ?? undefined,
             roomNumber: room?.number || "N/A",
             hotelName: hotel?.name || "N/A",
-          };
+          } as BookingInfo & { roomNumber?: string; hotelName?: string };
         });
       setBookings(userBookings);
 
@@ -4349,7 +4458,7 @@ function UserDetailView({
         currentUser.id!
       );
 
-      setNewInviteToken(invite.inviteUrl);
+      setNewInviteToken(invite.inviteUrl || null);
       await loadUserData();
     } catch (error) {
       const message =
@@ -4378,7 +4487,7 @@ function UserDetailView({
         currentUser.id!
       );
 
-      setNewInviteToken(invite.inviteUrl);
+      setNewInviteToken(invite.inviteUrl || null);
       await loadUserData();
     } catch (error) {
       const message =
@@ -4408,7 +4517,7 @@ function UserDetailView({
         currentUser.id!
       );
 
-      setNewInviteToken(invite.inviteUrl);
+      setNewInviteToken(invite.inviteUrl || null);
       await loadUserData();
     } catch (error) {
       const message =
@@ -4913,8 +5022,6 @@ function BookingsView({
         email: data.email,
         phone: data.phone,
         notes: data.notes,
-        manualUserName: data.manualUserName,
-        manualUserPhone: data.manualUserPhone,
       });
 
       setShowEditModal(false);

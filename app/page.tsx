@@ -1,8 +1,9 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Eye, EyeOff, Mail, Phone } from 'lucide-react';
+import { Building2, Eye, EyeOff, Mail } from 'lucide-react';
 import { api } from '@/lib/api';
 
 export default function Home() {
@@ -66,7 +67,7 @@ export default function Home() {
         } else {
           router.push('/dashboard');
         }
-      } catch (error) {
+      } catch {
         // Если ошибка парсинга, просто редиректим на dashboard
         router.push('/dashboard');
       }

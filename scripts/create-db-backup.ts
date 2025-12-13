@@ -13,6 +13,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import * as readline from 'readline';
 import { PrismaClient } from '../lib/generated/prisma';
 import { PrismaNeon } from '@prisma/adapter-neon';
 
@@ -135,8 +136,9 @@ async function createJsonBackup(backupDir: string): Promise<string> {
     });
 
     return filepath;
-  } catch (error: any) {
-    log(`\n❌ Ошибка создания JSON backup: ${error.message}`, 'red');
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    log(`\n❌ Ошибка создания JSON backup: ${errorMessage}`, 'red');
     throw error;
   }
 }
@@ -179,8 +181,9 @@ async function createSqlBackup(backupDir: string): Promise<string | null> {
     log(`   Размер: ${fileSize} MB`);
 
     return filepath;
-  } catch (error: any) {
-    log(`\n⚠️  Ошибка создания SQL dump: ${error.message}`, 'yellow');
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    log(`\n⚠️  Ошибка создания SQL dump: ${errorMessage}`, 'yellow');
     return null;
   }
 }
@@ -247,15 +250,15 @@ async function restoreFromJson(filepath: string) {
   log(`\n🔄 Восстановление из JSON backup...`, 'yellow');
   log(`⚠️  ВНИМАНИЕ: Это удалит все текущие данные!`, 'red');
 
-  const readline = require('readline').createInterface({
+  const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
 
-  readline.question('\nВы уверены? (yes/no): ', async (answer: string) => {
+  rl.question('\nВы уверены? (yes/no): ', async (answer: string) => {
     if (answer.toLowerCase() !== 'yes') {
       log('\nВосстановление отменено', 'yellow');
-      readline.close();
+      rl.close();
       await prisma.$disconnect();
       return;
     }
@@ -284,7 +287,7 @@ async function restoreFromJson(filepath: string) {
         if (!Array.isArray(records) || records.length === 0) continue;
 
         const modelName = table.charAt(0).toLowerCase() + table.slice(1);
-        const model = (prisma as any)[modelName];
+        const model = (prisma as unknown as Record<string, { create: (args: { data: unknown }) => Promise<unknown> }>)[modelName];
 
         if (!model) {
           log(`   ⚠️  Таблица ${table} не найдена, пропускаем`, 'yellow');
@@ -299,11 +302,12 @@ async function restoreFromJson(filepath: string) {
       }
 
       log(`\n✅ Восстановление завершено!`, 'green');
-    } catch (error: any) {
-      log(`\n❌ Ошибка восстановления: ${error.message}`, 'red');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      log(`\n❌ Ошибка восстановления: ${errorMessage}`, 'red');
       console.error(error);
     } finally {
-      readline.close();
+      rl.close();
       await prisma.$disconnect();
     }
   });
@@ -395,8 +399,9 @@ async function main() {
         log('💡 Перед миграцией ОБЯЗАТЕЛЬНО создайте backup!', 'red');
         log('   npm run backup create\n');
     }
-  } catch (error: any) {
-    log(`\n❌ Ошибка: ${error.message}`, 'red');
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    log(`\n❌ Ошибка: ${errorMessage}`, 'red');
     console.error(error);
   } finally {
     if (command !== 'restore') {

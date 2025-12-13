@@ -15,8 +15,9 @@ export async function GET(
     }
     
     return NextResponse.json(stairs);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -31,11 +32,12 @@ export async function PUT(
     const updatedStairs = await updateStairs(id, body);
     
     return NextResponse.json(updatedStairs);
-  } catch (error: any) {
-    if (error.message === 'Лестница не найдена') {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    if (errorMessage === 'Лестница не найдена') {
       return NextResponse.json({ error: 'Stairs not found' }, { status: 404 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -49,8 +51,9 @@ export async function DELETE(
     await deleteStairs(id);
     
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

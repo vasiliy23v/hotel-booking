@@ -32,7 +32,7 @@ export interface Room {
   id: string;
   number: string;
   hotelId: string;
-  name?: string;
+  name: string | null;
   type: 'FZ' | 'DZ' | 'EZ' | 'MZ' | 'App' | 'COMMON';
   capacity: string;
   maxCapacity: number;
@@ -42,15 +42,17 @@ export interface Room {
   booking?: BookingInfo; // Оставлено для обратной совместимости, но устарело - используйте bookings
   bookings?: BookingInfo[]; // Массив всех активных бронирований
   position: { x: number; y: number };
-  width?: number;
-  height?: number;
-  isCommon?: boolean;
-  zIndex?: number;
-  description?: string;
-  hasShower?: boolean;
-  hasToilet?: boolean;
-  pricePerPerson?: boolean; // Цена указана за одного человека
-  textVertical?: boolean; // Расположить текст вертикально (только для COMMON)
+  width: number | null;
+  height: number | null;
+  isCommon: boolean;
+  zIndex: number;
+  description: string | null;
+  hasShower: boolean;
+  hasToilet: boolean;
+  pricePerPerson: boolean;
+  textVertical: boolean;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
 }
 
 export interface Stairs {
@@ -61,37 +63,60 @@ export interface Stairs {
   width: number;
   height: number;
   direction: 'up' | 'down' | 'both';
-  targetFloor?: 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG';
+  targetFloor: 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5OG' | '6OG' | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
 }
 
 export interface Hotel {
   id: string;
   name: string;
   address: string;
-  description?: string;
-  floors?: number; // Количество этажей
-  hasEGFloor?: boolean; // Есть ли этаж EG (первый этаж)
-  image?: string; // Путь к изображению отеля
-  displayOrder?: number; // Порядок отображения отелей
+  description: string | null;
+  floors: number | null;
+  hasEGFloor: boolean;
+  image: Buffer | string | null; // Может быть Buffer из БД или string из API
+  displayOrder: number | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
 }
 
 export interface User {
-  id?: string;
-  email?: string; // Опциональный email
+  id: string;
+  email: string | null; // Email может быть null
   name: string;
-  password?: string;
-  phone?: string; // Опциональный телефон
+  password?: string | null;
+  phone: string | null; // Телефон может быть null
   role: 'developer' | 'manager' | 'guest';
-  isProfileComplete?: boolean; // Флаг заполненности профиля
-  createdAt?: string; // Дата регистрации
+  isProfileComplete: boolean; // Флаг заполненности профиля
+  createdAt: Date | string; // Дата регистрации
+  updatedAt?: Date | string; // Дата обновления
 }
 
 export interface Statistics {
   totalRooms: number;
   availableRooms: number;
   bookedRooms: number;
+  commonRooms?: number;
+  totalGuests?: number;
+  activeBookings?: number;
   revenue: number;
   amountToPay: number; // Сумма к оплате (неоплаченные бронирования)
+  roomsByType?: {
+    FZ: number;
+    DZ: number;
+    EZ: number;
+    MZ: number;
+    App: number;
+    COMMON: number;
+  };
+  roomsByFloor?: {
+    EG: number;
+    '1OG': number;
+    '2OG': number;
+    [key: string]: number;
+  };
+  [key: string]: unknown; // Для дополнительных полей из API
 }
 
 export interface CashMonitoring {
@@ -112,25 +137,25 @@ export interface Invite {
   id: string;
   token: string; // Хэшированный токен
   createdBy: string; // ID пользователя, создавшего приглашение
-  createdAt: string; // Дата создания
-  expiresAt: string; // Дата истечения
+  createdAt: Date | string; // Дата создания
+  expiresAt: Date | string; // Дата истечения
   used: boolean; // Использован ли токен
   name: string; // Имя пользователя, для которого создано приглашение
-  usedBy?: string; // ID пользователя, использовавшего токен
-  usedAt?: string; // Дата использования
+  usedBy: string | null; // ID пользователя, использовавшего токен
+  usedAt: Date | string | null; // Дата использования
 }
 
 export interface Feedback {
   id: string;
   userName: string;
-  userEmail?: string;
+  userEmail: string | null;
   userRole: string;
   comment: string;
-  screenshot?: string;
-  userAgent?: string;
-  isProcessed?: boolean; // Помечен ли отзыв как обработанный
-  createdAt: string;
-  updatedAt?: string;
+  screenshot: string | null;
+  userAgent: string | null;
+  isProcessed: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
 }
 
 export interface RegistrationToken {
@@ -144,12 +169,12 @@ export interface RegistrationToken {
 
 export interface BookingDateRange {
   id: string;
-  name?: string; // Название диапазона (например, "Фестиваль 2024")
-  startDate: string; // Дата начала в формате YYYY-MM-DD
-  endDate: string; // Дата окончания в формате YYYY-MM-DD
+  name: string | null; // Название диапазона (например, "Фестиваль 2024")
+  startDate: string | Date; // Дата начала в формате YYYY-MM-DD или Date
+  endDate: string | Date; // Дата окончания в формате YYYY-MM-DD или Date
   isActive: boolean; // Активен ли диапазон
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 
 

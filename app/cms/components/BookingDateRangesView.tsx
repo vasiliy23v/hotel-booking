@@ -7,12 +7,12 @@ import { DatePicker } from '@/components/ui/date-picker';
 
 interface BookingDateRange {
   id: string;
-  name?: string;
-  startDate: string;
-  endDate: string;
+  name: string | null;
+  startDate: string | Date;
+  endDate: string | Date;
   isActive: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }
 
 export default function BookingDateRangesView() {
@@ -94,9 +94,10 @@ export default function BookingDateRangesView() {
       setShowAddModal(false);
       setEditingRange(null);
       await loadRanges();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving date range:', error);
-      alert(error.message || 'Ошибка при сохранении диапазона дат');
+      const errorMessage = error instanceof Error ? error.message : 'Ошибка при сохранении диапазона дат';
+      alert(errorMessage);
     }
   };
 
@@ -108,9 +109,10 @@ export default function BookingDateRangesView() {
     try {
       await api.deleteBookingDateRange(id);
       await loadRanges();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting date range:', error);
-      alert(error.message || 'Ошибка при удалении диапазона дат');
+      const errorMessage = error instanceof Error ? error.message : 'Ошибка при удалении диапазона дат';
+      alert(errorMessage);
     }
   };
 
@@ -120,9 +122,10 @@ export default function BookingDateRangesView() {
         isActive: !range.isActive,
       });
       await loadRanges();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error toggling date range:', error);
-      alert(error.message || 'Ошибка при изменении статуса диапазона дат');
+      const errorMessage = error instanceof Error ? error.message : 'Ошибка при изменении статуса диапазона дат';
+      alert(errorMessage);
     }
   };
 

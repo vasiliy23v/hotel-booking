@@ -44,9 +44,10 @@ export async function POST(request: NextRequest) {
 
     // Возвращаем base64 строку
     return NextResponse.json({ path: base64Image });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Upload error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to upload file' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Failed to upload file';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

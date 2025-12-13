@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUsers, createUser, getUserByEmail, getUserByPhone, getUserByEmailOrPhone, updateInvite, verifyRegistrationToken } from '@/lib/db';
+import { getUsers, createUser, getUserByEmail, getUserByPhone, updateInvite, verifyRegistrationToken } from '@/lib/db';
 import { prisma } from '@/lib/prisma';
-import { verifyInviteToken, hashInviteToken } from '@/lib/crypto';
+import { verifyInviteToken } from '@/lib/crypto';
 import { normalizePhone, isValidEmail, isValidPhone } from '@/lib/phone';
-import type { User } from '@/types';
 
 // GET /api/users
 export async function GET() {
@@ -96,7 +95,8 @@ export async function POST(request: NextRequest) {
         password: userData.password || undefined, // Пароль опционален при прямом создании
       });
       
-      const { password, ...userWithoutPassword } = newUser;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password: _password, ...userWithoutPassword } = newUser;
       return NextResponse.json(userWithoutPassword);
     }
     
@@ -259,7 +259,8 @@ export async function POST(request: NextRequest) {
     }
     // Общий токен регистрации не помечается как использованный, так как он многоразовый
     
-    const { password, ...userWithoutPassword } = newUser;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...userWithoutPassword } = newUser;
     return NextResponse.json(userWithoutPassword);
   } catch (error: unknown) {
     console.error('Error in POST /api/users:', error);

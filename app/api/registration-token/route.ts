@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getActiveRegistrationToken, createOrUpdateRegistrationToken, verifyRegistrationToken } from '@/lib/db';
-import { generateInviteToken, hashInviteToken, verifyInviteToken } from '@/lib/crypto';
+import { generateInviteToken, hashInviteToken } from '@/lib/crypto';
 
 // GET /api/registration-token - Получить активный токен регистрации
 export async function GET(request: NextRequest) {
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // Проверяем, нужна ли ссылка
     const includeUrl = searchParams.get('includeUrl') === 'true';
 
-    const response: any = {
+    const response: Record<string, unknown> = {
       exists: true,
       id: registrationToken.id,
       isActive: registrationToken.isActive,

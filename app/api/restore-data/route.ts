@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createUser, createHotel, createRoom, createStairs, createBooking, createInvite, createFeedback } from '@/lib/db';
 import * as fs from 'fs';
 import * as path from 'path';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     console.log('Начинаю восстановление данных...');
 
@@ -28,16 +28,19 @@ export async function POST(request: NextRequest) {
         try {
           await createUser({
             id: user.id,
-            email: user.email || undefined,
+            email: user.email || null,
             name: user.name,
-            password: user.password || undefined,
-            phone: user.phone || undefined,
+            password: user.password || null,
+            phone: user.phone || null,
             role: user.role,
+            isProfileComplete: user.isProfileComplete ?? false,
+            createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
           });
           results.users.success++;
-        } catch (error: any) {
+        } catch (error: unknown) {
           results.users.failed++;
-          console.error(`Ошибка при восстановлении пользователя ${user.id}:`, error?.message);
+          const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+          console.error(`Ошибка при восстановлении пользователя ${user.id}:`, errorMessage);
         }
       }
     }
@@ -50,14 +53,17 @@ export async function POST(request: NextRequest) {
             id: hotel.id,
             name: hotel.name,
             address: hotel.address,
-            description: hotel.description || undefined,
-            floors: hotel.floors || undefined,
+            description: hotel.description || null,
+            floors: hotel.floors || null,
+            hasEGFloor: hotel.hasEGFloor ?? true,
             image: hotel.image || undefined,
+            displayOrder: hotel.displayOrder || null,
           });
           results.hotels.success++;
-        } catch (error: any) {
+        } catch (error: unknown) {
           results.hotels.failed++;
-          console.error(`Ошибка при восстановлении отеля ${hotel.id}:`, error?.message);
+          const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+          console.error(`Ошибка при восстановлении отеля ${hotel.id}:`, errorMessage);
         }
       }
     }
@@ -85,11 +91,14 @@ export async function POST(request: NextRequest) {
             description: room.description || undefined,
             hasShower: room.hasShower || false,
             hasToilet: room.hasToilet || false,
+            pricePerPerson: room.pricePerPerson || false,
+            textVertical: room.textVertical || false,
           });
           results.rooms.success++;
-        } catch (error: any) {
+        } catch (error: unknown) {
           results.rooms.failed++;
-          console.error(`Ошибка при восстановлении комнаты ${room.id}:`, error?.message);
+          const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+          console.error(`Ошибка при восстановлении комнаты ${room.id}:`, errorMessage);
         }
       }
     }
@@ -109,9 +118,10 @@ export async function POST(request: NextRequest) {
             targetFloor: stairs.targetFloor || undefined,
           });
           results.stairs.success++;
-        } catch (error: any) {
+        } catch (error: unknown) {
           results.stairs.failed++;
-          console.error(`Ошибка при восстановлении лестницы ${stairs.id}:`, error?.message);
+          const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+          console.error(`Ошибка при восстановлении лестницы ${stairs.id}:`, errorMessage);
         }
       }
     }
@@ -141,9 +151,10 @@ export async function POST(request: NextRequest) {
             amount: booking.amount || undefined,
           });
           results.bookings.success++;
-        } catch (error: any) {
+        } catch (error: unknown) {
           results.bookings.failed++;
-          console.error(`Ошибка при восстановлении бронирования ${booking.id}:`, error?.message);
+          const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+          console.error(`Ошибка при восстановлении бронирования ${booking.id}:`, errorMessage);
         }
       }
     }
@@ -164,9 +175,10 @@ export async function POST(request: NextRequest) {
             usedAt: invite.usedAt || undefined,
           });
           results.invites.success++;
-        } catch (error: any) {
+        } catch (error: unknown) {
           results.invites.failed++;
-          console.error(`Ошибка при восстановлении приглашения ${invite.id}:`, error?.message);
+          const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+          console.error(`Ошибка при восстановлении приглашения ${invite.id}:`, errorMessage);
         }
       }
     }
@@ -181,16 +193,18 @@ export async function POST(request: NextRequest) {
           const feedbackData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
           await createFeedback({
             userName: feedbackData.userName,
-            userEmail: feedbackData.userEmail || undefined,
+            userEmail: feedbackData.userEmail || null,
             userRole: feedbackData.userRole,
             comment: feedbackData.comment,
-            screenshot: feedbackData.screenshot || undefined,
-            userAgent: feedbackData.userAgent || undefined,
+            screenshot: feedbackData.screenshot || null,
+            userAgent: feedbackData.userAgent || null,
+            isProcessed: feedbackData.isProcessed || false,
           });
           results.feedback.success++;
-        } catch (error: any) {
+        } catch (error: unknown) {
           results.feedback.failed++;
-          console.error(`Ошибка при восстановлении отзыва из ${file}:`, error?.message);
+          const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+          console.error(`Ошибка при восстановлении отзыва из ${file}:`, errorMessage);
         }
       }
     }

@@ -62,7 +62,9 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
       expiresAt: expiresAt.toISOString(),
       used: false,
-      name: name.trim()
+      name: name.trim(),
+      usedBy: null,
+      usedAt: null
     });
     
     // Получаем текущий домен из запроса

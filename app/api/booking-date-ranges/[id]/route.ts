@@ -15,11 +15,12 @@ export async function PUT(
     const updatedRange = await updateBookingDateRange(id, body);
 
     return NextResponse.json(updatedRange);
-  } catch (error: any) {
-    if (error.message && (error.message.includes('Дата начала') || error.message.includes('не найдено'))) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка при обновлении диапазона дат';
+    if (errorMessage && (errorMessage.includes('Дата начала') || errorMessage.includes('не найдено'))) {
+      return NextResponse.json({ error: errorMessage }, { status: 400 });
     }
-    return NextResponse.json({ error: error.message || 'Ошибка при обновлении диапазона дат' }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -32,8 +33,9 @@ export async function DELETE(
     const { id } = await params;
     await deleteBookingDateRange(id);
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Ошибка при удалении диапазона дат' }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка при удалении диапазона дат';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

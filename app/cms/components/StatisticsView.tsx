@@ -7,14 +7,15 @@ import type { Statistics, Hotel } from '@/types';
 
 export default function StatisticsView({ 
   selectedHotel, 
-  hotels 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  hotels: _hotels 
 }: { 
   selectedHotel: string; 
   hotels: Hotel[] 
 }) {
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filterHotelId, setFilterHotelId] = useState<string>(selectedHotel || '');
+  // const [_filterHotelId, setFilterHotelId] = useState<string>(selectedHotel || '');
 
   const loadStatistics = async (hotelId?: string) => {
     try {
@@ -29,9 +30,9 @@ export default function StatisticsView({
   };
 
   useEffect(() => {
-    loadStatistics(filterHotelId || undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterHotelId]);
+    loadStatistics(selectedHotel || undefined);
+     
+  }, [selectedHotel]);
 
   // Скелетон для загрузки
   if (loading) {

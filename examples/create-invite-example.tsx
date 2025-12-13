@@ -8,6 +8,7 @@
 import { api } from '@/lib/api';
 
 // Пример 1: Создание приглашения без привязки к email
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function createOpenInvite(adminId: string) {
   try {
     const invite = await api.createInvite(
@@ -50,6 +51,7 @@ async function createEmailInvite(email: string, adminId: string) {
 }
 
 // Пример 3: Массовое создание приглашений
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function createBulkInvites(emails: string[], adminId: string) {
   const invites = await Promise.all(
     emails.map(email => createEmailInvite(email, adminId))
@@ -80,8 +82,10 @@ export function InviteGenerator() {
       alert(`Приглашение создано!\nСсылка: ${invite.inviteUrl}`);
       
       // Или скопировать в буфер обмена
-      navigator.clipboard.writeText(invite.inviteUrl);
-      alert('Ссылка скопирована в буфер обмена!');
+      if (invite.inviteUrl) {
+        navigator.clipboard.writeText(invite.inviteUrl);
+        alert('Ссылка скопирована в буфер обмена!');
+      }
     } catch (error) {
       alert('Ошибка при создании приглашения');
       console.error(error);

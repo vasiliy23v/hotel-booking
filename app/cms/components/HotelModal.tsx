@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useState } from 'react';
 import type { Hotel } from '@/types';
@@ -18,7 +19,7 @@ export default function HotelModal({ hotel, onSave, onClose }: HotelModalProps) 
     hasEGFloor: hotel?.hasEGFloor !== undefined ? hotel.hasEGFloor : true,
     image: hotel?.image || '',
   });
-  const [imagePreview, setImagePreview] = useState<string | null>(hotel?.image || null);
+  const [imagePreview, setImagePreview] = useState<string | null>(typeof hotel?.image === 'string' ? hotel.image : null);
   const [uploading, setUploading] = useState(false);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

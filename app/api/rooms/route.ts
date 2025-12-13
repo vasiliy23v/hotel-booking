@@ -10,8 +10,9 @@ export async function GET(request: NextRequest) {
     const rooms = await getRooms(hotelId || undefined);
     
     return NextResponse.json(rooms);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -22,8 +23,9 @@ export async function POST(request: NextRequest) {
     const newRoom = await createRoom(body);
     
     return NextResponse.json(newRoom);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

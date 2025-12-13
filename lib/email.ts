@@ -81,8 +81,8 @@ function initSendPulse(): Promise<void> {
       fs.mkdirSync(tokenStorage, { recursive: true });
     }
 
-    sendpulse.init(userId, secret, tokenStorage, (result: any) => {
-      if (result && result.error) {
+    sendpulse.init(userId, secret, tokenStorage, (result: unknown) => {
+      if (result && typeof result === 'object' && 'error' in result && typeof result.error === 'string') {
         reject(new Error(result.error));
       } else {
         resolve();
@@ -123,8 +123,8 @@ async function sendViaSendPulse(
     };
 
     return new Promise((resolve) => {
-      sendpulse.smtpSendMail((result: any) => {
-        if (result && result.error) {
+      sendpulse.smtpSendMail((result: unknown) => {
+        if (result && typeof result === 'object' && 'error' in result && typeof result.error === 'string') {
           console.error('❌ Ошибка SendPulse:', result.error);
           resolve({
             success: false,
@@ -136,11 +136,12 @@ async function sendViaSendPulse(
         }
       }, emailData);
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Ошибка SendPulse:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка отправки через SendPulse';
     return {
       success: false,
-      error: error.message || 'Ошибка отправки через SendPulse',
+      error: errorMessage,
     };
   }
 }
@@ -184,10 +185,11 @@ async function sendViaResend(
     }
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка отправки через Resend';
     return {
       success: false,
-      error: error.message || 'Ошибка отправки через Resend',
+      error: errorMessage,
     };
   }
 }
@@ -267,11 +269,12 @@ export async function sendCustomEmail(
 
     console.log('✅ Email отправлен:', info.messageId);
     return { success: true, demo: false };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Ошибка отправки email:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка отправки email';
     return {
       success: false,
-      error: error.message || 'Ошибка отправки email',
+      error: errorMessage,
     };
   }
 }

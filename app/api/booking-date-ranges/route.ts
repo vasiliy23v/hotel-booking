@@ -16,8 +16,9 @@ export async function GET(request: NextRequest) {
       : await getAllBookingDateRanges();
 
     return NextResponse.json(ranges);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -28,13 +29,15 @@ export async function POST(request: NextRequest) {
     const newRange = await createBookingDateRange(body);
 
     return NextResponse.json(newRange);
-  } catch (error: any) {
-    if (error.message && (error.message.includes('Дата начала') || error.message.includes('формат'))) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка при создании диапазона дат';
+    if (errorMessage.includes('Дата начала') || errorMessage.includes('формат')) {
+      return NextResponse.json({ error: errorMessage }, { status: 400 });
     }
-    return NextResponse.json({ error: error.message || 'Ошибка при создании диапазона дат' }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
+
 
 
 

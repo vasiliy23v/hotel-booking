@@ -1,7 +1,8 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect } from 'react';
-import { MessageSquare, User, Mail, Calendar, Image as ImageIcon, Search, RefreshCw, Eye, X, Filter, Trash2, CheckSquare } from 'lucide-react';
+import { MessageSquare, User, Mail, Calendar, Image as ImageIcon, Search, RefreshCw, Eye, X, Filter, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Feedback } from '@/types';
 
@@ -65,8 +66,8 @@ export default function FeedbackView() {
       // Обновляем на сервере
       const response = await api.updateFeedbackStatus(feedback.id, newProcessedStatus);
       
-      // API возвращает объект с полем feedback
-      const updatedFeedback = response.feedback || response;
+      // API возвращает объект Feedback
+      const updatedFeedback = response as Feedback;
       
       // Обновляем отзыв в списке с данными с сервера
       setFeedbacks(prevFeedbacks => 
@@ -153,9 +154,9 @@ export default function FeedbackView() {
   // Получение уникальных ролей
   const uniqueRoles = Array.from(new Set(feedbacks.map(f => f.userRole)));
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | Date) => {
     if (!dateString) return 'Дата не указана';
-    const date = new Date(dateString);
+    const date = dateString instanceof Date ? dateString : new Date(dateString);
     if (isNaN(date.getTime())) {
       return 'Неверная дата';
     }

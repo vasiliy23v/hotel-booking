@@ -50,8 +50,9 @@ async function restoreData() {
               role: user.role,
             },
           });
-        } catch (error: any) {
-          console.error(`Ошибка при восстановлении пользователя ${user.id}:`, error?.message || error);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`Ошибка при восстановлении пользователя ${user.id}:`, errorMessage);
         }
       }
       console.log('Пользователи восстановлены');
