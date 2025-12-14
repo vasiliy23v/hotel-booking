@@ -176,27 +176,53 @@ export async function getUserActivityStats(startDate?: Date, endDate?: Date) {
       if (endDate) where.createdAt.lte = endDate;
     }
 
-    const stats = await prisma.activityLog.groupBy({
-      by: ['userName', 'userId', 'userRole'],
+    // Получаем все логи для группировки
+    // Используем более надежный подход через findMany и группировку в JavaScript
+    const logs = await prisma.activityLog.findMany({
       where,
-      _count: {
-        id: true,
-      },
-      orderBy: {
-        _count: {
-          id: 'desc',
-        },
+      select: {
+        userName: true,
+        userId: true,
+        userRole: true,
       },
     });
 
-    return stats.map((stat: { userName: string; userId: string | null; userRole: string | null; _count: { id: number } }) => ({
-      userName: stat.userName,
-      userId: stat.userId,
-      userRole: stat.userRole,
-      totalActions: stat._count.id,
-    }));
+    // Группируем логи по комбинации userName, userId, userRole
+    const statsMap = new Map<string, {
+      userName: string;
+      userId: string | null;
+      userRole: string | null;
+      totalActions: number;
+    }>();
+
+    logs.forEach((log) => {
+      // Создаем уникальный ключ для группировки
+      const key = `${log.userName || 'unknown'}_${log.userId || 'null'}_${log.userRole || 'null'}`;
+      
+      if (statsMap.has(key)) {
+        const existing = statsMap.get(key)!;
+        existing.totalActions += 1;
+      } else {
+        statsMap.set(key, {
+          userName: log.userName,
+          userId: log.userId,
+          userRole: log.userRole,
+          totalActions: 1,
+        });
+      }
+    });
+
+    // Преобразуем Map в массив и сортируем по количеству действий
+    const stats = Array.from(statsMap.values()).sort((a, b) => b.totalActions - a.totalActions);
+
+    return stats;
   } catch (error) {
     console.error('[Get Stats Error]', error);
+    // Выводим более детальную информацию об ошибке
+    if (error instanceof Error) {
+      console.error('[Get Stats Error] Message:', error.message);
+      console.error('[Get Stats Error] Stack:', error.stack);
+    }
     return [];
   }
 }
