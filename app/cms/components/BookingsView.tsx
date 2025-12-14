@@ -304,26 +304,26 @@ export default function BookingsView() {
     );
     const room = rooms.find(r => r.id === booking.roomId);
     
-    // Рассчитываем totalBookingAmount с учётом perPerson
+    // Рассчитываем полную стоимость бронирования с учётом perPerson
+    // НЕ используем booking.amount для расчета полной стоимости, так как это уже оплаченная сумма
     let totalBookingAmount: number;
-    if (booking.amount) {
-      totalBookingAmount = booking.amount;
-    } else if (room?.pricePerPerson && booking.guests) {
+    if (room?.pricePerPerson && booking.guests) {
       const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
       totalBookingAmount = nights * (room?.price || 0) * guestsCount;
     } else {
       totalBookingAmount = nights * (room?.price || 0);
     }
     
-    const alreadyPaid = booking.isPaid ? totalBookingAmount : 0;
+    // Уже оплаченная сумма берется из amount
+    const alreadyPaid = booking.amount ? Number(booking.amount) : 0;
     const halfAmount = totalBookingAmount / 2;
-    const amountToAdd = halfAmount - alreadyPaid;
-
-    if (amountToAdd <= 0) {
-      alert('Бронирование уже оплачено на 50% или более');
+    
+    // Проверяем, нужно ли доплачивать
+    if (alreadyPaid >= totalBookingAmount) {
+      alert('Бронирование уже полностью оплачено');
       return;
     }
-
+    
     setPaymentBooking(booking);
     setPaymentType('half');
     setShowPaymentDialog(true);
@@ -336,18 +336,18 @@ export default function BookingsView() {
     );
     const room = rooms.find(r => r.id === booking.roomId);
     
-    // Рассчитываем totalAmount с учётом perPerson
+    // Рассчитываем полную стоимость бронирования с учётом perPerson
+    // НЕ используем booking.amount для расчета полной стоимости, так как это уже оплаченная сумма
     let totalAmount: number;
-    if (booking.amount) {
-      totalAmount = booking.amount;
-    } else if (room?.pricePerPerson && booking.guests) {
+    if (room?.pricePerPerson && booking.guests) {
       const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
       totalAmount = nights * (room?.price || 0) * guestsCount;
     } else {
       totalAmount = nights * (room?.price || 0);
     }
     
-    const alreadyPaid = booking.isPaid ? totalAmount : 0;
+    // Уже оплаченная сумма берется из amount
+    const alreadyPaid = booking.amount ? Number(booking.amount) : 0;
     const amountToAdd = totalAmount - alreadyPaid;
 
     if (amountToAdd <= 0) {
@@ -387,21 +387,27 @@ export default function BookingsView() {
       // Рассчитываем новую сумму после доплаты
       let newAmount: number;
       if (paymentType === 'half') {
-        // Для 50% оплаты: доплачиваем до 50% от полной суммы
+        // Для 50% оплаты: если уже оплачено меньше 50%, доплачиваем до 50%
         const halfAmount = totalAmount / 2;
-        // Если уже оплачено меньше 50%, доплачиваем до 50%
-        newAmount = Math.max(halfAmount, alreadyPaid);
-        // Но не больше полной суммы
-        newAmount = Math.min(newAmount, totalAmount);
+        if (alreadyPaid < halfAmount) {
+          // Доплачиваем до 50%
+          newAmount = halfAmount;
+        } else {
+          // Уже оплачено 50% или больше, доплачиваем до 100%
+          newAmount = totalAmount;
+        }
       } else {
-        // Для 100% оплаты: доплачиваем до полной суммы
+        // Для 100% оплаты: всегда доплачиваем до полной суммы
         newAmount = totalAmount;
       }
+
+      // isPaid должен быть true только если оплачено 100% или больше
+      const isFullyPaid = newAmount >= totalAmount;
 
       if (paymentBooking.id) {
         await api.updateBooking(paymentBooking.id, {
           amount: newAmount,
-          isPaid: paymentType === 'full', // Полная оплата только для 100%
+          isPaid: isFullyPaid, // Полная оплата только если оплачено 100% или больше
           paidBy: currentUser.name,
           paymentDate: new Date().toISOString(),
         });
@@ -416,6 +422,89 @@ export default function BookingsView() {
       alert('Ошибка при подтверждении оплаты: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     } finally {
       setIsProcessingPayment(false);
+    }
+  };
+
+  const handleCancelHalfPayment = async (booking: BookingInfo & { roomNumber?: string }) => {
+    if (!currentUser) return;
+    
+    const nights = Math.ceil(
+      (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 
+      (1000 * 60 * 60 * 24)
+    );
+    const room = rooms.find(r => r.id === booking.roomId);
+    
+    // Рассчитываем полную стоимость бронирования
+    let totalAmount: number;
+    if (room?.pricePerPerson && booking.guests) {
+      const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
+      totalAmount = nights * (room?.price || 0) * guestsCount;
+    } else {
+      totalAmount = nights * (room?.price || 0);
+    }
+    
+    const alreadyPaid = booking.amount ? Number(booking.amount) : 0;
+    const halfAmount = totalAmount / 2;
+    
+    if (alreadyPaid <= 0) {
+      alert('Оплата отсутствует');
+      return;
+    }
+    
+    if (!confirm(`Отменить 50% оплаты? Текущая оплата: ${alreadyPaid.toFixed(2)}€`)) {
+      return;
+    }
+    
+    try {
+      // Уменьшаем оплату на 50% от полной суммы
+      const newAmount = Math.max(0, alreadyPaid - halfAmount);
+      const isFullyPaid = newAmount >= totalAmount;
+      
+      if (booking.id) {
+        await api.updateBooking(booking.id, {
+          amount: newAmount,
+          isPaid: isFullyPaid,
+          paidBy: newAmount > 0 ? currentUser.name : undefined,
+          paymentDate: newAmount > 0 ? new Date().toISOString() : undefined,
+        });
+        await loadBookings();
+        const canceledAmount = alreadyPaid - newAmount;
+        alert(`Отменена оплата 50% (${canceledAmount.toFixed(2)}€ отменено, осталось: ${newAmount.toFixed(2)}€)`);
+      }
+    } catch (error) {
+      console.error('Error canceling payment:', error);
+      alert('Ошибка при отмене оплаты: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
+    }
+  };
+
+  const handleCancelFullPayment = async (booking: BookingInfo & { roomNumber?: string }) => {
+    if (!currentUser) return;
+    
+    const alreadyPaid = booking.amount ? Number(booking.amount) : 0;
+    
+    if (alreadyPaid <= 0) {
+      alert('Оплата отсутствует');
+      return;
+    }
+    
+    if (!confirm(`Полностью отменить оплату? Текущая оплата: ${alreadyPaid.toFixed(2)}€`)) {
+      return;
+    }
+    
+    try {
+      if (booking.id) {
+        await api.updateBooking(booking.id, {
+          amount: 0,
+          isPaid: false,
+          paidBy: undefined,
+          paymentDate: undefined,
+        });
+        await loadBookings();
+        alert(`Оплата полностью отменена (${alreadyPaid.toFixed(2)}€)`);
+      }
+    } catch (error) {
+      console.error('Error canceling payment:', error);
+      alert('Ошибка при отмене оплаты: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     }
   };
 
@@ -623,12 +712,10 @@ export default function BookingsView() {
     );
     const room = rooms.find(r => r.id === booking.roomId);
     
-    // Рассчитываем общую ожидаемую сумму бронирования
+    // Рассчитываем полную стоимость бронирования (expectedAmount) с учётом perPerson
+    // НЕ используем booking.amount для расчета полной стоимости, так как это уже оплаченная сумма
     let expectedAmount: number;
-    if (booking.amount) {
-      // Используем сохранённую сумму
-      expectedAmount = booking.amount;
-    } else if (room?.pricePerPerson && booking.guests) {
+    if (room?.pricePerPerson && booking.guests) {
       // Для perPerson комнат учитываем количество гостей
       const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
       expectedAmount = nights * (room?.price || 0) * guestsCount;
@@ -638,10 +725,17 @@ export default function BookingsView() {
     
     totalRevenue += expectedAmount;
     
-    if (booking.isPaid) {
+    // Уже оплаченная сумма берется из amount
+    const alreadyPaid = booking.amount ? Number(booking.amount) : 0;
+    
+    // Если бронирование полностью оплачено, добавляем к оплаченному доходу
+    if (booking.isPaid || alreadyPaid >= expectedAmount) {
       paidRevenue += expectedAmount;
     } else {
-      unpaidAmount += expectedAmount;
+      // Добавляем к неоплаченной сумме только разницу
+      unpaidAmount += (expectedAmount - alreadyPaid);
+      // Уже оплаченная часть идет в оплаченный доход
+      paidRevenue += alreadyPaid;
     }
   });
 
@@ -898,11 +992,10 @@ export default function BookingsView() {
                   );
                   const room = rooms.find(r => r.id === booking.roomId);
                   
-                  // Рассчитываем expectedAmount с учётом perPerson
+                  // Рассчитываем полную стоимость бронирования (expectedAmount) с учётом perPerson
+                  // НЕ используем booking.amount для расчета полной стоимости, так как это уже оплаченная сумма
                   let expectedAmount: number;
-                  if (booking.amount) {
-                    expectedAmount = booking.amount;
-                  } else if (room?.pricePerPerson && booking.guests) {
+                  if (room?.pricePerPerson && booking.guests) {
                     const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
                     expectedAmount = nights * (room?.price || 0) * guestsCount;
                   } else {
@@ -910,13 +1003,11 @@ export default function BookingsView() {
                   }
                   
                   const totalPrice = expectedAmount;
-                  // alreadyPaid - это сумма, которая УЖЕ была оплачена
-                  // Если isPaid === true, считаем что оплачена полная сумма expectedAmount
-                  // Если isPaid === false, то оплачено 0
-                  const alreadyPaid = booking.isPaid ? expectedAmount : 0;
+                  // alreadyPaid - это сумма, которая УЖЕ была оплачена (из поля amount)
+                  const alreadyPaid = booking.amount ? Number(booking.amount) : 0;
                   // eslint-disable-next-line @typescript-eslint/no-unused-vars
                   const _remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
-                  const isFullyPaid = booking.isPaid && alreadyPaid >= expectedAmount;
+                  const isFullyPaid = alreadyPaid >= expectedAmount || booking.isPaid;
                   const isHalfPaidOrMore = alreadyPaid >= (totalPrice / 2) && alreadyPaid > 0 && !isFullyPaid;
 
                   const isFirstInGroup = index === 0;
@@ -1188,6 +1279,29 @@ export default function BookingsView() {
                                       100% оплаты
                                     </button>
                                     <div className="border-t border-gray-200 dark:border-border my-1" />
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenMenuId(null);
+                                        handleCancelHalfPayment(booking);
+                                      }}
+                                      className="w-full px-3 py-2 text-left text-xs text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 flex items-center gap-2 transition-colors"
+                                    >
+                                      <Euro className="w-3 h-3" />
+                                      Отменить 50% оплаты
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenMenuId(null);
+                                        handleCancelFullPayment(booking);
+                                      }}
+                                      className="w-full px-3 py-2 text-left text-xs text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 transition-colors"
+                                    >
+                                      <Euro className="w-3 h-3" />
+                                      Отменить 100% оплаты
+                                    </button>
+                                    <div className="border-t border-gray-200 dark:border-border my-1" />
                                   </>
                                 )}
                                 <button
@@ -1236,19 +1350,18 @@ export default function BookingsView() {
         );
         const room = rooms.find(r => r.id === booking.roomId);
         
-        // Рассчитываем expectedAmount с учётом perPerson
+        // Рассчитываем полную стоимость бронирования (expectedAmount) с учётом perPerson
+        // НЕ используем booking.amount для расчета полной стоимости, так как это уже оплаченная сумма
         let expectedAmount: number;
-        if (booking.amount) {
-          expectedAmount = booking.amount;
-        } else if (room?.pricePerPerson && booking.guests) {
+        if (room?.pricePerPerson && booking.guests) {
           const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
           expectedAmount = nights * (room?.price || 0) * guestsCount;
         } else {
           expectedAmount = nights * (room?.price || 0);
         }
         
-        // Если бронирование оплачено, считаем оплаченной всю сумму
-        const alreadyPaid = booking.isPaid ? expectedAmount : 0;
+        // alreadyPaid - это сумма, которая УЖЕ была оплачена (из поля amount)
+        const alreadyPaid = booking.amount ? Number(booking.amount) : 0;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const _remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
         const totalPrice = expectedAmount;
@@ -1521,19 +1634,17 @@ export default function BookingsView() {
         );
         const room = rooms.find(r => r.id === paymentBooking.roomId);
         
-        // Рассчитываем totalBookingAmount с учётом perPerson
+        // Рассчитываем полную сумму бронирования с учётом perPerson
+        // НЕ используем paymentBooking.amount для расчета полной суммы, так как это уже оплаченная сумма
         let totalBookingAmount: number;
-        if (paymentBooking.amount && paymentBooking.isPaid) {
-          // Если уже полностью оплачено, используем сохранённую сумму
-          totalBookingAmount = paymentBooking.amount;
-        } else if (room?.pricePerPerson && paymentBooking.guests) {
+        if (room?.pricePerPerson && paymentBooking.guests) {
           const guestsCount = Array.isArray(paymentBooking.guests) ? paymentBooking.guests.length : 0;
           totalBookingAmount = nights * (room?.price || 0) * guestsCount;
         } else {
           totalBookingAmount = nights * (room?.price || 0);
         }
         
-        // Уже оплаченная сумма берется из amount, а не из isPaid
+        // Уже оплаченная сумма берется из amount
         const alreadyPaid = paymentBooking.amount ? Number(paymentBooking.amount) : 0;
         
         // Рассчитываем сумму к доплате
@@ -1541,10 +1652,15 @@ export default function BookingsView() {
         if (paymentType === 'half') {
           // Для 50%: если уже оплачено меньше 50%, доплачиваем до 50%
           const halfAmount = totalBookingAmount / 2;
-          paymentAmount = Math.max(halfAmount, alreadyPaid + (totalBookingAmount / 2));
-          paymentAmount = Math.min(paymentAmount, totalBookingAmount);
+          if (alreadyPaid < halfAmount) {
+            // Доплачиваем до 50%
+            paymentAmount = halfAmount;
+          } else {
+            // Уже оплачено 50% или больше, доплачиваем до 100%
+            paymentAmount = totalBookingAmount;
+          }
         } else {
-          // Для 100%: доплачиваем до полной суммы
+          // Для 100%: всегда доплачиваем до полной суммы
           paymentAmount = totalBookingAmount;
         }
         const amountToAdd = paymentAmount - alreadyPaid;

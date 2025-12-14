@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Plus, X, Copy, CheckCircle, AlertCircle, ArrowRight, KeyRound, Mail, Trash2, Key, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -46,7 +46,15 @@ export default function UsersManagementView({
   const [copiedRegistrationUrl, setCopiedRegistrationUrl] = useState(false);
   const [activeRegistrationUrl, setActiveRegistrationUrl] = useState<string | null>(null);
 
-  const loadData = async () => {
+  // Вспомогательная функция для безопасного преобразования даты в строку ISO
+  const toISOString = (date: Date | string): string => {
+    if (typeof date === 'string') {
+      return date;
+    }
+    return date.toISOString();
+  };
+
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [usersData, invitesData] = await Promise.all([
@@ -61,8 +69,9 @@ export default function UsersManagementView({
           id: tokenData.id,
           originalToken: tokenData.originalToken ?? undefined,
           isActive: tokenData.isActive,
-          createdAt: tokenData.createdAt.toISOString(),
-          updatedAt: tokenData.updatedAt.toISOString()
+          exists: true,
+          createdAt: toISOString(tokenData.createdAt),
+          updatedAt: toISOString(tokenData.updatedAt)
         });
         // Если есть ссылка, сохраняем её
         if (tokenData.registrationUrl) {
@@ -94,7 +103,7 @@ export default function UsersManagementView({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -103,7 +112,7 @@ export default function UsersManagementView({
     if (savedUrl) {
       setActiveRegistrationUrl(savedUrl);
     }
-  }, []);
+  }, [loadData]);
 
   // const _getInviteStatus = (invite: Invite) => {
   //   if (invite.used) {
@@ -531,8 +540,8 @@ export default function UsersManagementView({
                         originalToken: result.originalToken ?? undefined,
                         isActive: result.isActive,
                         exists: true,
-                        createdAt: result.createdAt.toISOString(),
-                        updatedAt: result.updatedAt.toISOString(),
+                        createdAt: toISOString(result.createdAt),
+                        updatedAt: toISOString(result.updatedAt),
                       });
                       // Сохраняем ссылку в состоянии
                       const registrationUrl = result.registrationUrl ?? null;
@@ -585,8 +594,8 @@ export default function UsersManagementView({
                       originalToken: result.originalToken ?? undefined,
                       isActive: result.isActive,
                       exists: true,
-                      createdAt: result.createdAt.toISOString(),
-                      updatedAt: result.updatedAt.toISOString(),
+                      createdAt: toISOString(result.createdAt),
+                      updatedAt: toISOString(result.updatedAt),
                     });
                     // Сохраняем ссылку в состоянии
                     const registrationUrl = result.registrationUrl ?? null;
