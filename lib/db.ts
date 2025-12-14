@@ -995,16 +995,14 @@ export async function createBooking(
           });
 
           if (conflicting) {
-            const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
-            const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
             throw new Error(
-              `К сожалению, кто-то забронировал эту комнату раньше вас на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
+              `К сожалению, кто-то забронировал эту комнату раньше вас. Пожалуйста, выберите другую комнату.`
             );
           }
         } catch {
           // Если не удалось получить информацию, используем общее сообщение
         }
-        throw new Error('К сожалению, кто-то забронировал эту комнату раньше вас на выбранные даты. Пожалуйста, выберите другие даты.');
+        throw new Error('К сожалению, кто-то забронировал эту комнату раньше вас. Пожалуйста, выберите другую комнату.');
       }
       
       // Если это не ошибка сериализации или закончились попытки, пробрасываем ошибку
