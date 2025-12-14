@@ -24,6 +24,7 @@ interface DatePickerProps {
   maxDate?: Date
   className?: string
   allowedDateRanges?: Array<{ startDate: string; endDate: string }>
+  bookedDateRanges?: Array<{ startDate: string; endDate: string }>
   defaultMonth?: Date
 }
 
@@ -36,6 +37,7 @@ export function DatePicker({
   maxDate,
   className,
   allowedDateRanges,
+  bookedDateRanges,
   defaultMonth,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
@@ -54,8 +56,29 @@ export function DatePicker({
       if (dateOnly > maxDateOnly) return false;
     }
 
-    // Проверка диапазонов дат фестиваля
-    if (allowedDateRanges && allowedDateRanges.length > 0) {
+    // Проверка занятых дат (бронирования комнаты)
+    // Если дата попадает в диапазон занятых дат, она недоступна
+    if (bookedDateRanges && bookedDateRanges.length > 0) {
+      const isBooked = bookedDateRanges.some(range => {
+        const rangeStart = new Date(range.startDate);
+        const rangeEnd = new Date(range.endDate);
+        const rangeStartOnly = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+        const rangeEndOnly = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate());
+        // Проверяем пересечение: дата должна быть >= startDate и < endDate (не включая дату выезда)
+        return dateOnly >= rangeStartOnly && dateOnly < rangeEndOnly;
+      });
+      if (isBooked) return false;
+    }
+
+    // Проверка диапазонов дат фестиваля (разрешенные диапазоны)
+    // Если allowedDateRanges передан (даже если пустой массив), это означает что есть ограничения
+    // Если allowedDateRanges === undefined, значит ограничений нет
+    if (allowedDateRanges !== undefined) {
+      // Если массив пустой, значит нет разрешенных диапазонов - блокируем все даты
+      if (allowedDateRanges.length === 0) {
+        return false;
+      }
+      // Проверяем, что дата входит в один из разрешенных диапазонов
       const isInAnyRange = allowedDateRanges.some(range => {
         const rangeStart = new Date(range.startDate);
         const rangeEnd = new Date(range.endDate);
@@ -66,7 +89,7 @@ export function DatePicker({
       return isInAnyRange;
     }
 
-    // Если нет ограничений по диапазонам, разрешаем дату
+    // Если allowedDateRanges === undefined, значит ограничений по диапазонам нет, разрешаем дату
     return true;
   }
 
@@ -127,6 +150,7 @@ interface DateRangePickerProps {
   maxDate?: Date
   className?: string
   allowedDateRanges?: Array<{ startDate: string; endDate: string }>
+  bookedDateRanges?: Array<{ startDate: string; endDate: string }>
 }
 
 export function DateRangePicker({
@@ -139,6 +163,7 @@ export function DateRangePicker({
   maxDate,
   className,
   allowedDateRanges,
+  bookedDateRanges,
 }: DateRangePickerProps) {
   const [open, setOpen] = React.useState(false)
   
@@ -168,8 +193,27 @@ export function DateRangePicker({
       if (dateOnly > maxDateOnly) return false;
     }
 
-    // Проверка диапазонов дат фестиваля
-    if (allowedDateRanges && allowedDateRanges.length > 0) {
+    // Проверка занятых дат (бронирования комнаты)
+    if (bookedDateRanges && bookedDateRanges.length > 0) {
+      const isBooked = bookedDateRanges.some(range => {
+        const rangeStart = new Date(range.startDate);
+        const rangeEnd = new Date(range.endDate);
+        const rangeStartOnly = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+        const rangeEndOnly = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate());
+        return dateOnly >= rangeStartOnly && dateOnly < rangeEndOnly;
+      });
+      if (isBooked) return false;
+    }
+
+    // Проверка диапазонов дат фестиваля (разрешенные диапазоны)
+    // Если allowedDateRanges передан (даже если пустой массив), это означает что есть ограничения
+    // Если allowedDateRanges === undefined, значит ограничений нет
+    if (allowedDateRanges !== undefined) {
+      // Если массив пустой, значит нет разрешенных диапазонов - блокируем все даты
+      if (allowedDateRanges.length === 0) {
+        return false;
+      }
+      // Проверяем, что дата входит в один из разрешенных диапазонов
       const isInAnyRange = allowedDateRanges.some(range => {
         const rangeStart = new Date(range.startDate);
         const rangeEnd = new Date(range.endDate);
@@ -180,7 +224,7 @@ export function DateRangePicker({
       return isInAnyRange;
     }
 
-    // Если нет ограничений по диапазонам, разрешаем дату
+    // Если allowedDateRanges === undefined, значит ограничений по диапазонам нет, разрешаем дату
     return true;
   }
 

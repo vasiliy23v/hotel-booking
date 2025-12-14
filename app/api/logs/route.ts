@@ -87,13 +87,22 @@ export async function GET(request: NextRequest) {
     // Если в результате есть ошибка, логируем её и возвращаем с информацией об ошибке
     if ('error' in result && result.error) {
       console.error('[Logs API] Error in getActivityLogs:', result.error);
+      
+      // Проверяем, является ли ошибка проблемой отсутствующей таблицы
+      const isTableMissing = result.error.includes('does not exist') || 
+                             result.error.includes('activity_logs');
+      
       return NextResponse.json({ 
         logs: [],
         total: 0,
         error: result.error,
+        message: isTableMissing 
+          ? 'Таблица activity_logs не существует. Необходимо применить миграцию: prisma/migrations/add_activity_logs.sql'
+          : undefined,
         debug: {
           hasDatabaseUrl: !!process.env.DATABASE_URL,
           nodeEnv: process.env.NODE_ENV,
+          isTableMissing,
         }
       }, { status: 500 });
     }

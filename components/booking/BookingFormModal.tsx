@@ -193,6 +193,8 @@ export function BookingFormModal({
           isAvailable={isAvailable}
           checkingAvailability={checkingAvailability}
           currentUser={currentUser}
+          roomId={room?.id}
+          excludeBookingId={excludeBookingId}
         />
       ),
       validate: validateDates,

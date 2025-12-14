@@ -16,6 +16,8 @@ interface DatesStepProps {
   checkingAvailability?: boolean;
   minDate?: Date;
   currentUser?: User | null;
+  roomId?: string;
+  excludeBookingId?: string;
 }
 
 export function DatesStep({
@@ -28,8 +30,11 @@ export function DatesStep({
   checkingAvailability,
   minDate,
   currentUser,
+  roomId,
+  excludeBookingId,
 }: DatesStepProps) {
   const [allowedDateRanges, setAllowedDateRanges] = useState<Array<{ startDate: string; endDate: string }>>([]);
+  const [bookedDateRanges, setBookedDateRanges] = useState<Array<{ startDate: string; endDate: string }>>([]);
   const [defaultMonth, setDefaultMonth] = useState<Date | undefined>(undefined);
   const checkInDate = checkIn ? new Date(checkIn) : undefined;
   const checkOutDate = checkOut ? new Date(checkOut) : undefined;
@@ -101,6 +106,59 @@ export function DatesStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canBookAnyDate]);
 
+  // Загружаем бронирования комнаты для блокировки занятых дат
+  useEffect(() => {
+    const loadRoomBookings = async () => {
+      if (!roomId || canBookAnyDate) {
+        // Если нет roomId или пользователь может бронировать на любые даты, не загружаем
+        setBookedDateRanges([]);
+        return;
+      }
+
+      try {
+        const bookings = await api.getBookings(roomId);
+        // Фильтруем бронирования, исключая текущее (если редактируем)
+        const filteredBookings = bookings.filter(b => b.id !== excludeBookingId);
+        
+        // Преобразуем бронирования в диапазоны дат
+        const ranges = filteredBookings.map(booking => {
+          // Нормализуем дату заезда в строку формата YYYY-MM-DD
+          const checkInValue = booking.checkIn as Date | string;
+          let startDate: string;
+          if (checkInValue instanceof Date) {
+            startDate = checkInValue.toISOString().split('T')[0];
+          } else if (typeof checkInValue === 'string') {
+            startDate = checkInValue.split('T')[0];
+          } else {
+            // Fallback: преобразуем в строку
+            startDate = String(checkInValue);
+          }
+          
+          // Нормализуем дату выезда в строку формата YYYY-MM-DD
+          const checkOutValue = booking.checkOut as Date | string;
+          let endDate: string;
+          if (checkOutValue instanceof Date) {
+            endDate = checkOutValue.toISOString().split('T')[0];
+          } else if (typeof checkOutValue === 'string') {
+            endDate = checkOutValue.split('T')[0];
+          } else {
+            // Fallback: преобразуем в строку
+            endDate = String(checkOutValue);
+          }
+          
+          return { startDate, endDate };
+        });
+        
+        setBookedDateRanges(ranges);
+      } catch (error) {
+        console.error('Error loading room bookings:', error);
+        setBookedDateRanges([]);
+      }
+    };
+
+    loadRoomBookings();
+  }, [roomId, excludeBookingId, canBookAnyDate]);
+
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
@@ -139,7 +197,8 @@ export function DatesStep({
             }}
             placeholder="Выберите дату заезда"
             minDate={minDate}
-            allowedDateRanges={canBookAnyDate ? [] : allowedDateRanges}
+            allowedDateRanges={canBookAnyDate ? undefined : allowedDateRanges}
+            bookedDateRanges={canBookAnyDate ? [] : bookedDateRanges}
             defaultMonth={defaultMonth}
             className="w-full"
           />
@@ -167,7 +226,8 @@ export function DatesStep({
             }}
             placeholder="Выберите дату выезда"
             minDate={checkIn ? new Date(new Date(checkIn).getTime() + 86400000) : undefined}
-            allowedDateRanges={canBookAnyDate ? [] : allowedDateRanges}
+            allowedDateRanges={canBookAnyDate ? undefined : allowedDateRanges}
+            bookedDateRanges={canBookAnyDate ? [] : bookedDateRanges}
             defaultMonth={defaultMonth}
             className="w-full"
           />
