@@ -3,6 +3,7 @@ import { getUsers, createUser, getUserByEmail, getUserByPhone, updateInvite, ver
 import { prisma } from '@/lib/prisma';
 import { verifyInviteToken } from '@/lib/crypto';
 import { normalizePhone, isValidEmail, isValidPhone } from '@/lib/phone';
+import { logActivity } from '@/lib/logger';
 
 // GET /api/users
 export async function GET() {
@@ -19,9 +20,18 @@ export async function GET() {
 
 // POST /api/users
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let newUser;
+  
   try {
     const body = await request.json();
     const { inviteToken, directCreate, ...userData } = body;
+    
+    // Получаем IP адрес и User-Agent из запроса
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
     
     // Если directCreate = true, создаем пользователя напрямую (только для менеджеров)
     if (directCreate) {
@@ -89,10 +99,33 @@ export async function POST(request: NextRequest) {
       }
 
       // Создаем нового пользователя напрямую
-      const newUser = await createUser({
+      newUser = await createUser({
         ...userData,
         role: userData.role || 'guest',
         password: userData.password || undefined, // Пароль опционален при прямом создании
+      });
+      
+      // Логируем создание пользователя
+      const duration = Date.now() - startTime;
+      await logActivity({
+        userId: undefined, // Будет заполнено на клиенте
+        userName: newUser.name || 'Неизвестный',
+        userRole: newUser.role,
+        action: 'user_register',
+        entity: 'user',
+        entityId: newUser.id,
+        details: {
+          email: newUser.email,
+          phone: newUser.phone,
+          role: newUser.role,
+          directCreate: true,
+        },
+        status: 'success',
+        ipAddress: ipAddress.split(',')[0].trim(),
+        userAgent,
+        duration,
+      }).catch(() => {
+        // Тихо игнорируем ошибки логирования
       });
       
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -243,7 +276,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Создаем нового пользователя
-    const newUser = await createUser({
+    newUser = await createUser({
       ...userData,
       role: userData.role || 'guest'
     });
@@ -259,11 +292,62 @@ export async function POST(request: NextRequest) {
     }
     // Общий токен регистрации не помечается как использованный, так как он многоразовый
     
+    // Логируем создание пользователя
+    const duration = Date.now() - startTime;
+    await logActivity({
+      userId: undefined, // Будет заполнено на клиенте
+      userName: newUser.name || 'Неизвестный',
+      userRole: newUser.role,
+      action: 'user_register',
+      entity: 'user',
+      entityId: newUser.id,
+      details: {
+        email: newUser.email,
+        phone: newUser.phone,
+        role: newUser.role,
+        usedInvite: !isRegistrationToken && invite ? invite.id : undefined,
+        usedRegistrationToken: isRegistrationToken,
+      },
+      status: 'success',
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+    
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _password, ...userWithoutPassword } = newUser;
     return NextResponse.json(userWithoutPassword);
   } catch (error: unknown) {
     console.error('Error in POST /api/users:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка при создании пользователя';
+    const duration = Date.now() - startTime;
+    
+    // Логируем ошибку создания пользователя
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    
+    await logActivity({
+      userId: undefined,
+      userName: 'Система',
+      userRole: undefined,
+      action: 'user_register',
+      entity: 'user',
+      entityId: newUser?.id,
+      details: {
+        error: errorMessage,
+      },
+      status: 'error',
+      errorMessage,
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
     
     // Обработка ошибок Prisma
     if (error && typeof error === 'object' && 'code' in error) {
@@ -291,7 +375,6 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

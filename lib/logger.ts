@@ -15,11 +15,25 @@ export type LogAction =
   | 'booking_paid'
   | 'hotel_created'
   | 'hotel_updated'
+  | 'hotel_upload'
   | 'user_login'
   | 'user_register'
+  | 'user_updated'
+  | 'user_password_reset'
+  | 'stairs_created'
+  | 'stairs_updated'
+  | 'invite_created'
+  | 'invite_recreated'
+  | 'rooms_generated'
+  | 'feedback_created'
+  | 'email_sent'
+  | 'booking_date_range_created'
+  | 'booking_date_range_updated'
+  | 'registration_token_created'
+  | 'data_restored'
   | 'api_error';
 
-export type LogEntity = 'room' | 'booking' | 'hotel' | 'user' | 'system';
+export type LogEntity = 'room' | 'booking' | 'hotel' | 'user' | 'system' | 'stairs' | 'invite' | 'feedback' | 'email' | 'booking_date_range' | 'registration_token';
 export type LogStatus = 'success' | 'error' | 'warning';
 
 export interface LogData {

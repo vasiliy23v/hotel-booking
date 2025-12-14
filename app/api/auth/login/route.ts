@@ -2,12 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserByEmail, getUserByPhone } from '@/lib/db';
 import { normalizePhone } from '@/lib/phone';
 import crypto from 'crypto';
+import { logActivity } from '@/lib/logger';
 
 // POST /api/auth/login
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let user;
+  
   try {
     const body = await request.json();
     const { email, phone, password } = body;
+    
+    // Получаем IP адрес и User-Agent из запроса
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
     
     // Должен быть указан либо email, либо телефон
     const identifier = email || phone;
@@ -26,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Определяем, является ли идентификатор email или телефоном
-    let user = null;
+    user = null;
     
     // Если передан email или identifier содержит @, ищем по email
     if (email || identifier.includes('@')) {
@@ -47,6 +57,24 @@ export async function POST(request: NextRequest) {
     
     if (!user) {
       console.log('Login failed: User not found for', email || phone || identifier);
+      const duration = Date.now() - startTime;
+      await logActivity({
+        userId: undefined,
+        userName: 'Неизвестный',
+        userRole: undefined,
+        action: 'user_login',
+        entity: 'user',
+        details: {
+          identifier: email || phone || identifier,
+          error: 'User not found',
+        },
+        status: 'error',
+        errorMessage: 'Неверный email/телефон или пароль',
+        ipAddress: ipAddress.split(',')[0].trim(),
+        userAgent,
+        duration,
+      }).catch(() => {});
+      
       return NextResponse.json(
         { error: 'Неверный email/телефон или пароль' },
         { status: 401 }
@@ -91,6 +119,25 @@ export async function POST(request: NextRequest) {
     
     if (!passwordMatches) {
       console.log('Login failed: Password mismatch for user', user.id);
+      const duration = Date.now() - startTime;
+      await logActivity({
+        userId: user.id,
+        userName: user.name || 'Неизвестный',
+        userRole: user.role,
+        action: 'user_login',
+        entity: 'user',
+        entityId: user.id,
+        details: {
+          identifier: email || phone || identifier,
+          error: 'Password mismatch',
+        },
+        status: 'error',
+        errorMessage: 'Неверный email/телефон или пароль',
+        ipAddress: ipAddress.split(',')[0].trim(),
+        userAgent,
+        duration,
+      }).catch(() => {});
+      
       return NextResponse.json(
         { error: 'Неверный email/телефон или пароль' },
         { status: 401 }
@@ -99,11 +146,58 @@ export async function POST(request: NextRequest) {
     
     console.log('Login successful for user', user.id);
     
+    // Логируем успешный вход
+    const duration = Date.now() - startTime;
+    await logActivity({
+      userId: user.id,
+      userName: user.name || 'Неизвестный',
+      userRole: user.role,
+      action: 'user_login',
+      entity: 'user',
+      entityId: user.id,
+      details: {
+        identifier: email || phone || identifier,
+      },
+      status: 'success',
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+    
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _password, ...userWithoutPassword } = user;
     return NextResponse.json(userWithoutPassword);
   } catch (error: unknown) {
     console.error('Login error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка при входе';
+    const duration = Date.now() - startTime;
+    
+    // Логируем ошибку входа
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    
+    await logActivity({
+      userId: user?.id,
+      userName: user?.name || 'Неизвестный',
+      userRole: user?.role,
+      action: 'user_login',
+      entity: 'user',
+      entityId: user?.id,
+      details: {
+        error: errorMessage,
+      },
+      status: 'error',
+      errorMessage,
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
     
     // Обработка ошибок Prisma
     if (error && typeof error === 'object' && 'code' in error) {
@@ -123,7 +217,6 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

@@ -1,11 +1,20 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { createUser, createHotel, createRoom, createStairs, createBooking, createInvite, createFeedback } from '@/lib/db';
 import * as fs from 'fs';
 import * as path from 'path';
+import { logActivity } from '@/lib/logger';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     console.log('Начинаю восстановление данных...');
+    
+    // Получаем IP адрес и User-Agent из запроса
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Читаем файл с данными
     const dataPath = path.join(process.cwd(), 'data', 'data.json');
@@ -209,6 +218,41 @@ export async function POST() {
       }
     }
 
+    // Логируем восстановление данных
+    const duration = Date.now() - startTime;
+    await logActivity({
+      userId: undefined, // Будет заполнено на клиенте
+      userName: 'Система',
+      userRole: undefined, // Будет заполнено на клиенте
+      action: 'data_restored',
+      entity: 'system',
+      details: {
+        results,
+        totalRestored: 
+          results.users.success + 
+          results.hotels.success + 
+          results.rooms.success + 
+          results.stairs.success + 
+          results.bookings.success + 
+          results.invites.success + 
+          results.feedback.success,
+        totalFailed: 
+          results.users.failed + 
+          results.hotels.failed + 
+          results.rooms.failed + 
+          results.stairs.failed + 
+          results.bookings.failed + 
+          results.invites.failed + 
+          results.feedback.failed,
+      },
+      status: 'success',
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Данные восстановлены',
@@ -217,6 +261,32 @@ export async function POST() {
   } catch (error: unknown) {
     console.error('Error in POST /api/restore-data:', error);
     const errorMessage = error instanceof Error ? error.message : 'Ошибка при восстановлении данных';
+    const duration = Date.now() - startTime;
+    
+    // Логируем ошибку восстановления данных
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    
+    await logActivity({
+      userId: undefined,
+      userName: 'Система',
+      userRole: undefined,
+      action: 'data_restored',
+      entity: 'system',
+      details: {
+        error: errorMessage,
+      },
+      status: 'error',
+      errorMessage,
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+    
     return NextResponse.json(
       { error: errorMessage },
       { status: 500 }

@@ -2,12 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserById, getUsers, updateUser, getInvites, deleteInvite, createInvite } from '@/lib/db';
 import { generateInviteToken, hashInviteToken } from '@/lib/crypto';
 import crypto from 'crypto';
+import { logActivity } from '@/lib/logger';
 
 // POST /api/invites/recreate - Пересоздать приглашение для имени
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let newInvite;
+  
   try {
     const body = await request.json();
     const { name, expiresInDays = 7, createdBy } = body;
+    
+    // Получаем IP адрес и User-Agent из запроса
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
     
     if (!name || !name.trim() || !createdBy) {
       return NextResponse.json(
@@ -56,7 +66,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
     
-    const newInvite = await createInvite({
+    newInvite = await createInvite({
       token: hashedToken,
       createdBy,
       createdAt: new Date().toISOString(),
@@ -83,6 +93,29 @@ export async function POST(request: NextRequest) {
       baseUrl = origin;
     }
     
+    // Логируем пересоздание приглашения
+    const duration = Date.now() - startTime;
+    await logActivity({
+      userId: createdBy,
+      userName: creator.name || 'Неизвестный',
+      userRole: creator.role,
+      action: 'invite_recreated',
+      entity: 'invite',
+      entityId: newInvite.id,
+      details: {
+        name: name.trim(),
+        expiresInDays,
+        expiresAt: newInvite.expiresAt,
+        deletedOldInvites: oldInvites.length,
+      },
+      status: 'success',
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+    
     return NextResponse.json({
       id: newInvite.id,
       token,
@@ -91,7 +124,34 @@ export async function POST(request: NextRequest) {
       name: newInvite.name
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    const message = error instanceof Error ? error.message : 'Ошибка при пересоздании приглашения';
+    const duration = Date.now() - startTime;
+    
+    // Логируем ошибку пересоздания приглашения
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    
+    await logActivity({
+      userId: undefined,
+      userName: 'Система',
+      userRole: undefined,
+      action: 'invite_recreated',
+      entity: 'invite',
+      entityId: newInvite?.id,
+      details: {
+        error: message,
+      },
+      status: 'error',
+      errorMessage: message,
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+    
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

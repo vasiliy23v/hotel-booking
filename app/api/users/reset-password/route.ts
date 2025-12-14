@@ -2,12 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/neon';
 import { getUsers, updateUser, updateInvite, getUserById } from '@/lib/db';
 import { verifyInviteToken } from '@/lib/crypto';
+import { logActivity } from '@/lib/logger';
 
 // POST /api/users/reset-password - Сброс пароля по токену приглашения
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let updatedUser;
+  
   try {
     const body = await request.json();
     const { inviteToken, password, confirmPassword, name } = body;
+    
+    // Получаем IP адрес и User-Agent из запроса
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
     
     // Валидация обязательных полей
     if (!inviteToken || !password || !confirmPassword) {
@@ -120,7 +130,29 @@ export async function POST(request: NextRequest) {
     });
     
     // Получаем обновленного пользователя без пароля
-    const updatedUser = await getUserById(user.id);
+    updatedUser = await getUserById(user.id);
+    
+    // Логируем сброс пароля
+    const duration = Date.now() - startTime;
+    await logActivity({
+      userId: user.id,
+      userName: updatedUser?.name || user.name || 'Неизвестный',
+      userRole: updatedUser?.role || user.role,
+      action: 'user_password_reset',
+      entity: 'user',
+      entityId: user.id,
+      details: {
+        nameChanged: !!(name && name.trim() && name.trim() !== user.name?.trim()),
+        inviteId: invite.id,
+      },
+      status: 'success',
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+    
     if (updatedUser) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...userWithoutPassword } = updatedUser;
@@ -138,7 +170,34 @@ export async function POST(request: NextRequest) {
       user: { ...user }
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    const message = error instanceof Error ? error.message : 'Ошибка при сбросе пароля';
+    const duration = Date.now() - startTime;
+    
+    // Логируем ошибку сброса пароля
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    
+    await logActivity({
+      userId: updatedUser?.id,
+      userName: updatedUser?.name || 'Неизвестный',
+      userRole: updatedUser?.role,
+      action: 'user_password_reset',
+      entity: 'user',
+      entityId: updatedUser?.id,
+      details: {
+        error: message,
+      },
+      status: 'error',
+      errorMessage: message,
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+    
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

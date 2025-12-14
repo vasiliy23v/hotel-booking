@@ -3,8 +3,12 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { createFeedback, getFeedbacks, deleteFeedback, updateFeedbackStatus } from '@/lib/db';
+import { logActivity } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let savedFeedback;
+  
   try {
     const formData = await request.formData();
     const comment = formData.get('comment') as string;
@@ -12,6 +16,12 @@ export async function POST(request: NextRequest) {
     const userEmail = formData.get('userEmail') as string;
     const userRole = formData.get('userRole') as string;
     const screenshot = formData.get('screenshot') as File | null;
+
+    // Получаем IP адрес и User-Agent из запроса
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
 
     if (!comment || !comment.trim()) {
       return NextResponse.json(
@@ -75,7 +85,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Сохраняем в базу данных Neon
-    const savedFeedback = await createFeedback({
+    savedFeedback = await createFeedback({
       userName,
       userEmail: userEmail || undefined,
       userRole,
@@ -95,6 +105,28 @@ export async function POST(request: NextRequest) {
     const feedbackFilePath = join(feedbackDir, feedbackFileName);
     await writeFile(feedbackFilePath, JSON.stringify(feedbackData, null, 2), 'utf-8');
 
+    // Логируем создание отзыва
+    const duration = Date.now() - startTime;
+    await logActivity({
+      userId: undefined, // Будет заполнено на клиенте
+      userName: userName || 'Неизвестный',
+      userRole: userRole || undefined,
+      action: 'feedback_created',
+      entity: 'feedback',
+      entityId: savedFeedback.id,
+      details: {
+        userEmail: userEmail || undefined,
+        hasScreenshot: !!screenshotPath,
+        commentLength: comment.trim().length,
+      },
+      status: 'success',
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Отзыв успешно отправлен',
@@ -103,6 +135,33 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Error in POST /api/feedback:', error);
     const errorMessage = error instanceof Error ? error.message : 'Ошибка при отправке отзыва';
+    const duration = Date.now() - startTime;
+    
+    // Логируем ошибку создания отзыва
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    
+    await logActivity({
+      userId: undefined,
+      userName: 'Система',
+      userRole: undefined,
+      action: 'feedback_created',
+      entity: 'feedback',
+      entityId: savedFeedback?.id,
+      details: {
+        error: errorMessage,
+      },
+      status: 'error',
+      errorMessage,
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+    
     return NextResponse.json(
       { error: errorMessage },
       { status: 500 }

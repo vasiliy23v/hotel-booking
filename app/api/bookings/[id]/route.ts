@@ -46,7 +46,7 @@ export async function PUT(
     
     updatedBooking = await updateBooking(id, body);
     
-    // Логируем обновление бронирования со всей информацией
+    // Логируем обновление бронирования со всей 
     const duration = Date.now() - startTime;
     await logActivity({
       userId: undefined, // Будет заполнено на клиенте
