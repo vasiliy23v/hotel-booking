@@ -139,6 +139,7 @@ export default function Dashboard() {
     Record<string, boolean>
   >({});
   const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [allowedDateRanges, setAllowedDateRanges] = useState<Array<{ startDate: string; endDate: string }>>([]);
 
   // Состояние для бронирований
   const [bookings, setBookings] = useState<
@@ -241,6 +242,28 @@ export default function Dashboard() {
     loadData();
     loadBookings(); // Загружаем бронирования при загрузке страницы
     loadBookingStats();
+
+    // Загружаем активные диапазоны дат (только для обычных пользователей)
+    const loadDateRanges = async () => {
+      if (user.role === 'developer' || user.role === 'manager') {
+        // Developer и manager не ограничены диапазонами
+        setAllowedDateRanges([]);
+        return;
+      }
+      
+      try {
+        const ranges = await api.getBookingDateRanges(true);
+        const dateRanges = ranges.map((r) => ({
+          startDate: r.startDate instanceof Date ? r.startDate.toISOString().split('T')[0] : r.startDate,
+          endDate: r.endDate instanceof Date ? r.endDate.toISOString().split('T')[0] : r.endDate,
+        }));
+        setAllowedDateRanges(dateRanges);
+      } catch (error) {
+        console.error('Error loading date ranges:', error);
+        setAllowedDateRanges([]);
+      }
+    };
+    loadDateRanges();
 
     // Обновляем статистику каждые 30 секунд
     const interval = setInterval(() => {
@@ -1358,6 +1381,7 @@ export default function Dashboard() {
                       }}
                       placeholder="Выберите дату заезда"
                       minDate={new Date()}
+                      allowedDateRanges={currentUser && (currentUser.role === 'developer' || currentUser.role === 'manager') ? undefined : allowedDateRanges}
                       className="w-full text-xs"
                     />
                   </div>
@@ -1389,6 +1413,7 @@ export default function Dashboard() {
                       }}
                       placeholder="Выберите дату выезда"
                       minDate={checkInDate ? new Date(new Date(checkInDate).getTime() + 86400000) : new Date()}
+                      allowedDateRanges={currentUser && (currentUser.role === 'developer' || currentUser.role === 'manager') ? undefined : allowedDateRanges}
                       className="w-full text-xs"
                     />
                   </div>

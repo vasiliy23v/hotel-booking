@@ -166,6 +166,12 @@ export async function getActivityLogs(filters: {
       console.error('[Get Logs Error] Message:', error.message);
       console.error('[Get Logs Error] Stack:', error.stack);
       console.error('[Get Logs Error] Name:', error.name);
+      
+      // Проверяем, является ли ошибка проблемой отсутствующей таблицы
+      if (error.message.includes('does not exist') || error.message.includes('table') || error.message.includes('activity_logs')) {
+        console.error('[Get Logs Error] Table activity_logs does not exist. Migration required!');
+        console.error('[Get Logs Error] Run: npx prisma migrate deploy or apply prisma/migrations/add_activity_logs.sql');
+      }
     }
     // Проверяем, есть ли DATABASE_URL
     if (!process.env.DATABASE_URL) {
