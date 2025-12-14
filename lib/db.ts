@@ -5,6 +5,8 @@
 
 import { prisma } from './prisma';
 import type { User, Room, Hotel, Stairs, BookingInfo, Invite, RegistrationToken, BookingDateRange } from '@/types';
+import type { Prisma } from './generated/prisma';
+import { $Enums } from './generated/prisma';
 import { normalizePhone } from './phone';
 
 // ============================================
@@ -45,12 +47,12 @@ function transformFloorToPrisma(floor: 'EG' | '1OG' | '2OG' | '3OG' | '4OG' | '5
 /**
  * Преобразует данные комнаты из Prisma в формат приложения
  */
-function transformRoom(room: any): Room {
+function transformRoom(room: Prisma.RoomGetPayload<Record<string, never>>): Room {
   return {
     id: room.id,
     number: room.number,
     hotelId: room.hotelId,
-    name: room.name || undefined,
+    name: room.name,
     type: room.type as Room['type'],
     capacity: room.capacity,
     maxCapacity: room.maxCapacity,
@@ -58,11 +60,11 @@ function transformRoom(room: any): Room {
     floor: transformFloor(room.floor),
     price: Number(room.price),
     position: typeof room.position === 'string' ? JSON.parse(room.position) : room.position,
-    width: room.width || undefined,
-    height: room.height || undefined,
+    width: room.width,
+    height: room.height,
     isCommon: room.isCommon || false,
     zIndex: room.zIndex || 1,
-    description: room.description || undefined,
+    description: room.description,
     hasShower: room.hasShower || false,
     hasToilet: room.hasToilet || false,
     pricePerPerson: room.pricePerPerson || false,
@@ -73,7 +75,7 @@ function transformRoom(room: any): Room {
 /**
  * Преобразует данные бронирования из Prisma в формат приложения
  */
-function transformBooking(booking: any): BookingInfo {
+function transformBooking(booking: Prisma.BookingGetPayload<Record<string, never>>): BookingInfo {
   return {
     id: booking.id,
     roomId: booking.roomId,
@@ -99,7 +101,7 @@ function transformBooking(booking: any): BookingInfo {
 /**
  * Преобразует данные лестницы из Prisma в формат приложения
  */
-function transformStairs(stairs: any): Stairs {
+function transformStairs(stairs: Prisma.StairsGetPayload<Record<string, never>>): Stairs {
   return {
     id: stairs.id,
     hotelId: stairs.hotelId,
@@ -108,14 +110,14 @@ function transformStairs(stairs: any): Stairs {
     width: stairs.width,
     height: stairs.height,
     direction: stairs.direction as Stairs['direction'],
-    targetFloor: stairs.targetFloor ? transformFloor(stairs.targetFloor) : undefined,
+    targetFloor: stairs.targetFloor ? transformFloor(stairs.targetFloor) : null,
   };
 }
 
 /**
  * Преобразует данные приглашения из Prisma в формат приложения
  */
-function transformInvite(invite: any): Invite {
+function transformInvite(invite: Prisma.InviteGetPayload<Record<string, never>>): Invite {
   return {
     id: invite.id,
     token: invite.token,
@@ -124,8 +126,8 @@ function transformInvite(invite: any): Invite {
     expiresAt: invite.expiresAt.toISOString(),
     used: invite.used,
     name: invite.name,
-    usedBy: invite.usedBy || undefined,
-    usedAt: invite.usedAt?.toISOString() || undefined,
+    usedBy: invite.usedBy ?? null,
+    usedAt: invite.usedAt?.toISOString() ?? null,
   };
 }
 
@@ -145,6 +147,7 @@ export async function getUsers(): Promise<Omit<User, 'password'>[]> {
       name: true,
       phone: true,
       role: true,
+      isProfileComplete: true,
       createdAt: true,
     },
     orderBy: {
@@ -154,11 +157,12 @@ export async function getUsers(): Promise<Omit<User, 'password'>[]> {
   
   return users.map(u => ({
     id: u.id,
-    email: u.email || undefined,
+    email: u.email,
     name: u.name,
-    phone: u.phone || undefined,
+    phone: u.phone,
     role: u.role as User['role'],
-    createdAt: u.createdAt?.toISOString() || undefined,
+    isProfileComplete: u.isProfileComplete,
+    createdAt: u.createdAt?.toISOString() ?? new Date().toISOString(),
   }));
 }
 
@@ -174,12 +178,12 @@ export async function getUserById(id: string): Promise<User | null> {
   
   return {
     id: user.id,
-    email: user.email || undefined,
+    email: user.email,
     name: user.name,
-    password: user.password || undefined,
-    phone: user.phone || undefined,
+    password: user.password,
+    phone: user.phone,
     role: user.role as User['role'],
-    createdAt: user.createdAt?.toISOString() || undefined,
+    createdAt: user.createdAt?.toISOString() ?? new Date().toISOString(),
     isProfileComplete: user.isProfileComplete,
   };
 }
@@ -202,12 +206,12 @@ export async function getUserByEmail(email: string | null | undefined): Promise<
   
   return {
     id: user.id,
-    email: user.email || undefined,
+    email: user.email,
     name: user.name,
-    password: user.password || undefined,
-    phone: user.phone || undefined,
+    password: user.password,
+    phone: user.phone,
     role: user.role as User['role'],
-    createdAt: user.createdAt?.toISOString() || undefined,
+    createdAt: user.createdAt?.toISOString() ?? new Date().toISOString(),
     isProfileComplete: user.isProfileComplete,
   };
 }
@@ -230,12 +234,12 @@ export async function getUserByPhone(phone: string | null | undefined): Promise<
   
   return {
     id: user.id,
-    email: user.email || undefined,
+    email: user.email,
     name: user.name,
-    password: user.password || undefined,
-    phone: user.phone || undefined,
+    password: user.password,
+    phone: user.phone,
     role: user.role as User['role'],
-    createdAt: user.createdAt?.toISOString() || undefined,
+    createdAt: user.createdAt?.toISOString() ?? new Date().toISOString(),
     isProfileComplete: user.isProfileComplete,
   };
 }
@@ -270,19 +274,19 @@ export async function createUser(user: Omit<User, 'id'> & { id?: string }): Prom
       name: user.name,
       password: user.password || null,
       phone: normalizedPhone,
-      role: user.role as any,
+      role: user.role,
       isProfileComplete: user.isProfileComplete ?? false,
     },
   });
   
   return {
     id: newUser.id,
-    email: newUser.email || undefined,
+    email: newUser.email,
     name: newUser.name,
-    password: newUser.password || undefined,
-    phone: newUser.phone || undefined,
+    password: newUser.password,
+    phone: newUser.phone,
     role: newUser.role as User['role'],
-    createdAt: newUser.createdAt?.toISOString() || undefined,
+    createdAt: newUser.createdAt?.toISOString() ?? new Date().toISOString(),
     isProfileComplete: newUser.isProfileComplete,
   };
 }
@@ -291,7 +295,7 @@ export async function createUser(user: Omit<User, 'id'> & { id?: string }): Prom
  * Обновить пользователя
  */
 export async function updateUser(id: string, updates: Partial<User>): Promise<User> {
-  const updateData: any = {};
+  const updateData: Prisma.UserUpdateInput = {};
   
   if (updates.email !== undefined) updateData.email = updates.email || null;
   if (updates.name !== undefined) updateData.name = updates.name;
@@ -300,7 +304,7 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
     // Нормализуем телефон перед сохранением
     updateData.phone = updates.phone ? normalizePhone(updates.phone) : null;
   }
-  if (updates.role !== undefined) updateData.role = updates.role as any;
+  if (updates.role !== undefined) updateData.role = updates.role;
   if (updates.isProfileComplete !== undefined) updateData.isProfileComplete = updates.isProfileComplete;
   
   const updatedUser = await prisma.user.update({
@@ -310,12 +314,12 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
   
   return {
     id: updatedUser.id,
-    email: updatedUser.email || undefined,
+    email: updatedUser.email,
     name: updatedUser.name,
-    password: updatedUser.password || undefined,
-    phone: updatedUser.phone || undefined,
+    password: updatedUser.password,
+    phone: updatedUser.phone,
     role: updatedUser.role as User['role'],
-    createdAt: updatedUser.createdAt?.toISOString() || undefined,
+    createdAt: updatedUser.createdAt?.toISOString() ?? new Date().toISOString(),
     isProfileComplete: updatedUser.isProfileComplete,
   };
 }
@@ -375,11 +379,11 @@ export async function getHotels(): Promise<Hotel[]> {
     id: h.id,
     name: h.name,
     address: h.address,
-    description: h.description || undefined,
-    floors: h.floors || undefined,
+    description: h.description,
+    floors: h.floors,
     hasEGFloor: h.hasEGFloor,
-    image: imageBufferToBase64(h.image),
-    displayOrder: h.displayOrder || undefined,
+    image: imageBufferToBase64(h.image) ?? null,
+    displayOrder: h.displayOrder,
   }));
 }
 
@@ -397,11 +401,11 @@ export async function getHotelById(id: string): Promise<Hotel | null> {
     id: hotel.id,
     name: hotel.name,
     address: hotel.address,
-    description: hotel.description || undefined,
-    floors: hotel.floors || undefined,
+    description: hotel.description,
+    floors: hotel.floors,
     hasEGFloor: hotel.hasEGFloor,
-    image: imageBufferToBase64(hotel.image),
-    displayOrder: hotel.displayOrder || undefined,
+    image: imageBufferToBase64(hotel.image) ?? null,
+    displayOrder: hotel.displayOrder,
   };
 }
 
@@ -410,7 +414,8 @@ export async function getHotelById(id: string): Promise<Hotel | null> {
  */
 export async function createHotel(hotel: Omit<Hotel, 'id'> & { id?: string }): Promise<Hotel> {
   const hotelId = hotel.id || `hotel-${Date.now()}`;
-  const imageBuffer = base64ToImageBuffer(hotel.image);
+  const imageInput = typeof hotel.image === 'string' ? hotel.image : undefined;
+  const imageBuffer = base64ToImageBuffer(imageInput);
   
   const newHotel = await prisma.hotel.create({
     data: {
@@ -421,7 +426,7 @@ export async function createHotel(hotel: Omit<Hotel, 'id'> & { id?: string }): P
       floors: hotel.floors || null,
       hasEGFloor: hotel.hasEGFloor !== undefined ? hotel.hasEGFloor : true,
       // Buffer наследуется от Uint8Array, приводим для совместимости типов
-      image: imageBuffer as any,
+      image: imageBuffer as Prisma.Bytes | null,
       displayOrder: hotel.displayOrder || null,
     },
   });
@@ -430,11 +435,11 @@ export async function createHotel(hotel: Omit<Hotel, 'id'> & { id?: string }): P
     id: newHotel.id,
     name: newHotel.name,
     address: newHotel.address,
-    description: newHotel.description || undefined,
-    floors: newHotel.floors || undefined,
+    description: newHotel.description,
+    floors: newHotel.floors,
     hasEGFloor: newHotel.hasEGFloor,
-    image: imageBufferToBase64(newHotel.image),
-    displayOrder: newHotel.displayOrder || undefined,
+    image: imageBufferToBase64(newHotel.image) ?? null,
+    displayOrder: newHotel.displayOrder,
   };
 }
 
@@ -465,42 +470,42 @@ async function migrateHotelFloors(hotelId: string, newHasEGFloor: boolean): Prom
   }
   
   // Определяем маппинг этажей
-  const floorMapping: Record<string, 'EG' | 'oneOG' | 'twoOG' | 'threeOG'> = {};
+  const floorMapping: Partial<Record<$Enums.FloorType, $Enums.FloorType>> = {};
   
   if (!oldHasEGFloor && newHasEGFloor) {
     // Включаем EG: 1OG -> EG, 2OG -> 1OG, 3OG -> 2OG
-    floorMapping['oneOG'] = 'EG';
-    floorMapping['twoOG'] = 'oneOG';
-    floorMapping['threeOG'] = 'twoOG';
+    floorMapping[$Enums.FloorType.oneOG] = $Enums.FloorType.EG;
+    floorMapping[$Enums.FloorType.twoOG] = $Enums.FloorType.oneOG;
+    floorMapping[$Enums.FloorType.threeOG] = $Enums.FloorType.twoOG;
   } else if (oldHasEGFloor && !newHasEGFloor) {
     // Отключаем EG: EG -> 1OG, 1OG -> 2OG, 2OG -> 3OG
-    floorMapping['EG'] = 'oneOG';
-    floorMapping['oneOG'] = 'twoOG';
-    floorMapping['twoOG'] = 'threeOG';
+    floorMapping[$Enums.FloorType.EG] = $Enums.FloorType.oneOG;
+    floorMapping[$Enums.FloorType.oneOG] = $Enums.FloorType.twoOG;
+    floorMapping[$Enums.FloorType.twoOG] = $Enums.FloorType.threeOG;
   }
   
   // Мигрируем комнаты
   for (const room of hotel.rooms) {
-    const newFloor = floorMapping[room.floor];
+    const newFloor = floorMapping[room.floor as $Enums.FloorType];
     if (newFloor) {
       await prisma.room.update({
         where: { id: room.id },
-        data: { floor: newFloor as any }, // Используем as any для обхода проверки типов Prisma
+        data: { floor: newFloor },
       });
     }
   }
   
   // Мигрируем ступени
   for (const stair of hotel.stairs) {
-    const newFloor = floorMapping[stair.floor];
-    const newTargetFloor = stair.targetFloor ? floorMapping[stair.targetFloor] : undefined;
+    const newFloor = floorMapping[stair.floor as $Enums.FloorType];
+    const newTargetFloor = stair.targetFloor ? floorMapping[stair.targetFloor as $Enums.FloorType] : undefined;
     
-    const updateData: any = {};
+    const updateData: Prisma.StairsUpdateInput = {};
     if (newFloor) {
-      updateData.floor = newFloor as any; // Используем as any для обхода проверки типов Prisma
+      updateData.floor = newFloor;
     }
     if (newTargetFloor) {
-      updateData.targetFloor = newTargetFloor as any; // Используем as any для обхода проверки типов Prisma
+      updateData.targetFloor = newTargetFloor;
     }
     
     if (Object.keys(updateData).length > 0) {
@@ -531,7 +536,7 @@ export async function updateHotel(id: string, updates: Partial<Hotel>): Promise<
     await migrateHotelFloors(id, updates.hasEGFloor!);
   }
   
-  const updateData: Record<string, any> = {};
+  const updateData: Prisma.HotelUpdateInput = {};
   
   if (updates.name !== undefined) updateData.name = updates.name;
   if (updates.address !== undefined) updateData.address = updates.address;
@@ -540,7 +545,9 @@ export async function updateHotel(id: string, updates: Partial<Hotel>): Promise<
   if (updates.hasEGFloor !== undefined) updateData.hasEGFloor = updates.hasEGFloor;
   if (updates.image !== undefined) {
     // Buffer наследуется от Uint8Array, совместимы на уровне выполнения
-    updateData.image = base64ToImageBuffer(updates.image);
+    const imageInput = typeof updates.image === 'string' ? updates.image : undefined;
+    const buffer = base64ToImageBuffer(imageInput);
+    updateData.image = buffer as Prisma.Bytes | null;
   }
   if (updates.displayOrder !== undefined) updateData.displayOrder = updates.displayOrder || null;
   
@@ -553,11 +560,11 @@ export async function updateHotel(id: string, updates: Partial<Hotel>): Promise<
     id: updatedHotel.id,
     name: updatedHotel.name,
     address: updatedHotel.address,
-    description: updatedHotel.description || undefined,
-    floors: updatedHotel.floors || undefined,
+    description: updatedHotel.description,
+    floors: updatedHotel.floors,
     hasEGFloor: updatedHotel.hasEGFloor,
-    image: imageBufferToBase64(updatedHotel.image),
-    displayOrder: updatedHotel.displayOrder || undefined,
+    image: imageBufferToBase64(updatedHotel.image) ?? null,
+    displayOrder: updatedHotel.displayOrder,
   };
 }
 
@@ -595,9 +602,9 @@ export async function getRooms(hotelId?: string): Promise<Room[]> {
       const transformedRoom = transformRoom(room);
       const activeBookings = await getActiveBookingsForRoom(room.id);
       if (activeBookings.length > 0) {
-        (transformedRoom as any).bookings = activeBookings;
+        (transformedRoom as Room & { bookings?: BookingInfo[]; booking?: BookingInfo }).bookings = activeBookings;
         // Для обратной совместимости оставляем первое бронирование в booking
-        (transformedRoom as any).booking = activeBookings[0];
+        (transformedRoom as Room & { bookings?: BookingInfo[]; booking?: BookingInfo }).booking = activeBookings[0];
       }
       return transformedRoom;
     })
@@ -630,13 +637,13 @@ export async function createRoom(room: Omit<Room, 'id'> & { id?: string }): Prom
       number: room.number,
       hotelId: room.hotelId,
       name: room.name || null,
-      type: room.type as any,
+      type: room.type,
       capacity: room.capacity,
       maxCapacity: room.maxCapacity,
-      beds: (room.beds || []) as any,
-      floor: transformFloorToPrisma(room.floor) as any,
+      beds: (room.beds || []) as Prisma.InputJsonValue,
+      floor: transformFloorToPrisma(room.floor) as $Enums.FloorType,
       price: room.price,
-      position: room.position as any,
+      position: room.position as Prisma.InputJsonValue,
       width: room.width || null,
       height: room.height || null,
       isCommon: room.isCommon || false,
@@ -646,16 +653,16 @@ export async function createRoom(room: Omit<Room, 'id'> & { id?: string }): Prom
       hasToilet: room.hasToilet || false,
       pricePerPerson: room.pricePerPerson || false,
       ...(room.textVertical !== undefined && { textVertical: room.textVertical }),
-    } as any,
+    },
   });
   
   const transformedRoom = transformRoom(newRoom);
   // Загружаем активные бронирования для комнаты, если есть
   const activeBookings = await getActiveBookingsForRoom(roomId);
   if (activeBookings.length > 0) {
-    (transformedRoom as any).bookings = activeBookings;
+    (transformedRoom as Room & { bookings?: BookingInfo[]; booking?: BookingInfo }).bookings = activeBookings;
     // Для обратной совместимости оставляем первое бронирование в booking
-    (transformedRoom as any).booking = activeBookings[0];
+    (transformedRoom as Room & { bookings?: BookingInfo[]; booking?: BookingInfo }).booking = activeBookings[0];
   }
   return transformedRoom;
 }
@@ -664,19 +671,19 @@ export async function createRoom(room: Omit<Room, 'id'> & { id?: string }): Prom
  * Обновить комнату
  */
 export async function updateRoom(id: string, updates: Partial<Room>): Promise<Room> {
-  const updateData: any = {};
+  const updateData: Prisma.RoomUpdateInput = {};
   
   if (updates.number !== undefined) updateData.number = updates.number;
   // hotelId не обновляется напрямую, так как это связь через relation
   // if (updates.hotelId !== undefined) updateData.hotelId = updates.hotelId;
   if (updates.name !== undefined) updateData.name = updates.name;
-  if (updates.type !== undefined) updateData.type = updates.type as any;
+  if (updates.type !== undefined) updateData.type = updates.type;
   if (updates.capacity !== undefined) updateData.capacity = updates.capacity;
   if (updates.maxCapacity !== undefined) updateData.maxCapacity = updates.maxCapacity;
-  if (updates.beds !== undefined) updateData.beds = updates.beds as any;
-  if (updates.floor !== undefined) updateData.floor = transformFloorToPrisma(updates.floor) as any;
+  if (updates.beds !== undefined) updateData.beds = updates.beds as Prisma.InputJsonValue;
+  if (updates.floor !== undefined) updateData.floor = transformFloorToPrisma(updates.floor) as $Enums.FloorType;
   if (updates.price !== undefined) updateData.price = updates.price;
-  if (updates.position !== undefined) updateData.position = updates.position as any;
+  if (updates.position !== undefined) updateData.position = updates.position as Prisma.InputJsonValue;
   if (updates.width !== undefined) updateData.width = updates.width;
   if (updates.height !== undefined) updateData.height = updates.height;
   if (updates.isCommon !== undefined) updateData.isCommon = updates.isCommon;
@@ -724,7 +731,7 @@ export async function deleteRoom(id: string): Promise<void> {
  * Получить все бронирования (с опциональной фильтрацией)
  */
 export async function getBookings(roomId?: string, hotelId?: string): Promise<BookingInfo[]> {
-  let where: any = {};
+  const where: Prisma.BookingWhereInput = {};
   
   if (roomId) {
     where.roomId = roomId;
@@ -825,7 +832,7 @@ export async function isRoomAvailable(
             gt: checkIn, // existingCheckOut > newCheckIn
           },
         },
-      ],
+      ] as Prisma.BookingWhereInput['AND'],
     },
   });
 
@@ -847,110 +854,170 @@ export async function createBooking(
     throw new Error('Дата заезда должна быть раньше даты выезда');
   }
 
-  // Проверяем доступность комнаты перед созданием бронирования
-  const isAvailable = await isRoomAvailable(booking.roomId, checkInDate, checkOutDate);
-  if (!isAvailable) {
-    // Получаем информацию о конфликтующем бронировании для более понятного сообщения
-    const conflicting = await prisma.booking.findFirst({
-      where: {
-        roomId: booking.roomId,
-        AND: [
-          {
-            checkIn: {
-              lte: checkOutDate,
-            },
-          },
-          {
-            checkOut: {
-              gte: checkInDate,
-            },
-          },
-        ],
-      },
-      orderBy: {
-        checkIn: 'asc',
-      },
-    });
+  // ТРОЙНАЯ ЗАЩИТА от race condition для наплыва в 100+ человек:
+  // 1. Advisory lock - блокирует комнату на уровне приложения
+  // 2. SELECT FOR UPDATE - блокирует строки на уровне БД
+  // 3. EXCLUDE constraint - финальная защита на уровне БД
+  const maxRetries = 5;
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Advisory lock - блокируем комнату на уровне приложения
+        // Используем более надежный способ генерации lock ID
+        const roomHash = booking.roomId.split('').reduce((acc, char, idx) => {
+          return acc + (char.charCodeAt(0) * (idx + 1));
+        }, 0);
+        const lockId = Math.abs(roomHash) % 2147483647; // PostgreSQL advisory lock range
+        
+        // Блокируем комнату с помощью advisory lock
+        // При наплыве в 100 человек, все остальные будут ждать освобождения блокировки
+        await tx.$executeRawUnsafe(
+          `SELECT pg_advisory_xact_lock($1)`,
+          lockId
+        );
+        
+        // 2. SELECT FOR UPDATE - блокируем существующие бронирования на уровне БД
+        // Это гарантирует, что между проверкой и созданием не появится новое бронирование
+        const conflictingBookings = await tx.$queryRawUnsafe<Array<{ id: string; check_in: Date; check_out: Date }>>(
+          `SELECT id, check_in, check_out 
+           FROM bookings 
+           WHERE room_id = $1 
+           AND check_in < $2 
+           AND check_out > $3 
+           FOR UPDATE`,
+          booking.roomId,
+          checkOutDate.toISOString().split('T')[0],
+          checkInDate.toISOString().split('T')[0]
+        );
+        
+        if (conflictingBookings && conflictingBookings.length > 0) {
+          const conflicting = conflictingBookings[0];
+          const existingCheckIn = new Date(conflicting.check_in).toLocaleDateString('ru-RU');
+          const existingCheckOut = new Date(conflicting.check_out).toLocaleDateString('ru-RU');
+          throw new Error(
+            `К сожалению, кто-то забронировал эту комнату раньше вас на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
+          );
+        }
 
-    if (conflicting) {
-      const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
-      const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
-      throw new Error(
-        `Комната уже забронирована на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
-      );
-    }
-    throw new Error('Комната уже забронирована на выбранные даты. Пожалуйста, выберите другие даты.');
-  }
-
-  try {
-    // Создаем бронирование
-    // EXCLUDE constraint на уровне базы данных автоматически предотвратит пересечения
-    const bookingId = booking.id || `booking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const newBooking = await prisma.booking.create({
-      data: {
-        id: bookingId,
-        roomId: booking.roomId,
-        bookedBy: booking.bookedBy,
-        bookedDate: new Date(booking.bookedDate),
-        email: booking.email || null,
-        phone: booking.phone,
-        checkIn: checkInDate,
-        checkOut: checkOutDate,
-        guests: (booking.guests || []) as any,
-        notes: booking.notes || null,
-        isConfirmed: booking.isConfirmed || false,
-        confirmedBy: booking.confirmedBy || null,
-        confirmedDate: booking.confirmedDate ? new Date(booking.confirmedDate) : null,
-        isPaid: booking.isPaid || false,
-        paymentMethod: booking.paymentMethod as any || null,
-        paymentDate: booking.paymentDate ? new Date(booking.paymentDate) : null,
-        paidBy: booking.paidBy || null,
-        amount: booking.amount || null,
-      },
-    });
-
-    return transformBooking(newBooking);
-  } catch (error: any) {
-    // Обрабатываем ошибку constraint от PostgreSQL
-    if (error.code === '23P01' || error.message?.includes('bookings_no_overlap') || error.message?.includes('violates exclusion constraint')) {
-      // Получаем информацию о конфликтующем бронировании для более понятного сообщения
-      try {
-        const conflicting = await prisma.booking.findFirst({
-          where: {
+        // 3. Создаем бронирование внутри той же транзакции
+        // EXCLUDE constraint на уровне базы данных дополнительно предотвратит пересечения
+        const bookingId = booking.id || `booking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Обработка bookedDate: если не передан или невалиден, используем текущую дату
+        let bookedDateValue: Date;
+        if (booking.bookedDate) {
+          const parsedDate = new Date(booking.bookedDate);
+          if (isNaN(parsedDate.getTime())) {
+            bookedDateValue = new Date();
+          } else {
+            bookedDateValue = parsedDate;
+          }
+        } else {
+          bookedDateValue = new Date();
+        }
+        
+        const newBooking = await tx.booking.create({
+          data: {
+            id: bookingId,
             roomId: booking.roomId,
-            AND: [
-              {
-                checkIn: {
-                  lt: checkOutDate,
-                },
-              },
-              {
-                checkOut: {
-                  gt: checkInDate,
-                },
-              },
-            ],
-          },
-          orderBy: {
-            checkIn: 'asc',
+            bookedBy: booking.bookedBy,
+            bookedDate: bookedDateValue,
+            email: booking.email || null,
+            phone: booking.phone,
+            checkIn: checkInDate,
+            checkOut: checkOutDate,
+            guests: (booking.guests || []) as unknown as Prisma.InputJsonValue,
+            notes: booking.notes || null,
+            isConfirmed: booking.isConfirmed || false,
+            confirmedBy: booking.confirmedBy || null,
+            confirmedDate: booking.confirmedDate ? new Date(booking.confirmedDate) : null,
+            isPaid: booking.isPaid || false,
+            paymentMethod: booking.paymentMethod || null,
+            paymentDate: booking.paymentDate ? new Date(booking.paymentDate) : null,
+            paidBy: booking.paidBy || null,
+            amount: booking.amount || null,
           },
         });
 
-        if (conflicting) {
-          const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
-          const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
-          throw new Error(
-            `Комната уже забронирована на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
-          );
+        return transformBooking(newBooking);
+      }, {
+        // Используем уровень изоляции Serializable для максимальной защиты
+        // При наплыве в 100 человек это гарантирует строгую сериализацию
+        isolationLevel: 'Serializable',
+        timeout: 30000, // Увеличенный таймаут для обработки очереди из 100 человек
+        maxWait: 30000, // Максимальное время ожидания начала транзакции
+      });
+
+      return result;
+    } catch (error: unknown) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      
+      // Обрабатываем ошибки сериализации - повторяем попытку
+      const errorCode = (error as { code?: string })?.code;
+      const errorMessage = errorObj.message || '';
+      
+      // PostgreSQL код ошибки для serialization failure
+      if (errorCode === '40001' || errorMessage.includes('serialization failure') || errorMessage.includes('could not serialize')) {
+        lastError = errorObj;
+        // Экспоненциальная задержка перед повтором
+        const delay = Math.min(100 * Math.pow(2, attempt), 2000);
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue; // Повторяем попытку
         }
-      } catch (innerError) {
-        // Если не удалось получить информацию, используем общее сообщение
       }
-      throw new Error('Комната уже забронирована на выбранные даты. Пожалуйста, выберите другие даты.');
+      
+      // Обрабатываем ошибку constraint от PostgreSQL
+      if (errorCode === '23P01' || errorMessage.includes('bookings_no_overlap') || errorMessage.includes('violates exclusion constraint')) {
+        // Получаем информацию о конфликтующем бронировании для более понятного сообщения
+        try {
+          const conflicting = await prisma.booking.findFirst({
+            where: {
+              roomId: booking.roomId,
+              AND: [
+                {
+                  checkIn: {
+                    lt: checkOutDate,
+                  },
+                },
+                {
+                  checkOut: {
+                    gt: checkInDate,
+                  },
+                },
+              ],
+            },
+            orderBy: {
+              checkIn: 'asc',
+            },
+          });
+
+          if (conflicting) {
+            const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
+            const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
+            throw new Error(
+              `К сожалению, кто-то забронировал эту комнату раньше вас на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
+            );
+          }
+        } catch {
+          // Если не удалось получить информацию, используем общее сообщение
+        }
+        throw new Error('К сожалению, кто-то забронировал эту комнату раньше вас на выбранные даты. Пожалуйста, выберите другие даты.');
+      }
+      
+      // Если это не ошибка сериализации или закончились попытки, пробрасываем ошибку
+      throw errorObj;
     }
-    // Пробрасываем другие ошибки
-    throw error;
   }
+  
+  // Если все попытки исчерпаны
+  if (lastError) {
+    throw lastError;
+  }
+  
+  throw new Error('Не удалось создать бронирование после нескольких попыток');
 }
 
 /**
@@ -993,22 +1060,24 @@ export async function updateBooking(
   }
 
   // Подготавливаем данные для обновления
-  const updateData: any = {};
+  const updateData: Prisma.BookingUpdateInput = {};
   
-  if (updates.roomId !== undefined) updateData.roomId = updates.roomId;
+  if (updates.roomId !== undefined) {
+    updateData.room = { connect: { id: updates.roomId } };
+  }
   if (updates.bookedBy !== undefined) updateData.bookedBy = updates.bookedBy;
   if (updates.bookedDate !== undefined) updateData.bookedDate = new Date(updates.bookedDate);
   if (updates.email !== undefined) updateData.email = updates.email;
   if (updates.phone !== undefined) updateData.phone = updates.phone;
   if (updates.checkIn !== undefined) updateData.checkIn = new Date(updates.checkIn);
   if (updates.checkOut !== undefined) updateData.checkOut = new Date(updates.checkOut);
-  if (updates.guests !== undefined) updateData.guests = updates.guests as any;
+  if (updates.guests !== undefined) updateData.guests = updates.guests as unknown as Prisma.InputJsonValue;
   if (updates.notes !== undefined) updateData.notes = updates.notes;
   if (updates.isConfirmed !== undefined) updateData.isConfirmed = updates.isConfirmed;
   if (updates.confirmedBy !== undefined) updateData.confirmedBy = updates.confirmedBy;
   if (updates.confirmedDate !== undefined) updateData.confirmedDate = updates.confirmedDate ? new Date(updates.confirmedDate) : null;
   if (updates.isPaid !== undefined) updateData.isPaid = updates.isPaid;
-  if (updates.paymentMethod !== undefined) updateData.paymentMethod = updates.paymentMethod as any;
+  if (updates.paymentMethod !== undefined) updateData.paymentMethod = updates.paymentMethod;
   if (updates.paymentDate !== undefined) updateData.paymentDate = updates.paymentDate ? new Date(updates.paymentDate) : null;
   if (updates.paidBy !== undefined) updateData.paidBy = updates.paidBy;
   if (updates.amount !== undefined) updateData.amount = updates.amount;
@@ -1021,9 +1090,9 @@ export async function updateBooking(
     });
     
     return transformBooking(updatedBooking);
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Обрабатываем ошибку constraint от PostgreSQL
-    if (error.code === '23P01' || error.message?.includes('bookings_no_overlap') || error.message?.includes('violates exclusion constraint')) {
+    if ((error as { code?: string; message?: string }).code === '23P01' || (error as { message?: string }).message?.includes('bookings_no_overlap') || (error as { message?: string }).message?.includes('violates exclusion constraint')) {
       // Получаем информацию о конфликтующем бронировании
       const checkInDate = updates.checkIn ? new Date(updates.checkIn) : new Date(currentBooking.checkIn);
       const checkOutDate = updates.checkOut ? new Date(updates.checkOut) : new Date(currentBooking.checkOut);
@@ -1059,7 +1128,7 @@ export async function updateBooking(
             `Комната уже забронирована на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
           );
         }
-      } catch (innerError) {
+      } catch {
         // Если не удалось получить информацию, используем общее сообщение
       }
       throw new Error('Комната уже забронирована на выбранные даты. Пожалуйста, выберите другие даты.');
@@ -1122,12 +1191,12 @@ export async function createStairs(
     data: {
       id: stairsId,
       hotelId: stairs.hotelId,
-      floor: transformFloorToPrisma(stairs.floor) as any,
-      position: stairs.position as any,
+      floor: transformFloorToPrisma(stairs.floor) as $Enums.FloorType,
+      position: stairs.position as Prisma.InputJsonValue,
       width: stairs.width,
       height: stairs.height,
-      direction: stairs.direction as any,
-      targetFloor: stairs.targetFloor ? transformFloorToPrisma(stairs.targetFloor) as any : null,
+      direction: stairs.direction,
+      targetFloor: stairs.targetFloor ? (transformFloorToPrisma(stairs.targetFloor) as $Enums.FloorType) : null,
     },
   });
   
@@ -1138,15 +1207,17 @@ export async function createStairs(
  * Обновить лестницу
  */
 export async function updateStairs(id: string, updates: Partial<Stairs>): Promise<Stairs> {
-  const updateData: any = {};
+  const updateData: Prisma.StairsUpdateInput = {};
   
-  if (updates.hotelId !== undefined) updateData.hotelId = updates.hotelId;
-      if (updates.floor !== undefined) updateData.floor = transformFloorToPrisma(updates.floor) as any;
-      if (updates.position !== undefined) updateData.position = updates.position as any;
-      if (updates.width !== undefined) updateData.width = updates.width;
+  if (updates.hotelId !== undefined) {
+    updateData.hotel = { connect: { id: updates.hotelId } };
+  }
+  if (updates.floor !== undefined) updateData.floor = transformFloorToPrisma(updates.floor) as $Enums.FloorType;
+  if (updates.position !== undefined) updateData.position = updates.position as Prisma.InputJsonValue;
+  if (updates.width !== undefined) updateData.width = updates.width;
   if (updates.height !== undefined) updateData.height = updates.height;
-  if (updates.direction !== undefined) updateData.direction = updates.direction as any;
-  if (updates.targetFloor !== undefined) updateData.targetFloor = updates.targetFloor ? transformFloorToPrisma(updates.targetFloor) as any : null;
+  if (updates.direction !== undefined) updateData.direction = updates.direction;
+  if (updates.targetFloor !== undefined) updateData.targetFloor = updates.targetFloor ? (transformFloorToPrisma(updates.targetFloor) as $Enums.FloorType) : null;
   
   const updatedStairs = await prisma.stairs.update({
     where: { id },
@@ -1196,8 +1267,8 @@ export async function getInvites(): Promise<Omit<Invite, 'token'>[]> {
     expiresAt: i.expiresAt.toISOString(),
     used: i.used,
     name: i.name,
-    usedBy: i.usedBy || undefined,
-    usedAt: i.usedAt?.toISOString() || undefined,
+    usedBy: i.usedBy ?? null,
+    usedAt: i.usedAt?.toISOString() ?? null,
   }));
 }
 
@@ -1255,10 +1326,12 @@ export async function createInvite(
  * Обновить приглашение
  */
 export async function updateInvite(id: string, updates: Partial<Invite>): Promise<Invite> {
-  const updateData: any = {};
+  const updateData: Prisma.InviteUpdateInput = {};
   
   if (updates.used !== undefined) updateData.used = updates.used;
-  if (updates.usedBy !== undefined) updateData.usedBy = updates.usedBy;
+  if (updates.usedBy !== undefined) {
+    updateData.user = updates.usedBy ? { connect: { id: updates.usedBy } } : { disconnect: true };
+  }
   if (updates.usedAt !== undefined) updateData.usedAt = updates.usedAt ? new Date(updates.usedAt) : null;
   
   const updatedInvite = await prisma.invite.update({
@@ -1313,7 +1386,7 @@ export async function getFeedbacks(): Promise<Feedback[]> {
     comment: f.comment,
     screenshot: f.screenshot || undefined,
     userAgent: f.userAgent || undefined,
-    isProcessed: (f as any).isProcessed || false,
+    isProcessed: (f as { isProcessed?: boolean }).isProcessed || false,
     createdAt: f.createdAt.toISOString(),
     updatedAt: f.updatedAt.toISOString(),
   }));
@@ -1337,7 +1410,7 @@ export async function getFeedbackById(id: string): Promise<Feedback | null> {
     comment: feedback.comment,
     screenshot: feedback.screenshot || undefined,
     userAgent: feedback.userAgent || undefined,
-    isProcessed: (feedback as any).isProcessed || false,
+    isProcessed: (feedback as { isProcessed?: boolean }).isProcessed || false,
     createdAt: feedback.createdAt.toISOString(),
     updatedAt: feedback.updatedAt.toISOString(),
   };
@@ -1368,7 +1441,7 @@ export async function createFeedback(
     comment: newFeedback.comment,
     screenshot: newFeedback.screenshot || undefined,
     userAgent: newFeedback.userAgent || undefined,
-    isProcessed: (newFeedback as any).isProcessed || false,
+    isProcessed: (newFeedback as { isProcessed?: boolean }).isProcessed || false,
     createdAt: newFeedback.createdAt.toISOString(),
     updatedAt: newFeedback.updatedAt.toISOString(),
   };
@@ -1380,7 +1453,7 @@ export async function createFeedback(
 export async function updateFeedbackStatus(id: string, isProcessed: boolean): Promise<Feedback> {
   const updatedFeedback = await prisma.feedback.update({
     where: { id },
-    data: { isProcessed } as any,
+    data: { isProcessed },
   });
 
   return {
@@ -1391,7 +1464,7 @@ export async function updateFeedbackStatus(id: string, isProcessed: boolean): Pr
     comment: updatedFeedback.comment,
     screenshot: updatedFeedback.screenshot || undefined,
     userAgent: updatedFeedback.userAgent || undefined,
-    isProcessed: (updatedFeedback as any).isProcessed || false,
+    isProcessed: (updatedFeedback as { isProcessed?: boolean }).isProcessed || false,
     createdAt: updatedFeedback.createdAt.toISOString(),
     updatedAt: updatedFeedback.updatedAt.toISOString(),
   };
@@ -1529,7 +1602,7 @@ export async function getAllBookingDateRanges(): Promise<BookingDateRange[]> {
   
   return ranges.map(r => ({
     id: r.id,
-    name: r.name || undefined,
+    name: r.name ?? null,
     startDate: r.startDate.toISOString().split('T')[0],
     endDate: r.endDate.toISOString().split('T')[0],
     isActive: r.isActive,
@@ -1549,7 +1622,7 @@ export async function getActiveBookingDateRanges(): Promise<BookingDateRange[]> 
   
   return ranges.map(r => ({
     id: r.id,
-    name: r.name || undefined,
+    name: r.name ?? null,
     startDate: r.startDate.toISOString().split('T')[0],
     endDate: r.endDate.toISOString().split('T')[0],
     isActive: r.isActive,
@@ -1578,7 +1651,7 @@ export async function createBookingDateRange(data: {
   
   return {
     id: range.id,
-    name: range.name || undefined,
+    name: range.name ?? null,
     startDate: range.startDate.toISOString().split('T')[0],
     endDate: range.endDate.toISOString().split('T')[0],
     isActive: range.isActive,
@@ -1599,12 +1672,7 @@ export async function updateBookingDateRange(
     isActive?: boolean;
   }
 ): Promise<BookingDateRange> {
-  const updateData: {
-    name?: string | null;
-    startDate?: Date;
-    endDate?: Date;
-    isActive?: boolean;
-  } = {};
+  const updateData: Prisma.BookingDateRangeUpdateInput = {};
   
   if (data.name !== undefined) updateData.name = data.name || null;
   if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
@@ -1618,7 +1686,7 @@ export async function updateBookingDateRange(
   
   return {
     id: range.id,
-    name: range.name || undefined,
+    name: range.name ?? null,
     startDate: range.startDate.toISOString().split('T')[0],
     endDate: range.endDate.toISOString().split('T')[0],
     isActive: range.isActive,

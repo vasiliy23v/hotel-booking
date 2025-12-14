@@ -64,7 +64,7 @@ export default function RoomWithRnd({
           y: d.y / scale,
         });
       }}
-      onResizeStop={(e, direction, ref, delta, position) => {
+      onResizeStop={(_e, _direction, ref) => {
         // Сохраняем новый размер и позицию
         onResizeStop(room, {
           width: ref.offsetWidth / scale,

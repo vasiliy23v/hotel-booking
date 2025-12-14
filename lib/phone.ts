@@ -15,7 +15,7 @@ export function normalizePhone(phone: string | null | undefined): string | null 
   if (!phone) return null;
   
   // Убираем все пробелы, дефисы и скобки
-  let cleaned = phone.replace(/[\s\-()]/g, '');
+  const cleaned = phone.replace(/[\s\-()]/g, '');
   
   // Если пусто после очистки
   if (!cleaned) return null;

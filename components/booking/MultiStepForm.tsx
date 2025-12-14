@@ -66,7 +66,7 @@ export function MultiStepForm({
 
   const canGoNext = currentStep < steps.length - 1;
   const canGoPrevious = currentStep > 0;
-  const isLastStep = currentStep === steps.length - 1;
+  // const isLastStep = currentStep === steps.length - 1;
 
   return (
     <div className={className}>

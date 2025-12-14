@@ -8,8 +8,18 @@
     "build:full": "npm run check:db && npm run build",
     "check:db": "npx tsx scripts/check-db-connection.ts",
     "postinstall": "prisma generate",
+    "prepare": "node .husky/install.mjs || true",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:db": "jest",
+    "test:db:watch": "jest --watch",
+    "precommit": "lint-staged && npm run test && npm run build",
+    "migrate:capacity": "npx tsx scripts/migrate-capacity-safely.ts",
+    "backup": "npx tsx scripts/create-db-backup.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
@@ -31,7 +41,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "lucide-react": "^0.554.0",
-    "next": "16.0.7",
+    "next": "^16.0.10",
     "next-themes": "^0.4.6",
     "nodemailer": "^7.0.10",
     "react": "19.2.0",
@@ -40,18 +50,31 @@
     "react-rnd": "^10.5.2",
     "sendpulse-api": "^1.1.7",
     "sharp": "^0.34.5",
+    "sonner": "^1.7.1",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4",
     "tsx": "^4.7.0"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "baseline-browser-mapping": "^2.8.32",
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
+    "husky": "^9.1.7",
+    "jest": "^30.2.0",
+    "lint-staged": "^15.2.0",
     "prisma": "^7.0.1",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix"
+    ]
   }
 }

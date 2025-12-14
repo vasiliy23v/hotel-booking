@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Eye, EyeOff, Mail, Phone, AlertCircle, CheckCircle, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Phone, AlertCircle, CheckCircle, Lock } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User } from '@/types';
 
@@ -107,6 +107,7 @@ export default function CompleteProfilePage() {
       });
 
       // Обновляем пользователя в localStorage
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password: _password, ...userWithoutPassword } = updatedUser;
       localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
 

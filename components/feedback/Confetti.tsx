@@ -59,7 +59,7 @@ export function Confetti({ active, duration = 6000 }: ConfettiProps) {
       });
     }
 
-    let startTime = Date.now();
+    const startTime = Date.now();
 
     const animate = () => {
       const elapsed = Date.now() - startTime;

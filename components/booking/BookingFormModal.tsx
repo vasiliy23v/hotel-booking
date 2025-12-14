@@ -7,6 +7,7 @@ import { DatesStep } from './steps/DatesStep';
 import { GuestsStep } from './steps/GuestsStep';
 import { ContactStep } from './steps/ContactStep';
 import { NotesStep } from './steps/NotesStep';
+import { RoomUnavailableDialog } from './RoomUnavailableDialog';
 import type { Guest, User, Room } from '@/types';
 import { api } from '@/lib/api';
 
@@ -58,6 +59,8 @@ export function BookingFormModal({
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+  const [showUnavailableDialog, setShowUnavailableDialog] = useState(false);
+  const [unavailableMessage, setUnavailableMessage] = useState('');
 
   // Обновление формы при открытии модального окна или изменении данных
   useEffect(() => {
@@ -140,7 +143,14 @@ export function BookingFormModal({
       onClose();
     } catch (error) {
       console.error('Error submitting booking:', error);
-      alert('Ошибка при сохранении бронирования');
+      const errorMessage = error instanceof Error ? error.message : 'Ошибка при сохранении бронирования';
+      // Показываем дружелюбное сообщение об ошибке
+      if (errorMessage.includes('забронировал эту комнату раньше')) {
+        setUnavailableMessage(errorMessage);
+        setShowUnavailableDialog(true);
+      } else {
+        alert('Ошибка при сохранении бронирования: ' + errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -287,6 +297,12 @@ export function BookingFormModal({
           />
         </div>
       </div>
+      
+      <RoomUnavailableDialog
+        isOpen={showUnavailableDialog}
+        onClose={() => setShowUnavailableDialog(false)}
+        message={unavailableMessage}
+      />
     </div>
   );
 }

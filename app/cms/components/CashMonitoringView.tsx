@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react';
 import { DollarSign, Calendar } from 'lucide-react';
 import { api } from '@/lib/api';
-import type { CashMonitoring } from '@/types';
+import type { CashMonitoringResponse } from '@/types/api';
 
 export default function CashMonitoringView({ 
   selectedHotel 
 }: { 
   selectedHotel: string 
 }) {
-  const [cashData, setCashData] = useState<CashMonitoring | null>(null);
+  const [cashData, setCashData] = useState<CashMonitoringResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadCashData = async () => {

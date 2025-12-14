@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserById, updateUser, deleteUser } from '@/lib/db';
 import { normalizePhone, isValidPhone } from '@/lib/phone';
+import { logActivity } from '@/lib/logger';
 
 // GET /api/users/[id]
 export async function GET(
@@ -15,7 +16,8 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     
-    const { password, ...userWithoutPassword } = user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...userWithoutPassword } = user;
     return NextResponse.json(userWithoutPassword);
   } catch (error: unknown) {
     console.error('Error in GET /api/users/[id]:', error);
@@ -29,12 +31,22 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const startTime = Date.now();
+  let updatedUser;
+  let currentUser;
+  
   try {
     const { id } = await params;
     const body = await request.json();
     
+    // Получаем IP адрес и User-Agent из запроса
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    
     // Получаем текущего пользователя, чтобы проверить, что после обновления останется хотя бы email или телефон
-    const currentUser = await getUserById(id);
+    currentUser = await getUserById(id);
     if (!currentUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -70,12 +82,72 @@ export async function PUT(
       body.phone = normalizedPhone;
     }
     
-    const updatedUser = await updateUser(id, body);
+    updatedUser = await updateUser(id, body);
     
-    const { password, ...userWithoutPassword } = updatedUser;
+    // Логируем обновление пользователя
+    const duration = Date.now() - startTime;
+    await logActivity({
+      userId: undefined, // Будет заполнено на клиенте
+      userName: updatedUser.name || 'Неизвестный',
+      userRole: updatedUser.role,
+      action: 'user_updated',
+      entity: 'user',
+      entityId: updatedUser.id,
+      details: {
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        role: updatedUser.role,
+        changes: {
+          name: currentUser?.name !== updatedUser.name ? { from: currentUser?.name, to: updatedUser.name } : undefined,
+          email: currentUser?.email !== updatedUser.email ? { from: currentUser?.email, to: updatedUser.email } : undefined,
+          phone: currentUser?.phone !== updatedUser.phone ? { from: currentUser?.phone, to: updatedUser.phone } : undefined,
+          role: currentUser?.role !== updatedUser.role ? { from: currentUser?.role, to: updatedUser.role } : undefined,
+        },
+      },
+      status: 'success',
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+    
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...userWithoutPassword } = updatedUser;
     return NextResponse.json(userWithoutPassword);
   } catch (error: unknown) {
     console.error('Error in PUT /api/users/[id]:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка при обновлении пользователя';
+    const duration = Date.now() - startTime;
+    
+    // Логируем ошибку обновления пользователя
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    
+    await logActivity({
+      userId: undefined,
+      userName: 'Система',
+      userRole: undefined,
+      action: 'user_updated',
+      entity: 'user',
+      entityId: (await params).id,
+      details: {
+        error: errorMessage,
+        currentUser: currentUser ? {
+          name: currentUser.name,
+          email: currentUser.email,
+        } : undefined,
+      },
+      status: 'error',
+      errorMessage,
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
     
     // Обработка ошибок Prisma
     if (error && typeof error === 'object' && 'code' in error) {

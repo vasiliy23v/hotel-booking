@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getInvites, createInvite, deleteInvite, getUserById, updateUser } from '@/lib/db';
 import { generateInviteToken, hashInviteToken } from '@/lib/crypto';
 import crypto from 'crypto';
+import { logActivity } from '@/lib/logger';
 
 // GET /api/invites - Получить все приглашения (для админов)
 export async function GET() {
@@ -17,9 +18,18 @@ export async function GET() {
 
 // POST /api/invites - Создать новое приглашение
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let newInvite;
+  
   try {
     const body = await request.json();
     const { name, expiresInDays = 7, createdBy } = body;
+    
+    // Получаем IP адрес и User-Agent из запроса
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
     
     if (!createdBy) {
       return NextResponse.json(
@@ -65,13 +75,15 @@ export async function POST(request: NextRequest) {
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
     
     // Создаем приглашение в БД
-    const newInvite = await createInvite({
+    newInvite = await createInvite({
       token: hashedToken,
       createdBy,
       createdAt: new Date().toISOString(),
       expiresAt: expiresAt.toISOString(),
       used: false,
-      name: inviteName
+      name: inviteName,
+      usedBy: null,
+      usedAt: null
     });
     
     // Получаем текущий домен из запроса
@@ -90,6 +102,28 @@ export async function POST(request: NextRequest) {
       baseUrl = origin;
     }
     
+    // Логируем создание приглашения
+    const duration = Date.now() - startTime;
+    await logActivity({
+      userId: createdBy,
+      userName: creator.name || 'Неизвестный',
+      userRole: creator.role,
+      action: 'invite_created',
+      entity: 'invite',
+      entityId: newInvite.id,
+      details: {
+        name: inviteName || 'Открытое приглашение',
+        expiresInDays,
+        expiresAt: newInvite.expiresAt,
+      },
+      status: 'success',
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+    
     // Возвращаем токен только один раз при создании
     return NextResponse.json({
       id: newInvite.id,
@@ -99,7 +133,34 @@ export async function POST(request: NextRequest) {
       name: newInvite.name
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    const message = error instanceof Error ? error.message : 'Ошибка при создании приглашения';
+    const duration = Date.now() - startTime;
+    
+    // Логируем ошибку создания приглашения
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    
+    await logActivity({
+      userId: undefined,
+      userName: 'Система',
+      userRole: undefined,
+      action: 'invite_created',
+      entity: 'invite',
+      entityId: newInvite?.id,
+      details: {
+        error: message,
+      },
+      status: 'error',
+      errorMessage: message,
+      ipAddress: ipAddress.split(',')[0].trim(),
+      userAgent,
+      duration,
+    }).catch(() => {
+      // Тихо игнорируем ошибки логирования
+    });
+    
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

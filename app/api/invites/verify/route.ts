@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
     }
     
     // Получаем все приглашения из БД
-    const invites = await query<any>(`SELECT * FROM invites`);
+    const invites = await query<{ token?: string; [key: string]: unknown }>(`SELECT * FROM invites`);
     
     // Ищем приглашение по токену
-    let invite: any = undefined;
+    let invite: { token?: string; [key: string]: unknown } | undefined = undefined;
     for (const inv of invites) {
       try {
         // Проверяем, что токен в базе данных существует и имеет правильный формат
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
           invite = inv;
           break;
         }
-      } catch (error) {
+      } catch {
         // Продолжаем поиск, если произошла ошибка при проверке
         continue;
       }
@@ -53,9 +53,9 @@ export async function GET(request: NextRequest) {
     }
     
     // Преобразуем данные приглашения из БД формата
-    const expiresAt = new Date(invite.expires_at);
-    const inviteName = invite.name;
-    const inviteUsed = invite.used;
+    const expiresAt = new Date(invite.expires_at as string);
+    const inviteName = invite.name as string;
+    const inviteUsed = invite.used as boolean;
     
     // Проверяем срок действия
     const now = new Date();
@@ -87,15 +87,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       valid: true,
       invite: {
-        id: invite.id,
+        id: invite.id as string,
         name: inviteName,
         expiresAt: expiresAt.toISOString()
       },
       userExists // Информация о том, существует ли пользователь (для определения режима)
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
-      { error: error.message, valid: false },
+      { error: errorMessage, valid: false },
       { status: 500 }
     );
   }

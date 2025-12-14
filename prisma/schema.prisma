@@ -269,3 +269,36 @@ model BookingDateRange {
   @@index([isActive])
   @@map("booking_date_ranges")
 }
+
+// ============================================
+// ACTIVITY LOGS (Логи действий пользователей)
+// ============================================
+model ActivityLog {
+  id          String      @id @default(uuid())
+  userId      String?     @map("user_id") // Может быть null для анонимных пользователей
+  userName    String      @map("user_name")
+  userRole    String?     @map("user_role")
+  action      String      // Тип действия (room_created, room_updated, booking_created и т.д.)
+  entity      String      // Тип сущности (room, booking, hotel)
+  entityId    String?     @map("entity_id") // ID сущности
+  details     Json?       // Дополнительные детали действия
+  status      LogStatus   // success, error
+  errorMessage String?    @map("error_message") @db.Text
+  ipAddress   String?     @map("ip_address") @db.VarChar(50)
+  userAgent   String?     @map("user_agent") @db.Text
+  duration    Int?        // Длительность операции в мс
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([status])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+enum LogStatus {
+  success
+  error
+  warning
+}

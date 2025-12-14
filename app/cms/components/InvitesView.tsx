@@ -69,11 +69,14 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
         currentUser.id!
       );
       
-      setNewInviteToken(invite.inviteUrl);
+      const inviteUrl = 'inviteUrl' in invite && typeof invite.inviteUrl === 'string' ? invite.inviteUrl : '';
+      setNewInviteToken(inviteUrl);
       setNewInviteName('');
       // Автоматически копируем ссылку при создании
-      await navigator.clipboard.writeText(invite.inviteUrl);
-      setCopiedToken(invite.inviteUrl);
+      if (inviteUrl) {
+        await navigator.clipboard.writeText(inviteUrl);
+        setCopiedToken(inviteUrl);
+      }
       setTimeout(() => setCopiedToken(null), 2000);
       await loadInvites();
     } catch (error) {
@@ -99,15 +102,19 @@ export default function InvitesView({ currentUser }: { currentUser: User }) {
       const updatedInvites = await api.getInvites();
       const inviteId = updatedInvites.find((inv: Invite) => inv.name === name)?.id;
       if (inviteId) {
-        setInviteUrls(prev => ({ ...prev, [inviteId]: invite.inviteUrl }));
+        const inviteUrl = (invite as { inviteUrl?: string }).inviteUrl || '';
+        setInviteUrls(prev => ({ ...prev, [inviteId]: inviteUrl }));
         // Автоматически показываем ссылку после регенерации
         setVisibleInviteUrl(inviteId);
       }
       
-      setNewInviteToken(invite.inviteUrl);
+      const inviteUrl = invite.inviteUrl || '';
+      setNewInviteToken(inviteUrl || null);
       // Автоматически копируем ссылку при регенерации
-      await navigator.clipboard.writeText(invite.inviteUrl);
-      setCopiedToken(invite.inviteUrl);
+      if (inviteUrl) {
+        await navigator.clipboard.writeText(inviteUrl);
+        setCopiedToken(inviteUrl);
+      }
       setTimeout(() => setCopiedToken(null), 2000);
       
       await loadInvites();

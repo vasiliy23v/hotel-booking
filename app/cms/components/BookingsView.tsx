@@ -1,23 +1,26 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect, ReactElement } from 'react';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, Building2, Search, Edit, MoreVertical, Trash2, Plus } from 'lucide-react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, Search, Edit, MoreVertical, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BookingFormModal, type BookingFormData } from '@/components/booking/BookingFormModal';
 import { ConfirmCancelBookingDialog } from '@/components/booking/ConfirmCancelBookingDialog';
 import { ConfirmPaymentDialog } from '@/components/booking/ConfirmPaymentDialog';
-import type { User, Room, Hotel, BookingInfo, Statistics, Guest } from '@/types';
+import type { User, Room, Hotel, BookingInfo, Guest } from '@/types';
+import type { StatisticsResponse } from '@/types/api';
 
 export default function BookingsView() {
   const [bookings, setBookings] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string })[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statistics, setStatistics] = useState<Statistics | null>(null);
+  const [statistics, setStatistics] = useState<StatisticsResponse | null>(null);
   const [statisticsLoading, setStatisticsLoading] = useState(true);
-  const [filterHotelId, setFilterHotelId] = useState<string>('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_filterHotelId, setFilterHotelId] = useState<string>('');
   const [allowedDateRanges, setAllowedDateRanges] = useState<Array<{ startDate: string; endDate: string }>>([]);
   
   // Поиск
@@ -59,17 +62,17 @@ export default function BookingsView() {
   const [paymentType, setPaymentType] = useState<'half' | 'full'>('half');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  const loadStatistics = async (hotelId?: string) => {
-    try {
-      setStatisticsLoading(true);
-      const stats = await api.getStatistics(hotelId || undefined);
-      setStatistics(stats);
-    } catch (error) {
-      console.error('Error loading statistics:', error);
-    } finally {
-      setStatisticsLoading(false);
-    }
-  };
+  // const _loadStatistics = async (_hotelId?: string) => {
+  //   try {
+  //     setStatisticsLoading(true);
+  //     const stats = await api.getStatistics(hotelId || undefined);
+  //     setStatistics(stats);
+  //   } catch (error) {
+  //     console.error('Error loading statistics:', error);
+  //   } finally {
+  //     setStatisticsLoading(false);
+  //   }
+  // };
 
   const loadAllData = async (hotelId?: string) => {
     try {
@@ -95,14 +98,30 @@ export default function BookingsView() {
       }
 
       // Обогащаем бронирования информацией о комнатах и отелях
-      const enrichedBookings = bookingsData.map((booking: BookingInfo) => {
+      const enrichedBookings = bookingsData.map((booking) => {
         const room = roomsData.find((r: Room) => r.id === booking.roomId);
         const hotel = hotelsData.find((h: Hotel) => h.id === room?.hotelId);
         return {
-          ...booking,
-          // Используем существующий roomNumber/hotelName если есть, иначе берём из room/hotel
-          roomNumber: (booking as any).roomNumber || room?.number || 'N/A',
-          hotelName: (booking as any).hotelName || hotel?.name || 'N/A'
+          id: booking.id,
+          roomId: booking.roomId,
+          bookedBy: booking.bookedBy,
+          bookedDate: booking.bookedDate instanceof Date ? booking.bookedDate.toISOString() : String(booking.bookedDate),
+          email: booking.email || undefined,
+          phone: booking.phone,
+          checkIn: booking.checkIn instanceof Date ? booking.checkIn.toISOString().split('T')[0] : String(booking.checkIn),
+          checkOut: booking.checkOut instanceof Date ? booking.checkOut.toISOString().split('T')[0] : String(booking.checkOut),
+          guests: Array.isArray(booking.guests) ? booking.guests.map((g: { name: string; age?: number }) => ({ name: g.name, email: undefined, phone: undefined, image: undefined })) : undefined,
+          notes: booking.notes || undefined,
+          isConfirmed: booking.isConfirmed,
+          confirmedBy: booking.confirmedBy || undefined,
+          confirmedDate: booking.confirmedDate ? (booking.confirmedDate instanceof Date ? booking.confirmedDate.toISOString() : String(booking.confirmedDate)) : undefined,
+          isPaid: booking.isPaid,
+          paymentMethod: (booking.paymentMethod === 'cash' || booking.paymentMethod === 'transfer') ? booking.paymentMethod : undefined,
+          paymentDate: booking.paymentDate ? (booking.paymentDate instanceof Date ? booking.paymentDate.toISOString() : String(booking.paymentDate)) : undefined,
+          paidBy: booking.paidBy || undefined,
+          amount: booking.amount ? Number(booking.amount) : undefined,
+          roomNumber: room?.number || 'N/A',
+          hotelName: hotel?.name || 'N/A'
         };
       });
 
@@ -130,9 +149,9 @@ export default function BookingsView() {
     const loadDateRanges = async () => {
       try {
         const ranges = await api.getBookingDateRanges(true);
-        setAllowedDateRanges(ranges.map((r: any) => ({
-          startDate: r.startDate,
-          endDate: r.endDate,
+        setAllowedDateRanges(ranges.map((r) => ({
+          startDate: typeof r.startDate === 'string' ? r.startDate : r.startDate.toISOString().split('T')[0],
+          endDate: typeof r.endDate === 'string' ? r.endDate : r.endDate.toISOString().split('T')[0],
         })));
       } catch (error) {
         console.error('Error loading date ranges:', error);
@@ -193,14 +212,30 @@ export default function BookingsView() {
       setHotels(hotelsData);
 
       // Обогащаем бронирования информацией о комнатах и отелях
-      const enrichedBookings = bookingsData.map((booking: BookingInfo) => {
+      const enrichedBookings = bookingsData.map((booking) => {
         const room = roomsData.find((r: Room) => r.id === booking.roomId);
         const hotel = hotelsData.find((h: Hotel) => h.id === room?.hotelId);
         return {
-          ...booking,
-          // Используем существующий roomNumber/hotelName если есть, иначе берём из room/hotel
-          roomNumber: (booking as any).roomNumber || room?.number || 'N/A',
-          hotelName: (booking as any).hotelName || hotel?.name || 'N/A'
+          id: booking.id,
+          roomId: booking.roomId,
+          bookedBy: booking.bookedBy,
+          bookedDate: booking.bookedDate instanceof Date ? booking.bookedDate.toISOString() : String(booking.bookedDate),
+          email: booking.email || undefined,
+          phone: booking.phone,
+          checkIn: booking.checkIn instanceof Date ? booking.checkIn.toISOString().split('T')[0] : String(booking.checkIn),
+          checkOut: booking.checkOut instanceof Date ? booking.checkOut.toISOString().split('T')[0] : String(booking.checkOut),
+          guests: Array.isArray(booking.guests) ? booking.guests.map((g: { name: string; age?: number }) => ({ name: g.name, email: undefined, phone: undefined, image: undefined })) : undefined,
+          notes: booking.notes || undefined,
+          isConfirmed: booking.isConfirmed,
+          confirmedBy: booking.confirmedBy || undefined,
+          confirmedDate: booking.confirmedDate ? (booking.confirmedDate instanceof Date ? booking.confirmedDate.toISOString() : String(booking.confirmedDate)) : undefined,
+          isPaid: booking.isPaid,
+          paymentMethod: (booking.paymentMethod === 'cash' || booking.paymentMethod === 'transfer') ? booking.paymentMethod : undefined,
+          paymentDate: booking.paymentDate ? (booking.paymentDate instanceof Date ? booking.paymentDate.toISOString() : String(booking.paymentDate)) : undefined,
+          paidBy: booking.paidBy || undefined,
+          amount: booking.amount ? Number(booking.amount) : undefined,
+          roomNumber: room?.number || 'N/A',
+          hotelName: hotel?.name || 'N/A'
         };
       });
 
@@ -245,17 +280,6 @@ export default function BookingsView() {
     if (!selectedBookingForEdit?.id) return;
     
     try {
-      // Определяем имя того, кто бронирует
-      let bookedByName: string;
-      
-      if (currentUser?.role === 'manager') {
-        // Менеджер может изменить имя пользователя
-        bookedByName = data.manualUserName?.trim() || selectedBookingForEdit.bookedBy;
-      } else {
-        // Обычный пользователь - имя берется из currentUser
-        bookedByName = currentUser?.name || selectedBookingForEdit.bookedBy;
-      }
-
       await api.updateBooking(selectedBookingForEdit.id, {
         checkIn: data.checkIn,
         checkOut: data.checkOut,
@@ -263,7 +287,6 @@ export default function BookingsView() {
         guests: data.guests,
         email: data.email,
         phone: data.phone,
-        bookedBy: bookedByName,
       });
       setShowEditModal(false);
       setSelectedBookingForEdit(null);
@@ -348,22 +371,36 @@ export default function BookingsView() {
       );
       const room = rooms.find(r => r.id === paymentBooking.roomId);
       
-      // Рассчитываем totalAmount с учётом perPerson
+      // Рассчитываем полную сумму бронирования с учётом perPerson
+      // НЕ используем paymentBooking.amount, так как это уже оплаченная сумма, а не полная
       let totalAmount: number;
-      if (paymentBooking.amount) {
-        totalAmount = paymentBooking.amount;
-      } else if (room?.pricePerPerson && paymentBooking.guests) {
+      if (room?.pricePerPerson && paymentBooking.guests) {
         const guestsCount = Array.isArray(paymentBooking.guests) ? paymentBooking.guests.length : 0;
         totalAmount = nights * (room?.price || 0) * guestsCount;
       } else {
         totalAmount = nights * (room?.price || 0);
       }
       
-      const paymentAmount = paymentType === 'half' ? totalAmount / 2 : totalAmount;
+      // Получаем уже оплаченную сумму
+      const alreadyPaid = paymentBooking.amount ? Number(paymentBooking.amount) : 0;
+      
+      // Рассчитываем новую сумму после доплаты
+      let newAmount: number;
+      if (paymentType === 'half') {
+        // Для 50% оплаты: доплачиваем до 50% от полной суммы
+        const halfAmount = totalAmount / 2;
+        // Если уже оплачено меньше 50%, доплачиваем до 50%
+        newAmount = Math.max(halfAmount, alreadyPaid);
+        // Но не больше полной суммы
+        newAmount = Math.min(newAmount, totalAmount);
+      } else {
+        // Для 100% оплаты: доплачиваем до полной суммы
+        newAmount = totalAmount;
+      }
 
       if (paymentBooking.id) {
         await api.updateBooking(paymentBooking.id, {
-          amount: paymentAmount,
+          amount: newAmount,
           isPaid: paymentType === 'full', // Полная оплата только для 100%
           paidBy: currentUser.name,
           paymentDate: new Date().toISOString(),
@@ -371,11 +408,12 @@ export default function BookingsView() {
         await loadBookings();
         setShowPaymentDialog(false);
         setPaymentBooking(null);
-        alert(`Подтверждена оплата ${paymentType === 'half' ? '50%' : '100%'} (${paymentAmount.toFixed(2)}€)`);
+        const addedAmount = newAmount - alreadyPaid;
+        alert(`Подтверждена оплата ${paymentType === 'half' ? '50%' : '100%'} (${addedAmount.toFixed(2)}€ добавлено, всего: ${newAmount.toFixed(2)}€)`);
       }
     } catch (error) {
       console.error('Error confirming payment:', error);
-      alert('Ошибка при подтверждении оплаты');
+      alert('Ошибка при подтверждении оплаты: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     } finally {
       setIsProcessingPayment(false);
     }
@@ -876,7 +914,8 @@ export default function BookingsView() {
                   // Если isPaid === true, считаем что оплачена полная сумма expectedAmount
                   // Если isPaid === false, то оплачено 0
                   const alreadyPaid = booking.isPaid ? expectedAmount : 0;
-                  const remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
+                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                  const _remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
                   const isFullyPaid = booking.isPaid && alreadyPaid >= expectedAmount;
                   const isHalfPaidOrMore = alreadyPaid >= (totalPrice / 2) && alreadyPaid > 0 && !isFullyPaid;
 
@@ -1210,7 +1249,8 @@ export default function BookingsView() {
         
         // Если бронирование оплачено, считаем оплаченной всю сумму
         const alreadyPaid = booking.isPaid ? expectedAmount : 0;
-        const remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
         const totalPrice = expectedAmount;
         
         return (
@@ -1483,7 +1523,8 @@ export default function BookingsView() {
         
         // Рассчитываем totalBookingAmount с учётом perPerson
         let totalBookingAmount: number;
-        if (paymentBooking.amount) {
+        if (paymentBooking.amount && paymentBooking.isPaid) {
+          // Если уже полностью оплачено, используем сохранённую сумму
           totalBookingAmount = paymentBooking.amount;
         } else if (room?.pricePerPerson && paymentBooking.guests) {
           const guestsCount = Array.isArray(paymentBooking.guests) ? paymentBooking.guests.length : 0;
@@ -1492,8 +1533,20 @@ export default function BookingsView() {
           totalBookingAmount = nights * (room?.price || 0);
         }
         
-        const alreadyPaid = paymentBooking.isPaid ? totalBookingAmount : 0;
-        const paymentAmount = paymentType === 'half' ? totalBookingAmount / 2 : totalBookingAmount;
+        // Уже оплаченная сумма берется из amount, а не из isPaid
+        const alreadyPaid = paymentBooking.amount ? Number(paymentBooking.amount) : 0;
+        
+        // Рассчитываем сумму к доплате
+        let paymentAmount: number;
+        if (paymentType === 'half') {
+          // Для 50%: если уже оплачено меньше 50%, доплачиваем до 50%
+          const halfAmount = totalBookingAmount / 2;
+          paymentAmount = Math.max(halfAmount, alreadyPaid + (totalBookingAmount / 2));
+          paymentAmount = Math.min(paymentAmount, totalBookingAmount);
+        } else {
+          // Для 100%: доплачиваем до полной суммы
+          paymentAmount = totalBookingAmount;
+        }
         const amountToAdd = paymentAmount - alreadyPaid;
 
         return (

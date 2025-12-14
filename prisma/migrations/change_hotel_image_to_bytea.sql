@@ -13,3 +13,6 @@ ALTER TABLE hotels
 COMMIT;
 
 
+
+
+

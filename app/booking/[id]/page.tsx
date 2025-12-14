@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import type { Room, User, Guest, BookingInfo } from '@/types';
+import type { Room, User, Guest } from '@/types';
 import { MultiStepForm } from '@/components/booking/MultiStepForm';
 import { DatesStep } from '@/components/booking/steps/DatesStep';
 import { GuestsStep } from '@/components/booking/steps/GuestsStep';
 import { ContactStep } from '@/components/booking/steps/ContactStep';
 import { NotesStep } from '@/components/booking/steps/NotesStep';
+import { RoomUnavailableDialog } from '@/components/booking/RoomUnavailableDialog';
 
 export default function BookingPage() {
   const router = useRouter();
@@ -44,8 +45,8 @@ export default function BookingPage() {
   });
   
   // Преобразуем строки в Date объекты для DatePicker
-  const checkInDate = checkIn ? new Date(checkIn) : undefined;
-  const checkOutDate = checkOut ? new Date(checkOut) : undefined;
+  // const _checkInDate = checkIn ? new Date(checkIn) : undefined;
+  // const _checkOutDate = checkOut ? new Date(checkOut) : undefined;
   const [guests, setGuests] = useState<Guest[]>([]);
   const [notes, setNotes] = useState('');
   const [manualUserName, setManualUserName] = useState('');
@@ -54,6 +55,25 @@ export default function BookingPage() {
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+  const [showUnavailableDialog, setShowUnavailableDialog] = useState(false);
+  const [unavailableMessage, setUnavailableMessage] = useState('');
+
+  const loadRoom = useCallback(async () => {
+    try {
+      setLoading(true);
+      const roomData = await api.getRoom(roomId);
+      setRoom(roomData);
+
+      // Обычные пользователи могут бронировать комнату, даже если есть другие бронирования
+      // Проверка доступности будет происходить при выборе дат
+      // Менеджер может бронировать любую комнату на любые даты (с проверкой пересечений)
+    } catch (error) {
+      console.error('Error loading room:', error);
+      router.push('/dashboard');
+    } finally {
+      setLoading(false);
+    }
+  }, [roomId, router]);
 
   useEffect(() => {
     const loadUserAndRoom = async () => {
@@ -64,17 +84,16 @@ export default function BookingPage() {
       }
 
       const user = JSON.parse(userStr);
-      let finalUser = user;
       
       // Загружаем актуальные данные пользователя из базы данных
       try {
         if (user.id) {
           const updatedUser = await api.getUser(user.id);
           // Обновляем localStorage актуальными данными
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { password: _password, ...userWithoutPassword } = updatedUser;
           localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
           
-          finalUser = userWithoutPassword;
           setCurrentUser(userWithoutPassword);
           setEmail(updatedUser.email || '');
           setPhone(updatedUser.phone || '');
@@ -92,28 +111,11 @@ export default function BookingPage() {
         setPhone(user.phone || '');
       }
       
-      loadRoom(finalUser);
+      loadRoom();
     };
 
     loadUserAndRoom();
-  }, [router, roomId]);
-
-  const loadRoom = async (user?: User) => {
-    try {
-      setLoading(true);
-      const roomData = await api.getRoom(roomId);
-      setRoom(roomData);
-
-      // Обычные пользователи могут бронировать комнату, даже если есть другие бронирования
-      // Проверка доступности будет происходить при выборе дат
-      // Менеджер может бронировать любую комнату на любые даты (с проверкой пересечений)
-    } catch (error) {
-      console.error('Error loading room:', error);
-      router.push('/dashboard');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [router, roomId, loadRoom]);
 
   // Проверка доступности комнаты при изменении дат
   useEffect(() => {
@@ -153,7 +155,7 @@ export default function BookingPage() {
             if (conflicting) {
               const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
               const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
-              setAvailabilityError(`Комната уже забронирована на период ${existingCheckIn} - ${existingCheckOut}`);
+              setAvailabilityError(`К сожалению, кто-то забронировал эту комнату раньше вас на период ${existingCheckIn} - ${existingCheckOut}`);
             } else {
               setAvailabilityError('Комната недоступна на выбранные даты');
             }
@@ -179,15 +181,15 @@ export default function BookingPage() {
   }, [checkIn, checkOut, roomId, room]);
 
 
-  const addGuest = () => {
-    if (guests.length < (room?.maxCapacity || 4)) {
-      setGuests([...guests, { name: '', email: '', phone: '', image: '' }]);
-    }
-  };
+  // const _addGuest = () => {
+  //   if (guests.length < (room?.maxCapacity || 4)) {
+  //     setGuests([...guests, { name: '', email: '', phone: '', image: '' }]);
+  //   }
+  // };
 
-  const removeGuest = (index: number) => {
-    setGuests(guests.filter((_, i) => i !== index));
-  };
+  // const _removeGuest = (index: number) => {
+  //   setGuests(guests.filter((_, i) => i !== index));
+  // };
 
   const updateGuest = (index: number, field: keyof Guest, value: string) => {
     const updatedGuests = [...guests];
@@ -278,7 +280,8 @@ export default function BookingPage() {
 
     // Проверяем доступность перед отправкой
     if (isAvailable === false) {
-      alert(availabilityError || 'Комната недоступна на выбранные даты. Пожалуйста, выберите другие даты.');
+      setUnavailableMessage(availabilityError || 'Комната недоступна на выбранные даты. Пожалуйста, выберите другие даты.');
+      setShowUnavailableDialog(true);
       return;
     }
 
@@ -339,28 +342,15 @@ export default function BookingPage() {
       }
 
       // Рассчитываем сумму с учётом perPerson
-      const nights = Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24));
-      let amount: number;
-      if (room?.pricePerPerson) {
-        // Для комнат с ценой за человека: цена * ночи * количество людей (включая основного пользователя)
-        const totalPeople = finalGuests.length;
-        amount = Number(room.price) * nights * totalPeople;
-      } else {
-        // Для обычных комнат: цена * ночи
-        amount = Number(room?.price || 0) * nights;
-      }
-
-      const booking: BookingInfo = {
+      const booking = {
         roomId: roomId,
         bookedBy: bookedByName,
-        bookedDate: new Date().toISOString(),
         email: bookingEmail || undefined,
         phone: cleanPhone,
         checkIn,
         checkOut,
-        guests: finalGuests.length > 0 ? finalGuests : undefined,
+        guests: finalGuests.length > 0 ? finalGuests.map(g => ({ name: g.name })) : [],
         notes: notes.trim() || undefined,
-        amount: amount
       };
 
       await api.createBooking(booking);
@@ -378,7 +368,13 @@ export default function BookingPage() {
       router.push('/dashboard');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
-      alert('Ошибка при создании бронирования: ' + message);
+      // Показываем дружелюбное сообщение об ошибке
+      if (message.includes('забронировал эту комнату раньше')) {
+        setUnavailableMessage(message);
+        setShowUnavailableDialog(true);
+      } else {
+        alert('Ошибка при создании бронирования: ' + message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -392,11 +388,11 @@ export default function BookingPage() {
     );
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  // const _today = new Date().toISOString().split('T')[0];
   const nights = checkIn && checkOut 
     ? Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
-  const total = nights * room.price;
+  // const _total = nights * room.price;
 
   const validateDates = () => {
     if (!checkIn || !checkOut) return false;
@@ -522,6 +518,12 @@ export default function BookingPage() {
           />
         </div>
       </div>
+      
+      <RoomUnavailableDialog
+        isOpen={showUnavailableDialog}
+        onClose={() => setShowUnavailableDialog(false)}
+        message={unavailableMessage}
+      />
     </div>
   );
 }

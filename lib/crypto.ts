@@ -47,7 +47,7 @@ export function verifyInviteToken(token: string, hash: string): boolean {
     }
     
     return crypto.timingSafeEqual(tokenHashBuffer, hashBuffer);
-  } catch (error) {
+  } catch {
     // Если произошла ошибка (например, неверный формат hex), возвращаем false
     return false;
   }

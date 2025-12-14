@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Building2, BookOpen, Users, MessageCircle, LogOut, ChevronDown, MessageSquare, Calendar } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Building2, BookOpen, Users, MessageCircle, LogOut, ChevronDown, MessageSquare, Calendar, FileText, Lock } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -59,6 +60,7 @@ export function AppSidebar({
   onLoadBookings,
   onShowFeedbackForm,
 }: AppSidebarProps) {
+  const router = useRouter();
   const isManager = currentUser.role === 'manager' || currentUser.role === 'developer';
   const isGuest = currentUser.role === 'guest';
   const [hotelsOpen, setHotelsOpen] = useState(true);
@@ -280,6 +282,19 @@ export function AppSidebar({
 
       <SidebarFooter>
         <SidebarMenu>
+          {/* Кнопка "Логи системы" только для менеджеров и разработчиков */}
+          {isManager && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => router.push('/cms/logs')}
+                tooltip="Логи системы"
+                className={currentUser.role === 'manager' ? 'text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300' : ''}
+              >
+                <Lock className="w-4 h-4" />
+                <span>Логи системы</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           {/* Для менеджеров оставляем кнопки в сайдбаре */}
           {isManager && (
             <>

@@ -25,15 +25,18 @@ async function restoreData() {
         try {
           await createUser({
             id: user.id,
-            email: user.email || undefined,
+            email: user.email || null,
             name: user.name,
-            password: user.password || undefined,
-            phone: user.phone || undefined,
+            password: user.password || null,
+            phone: user.phone || null,
             role: user.role,
+            isProfileComplete: user.isProfileComplete ?? true,
+            createdAt: user.createdAt || new Date().toISOString(),
           });
           console.log(`✓ Пользователь ${user.name} восстановлен`);
-        } catch (error: any) {
-          console.error(`✗ Ошибка при восстановлении пользователя ${user.id}:`, error?.message || error);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`✗ Ошибка при восстановлении пользователя ${user.id}:`, errorMessage);
         }
       }
       console.log('Пользователи восстановлены\n');
@@ -48,13 +51,16 @@ async function restoreData() {
             id: hotel.id,
             name: hotel.name,
             address: hotel.address,
-            description: hotel.description || undefined,
-            floors: hotel.floors || undefined,
-            image: hotel.image || undefined,
+            description: hotel.description || null,
+            floors: hotel.floors || null,
+            hasEGFloor: hotel.hasEGFloor ?? true,
+            image: hotel.image || null,
+            displayOrder: hotel.displayOrder || null,
           });
           console.log(`✓ Отель ${hotel.name} восстановлен`);
-        } catch (error: any) {
-          console.error(`✗ Ошибка при восстановлении отеля ${hotel.id}:`, error?.message || error);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`✗ Ошибка при восстановлении отеля ${hotel.id}:`, errorMessage);
         }
       }
       console.log('Отели восстановлены\n');
@@ -69,7 +75,7 @@ async function restoreData() {
             id: room.id,
             number: room.number,
             hotelId: room.hotelId,
-            name: room.name || undefined,
+            name: room.name || null,
             type: room.type,
             capacity: room.capacity,
             maxCapacity: room.maxCapacity,
@@ -77,17 +83,20 @@ async function restoreData() {
             floor: room.floor,
             price: room.price || 0,
             position: room.position || { x: 0, y: 0 },
-            width: room.width || undefined,
-            height: room.height || undefined,
+            width: room.width || null,
+            height: room.height || null,
             isCommon: room.isCommon || false,
             zIndex: room.zIndex || 1,
-            description: room.description || undefined,
+            description: room.description || null,
             hasShower: room.hasShower || false,
             hasToilet: room.hasToilet || false,
+            pricePerPerson: room.pricePerPerson || false,
+            textVertical: room.textVertical || false,
           });
           console.log(`✓ Комната ${room.number} восстановлена`);
-        } catch (error: any) {
-          console.error(`✗ Ошибка при восстановлении комнаты ${room.id}:`, error?.message || error);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`✗ Ошибка при восстановлении комнаты ${room.id}:`, errorMessage);
         }
       }
       console.log('Комнаты восстановлены\n');
@@ -109,8 +118,9 @@ async function restoreData() {
             targetFloor: stairs.targetFloor || undefined,
           });
           console.log(`✓ Лестница ${stairs.id} восстановлена`);
-        } catch (error: any) {
-          console.error(`✗ Ошибка при восстановлении лестницы ${stairs.id}:`, error?.message || error);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`✗ Ошибка при восстановлении лестницы ${stairs.id}:`, errorMessage);
         }
       }
       console.log('Лестницы восстановлены\n');
@@ -142,8 +152,9 @@ async function restoreData() {
             amount: booking.amount || undefined,
           });
           console.log(`✓ Бронирование ${booking.id} восстановлено`);
-        } catch (error: any) {
-          console.error(`✗ Ошибка при восстановлении бронирования ${booking.id}:`, error?.message || error);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`✗ Ошибка при восстановлении бронирования ${booking.id}:`, errorMessage);
         }
       }
       console.log('Бронирования восстановлены\n');
@@ -166,8 +177,9 @@ async function restoreData() {
             usedAt: invite.usedAt || undefined,
           });
           console.log(`✓ Приглашение ${invite.name} восстановлено`);
-        } catch (error: any) {
-          console.error(`✗ Ошибка при восстановлении приглашения ${invite.id}:`, error?.message || error);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`✗ Ошибка при восстановлении приглашения ${invite.id}:`, errorMessage);
         }
       }
       console.log('Приглашения восстановлены\n');
@@ -184,23 +196,26 @@ async function restoreData() {
           const feedbackData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
           await createFeedback({
             userName: feedbackData.userName,
-            userEmail: feedbackData.userEmail || undefined,
+            userEmail: feedbackData.userEmail || null,
             userRole: feedbackData.userRole,
             comment: feedbackData.comment,
-            screenshot: feedbackData.screenshot || undefined,
-            userAgent: feedbackData.userAgent || undefined,
+            screenshot: feedbackData.screenshot || null,
+            userAgent: feedbackData.userAgent || null,
+            isProcessed: feedbackData.isProcessed || false,
           });
           console.log(`✓ Отзыв из ${file} восстановлен`);
-        } catch (error: any) {
-          console.error(`✗ Ошибка при восстановлении отзыва из ${file}:`, error?.message || error);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`✗ Ошибка при восстановлении отзыва из ${file}:`, errorMessage);
         }
       }
       console.log('Отзывы восстановлены\n');
     }
 
     console.log('✅ Все данные успешно восстановлены!');
-  } catch (error: any) {
-    console.error('Ошибка при восстановлении данных:', error?.message || error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Ошибка при восстановлении данных:', errorMessage);
     throw error;
   }
 }

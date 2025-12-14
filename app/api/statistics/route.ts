@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRooms, getBookings } from '@/lib/db';
-import type { Room, BookingInfo } from '@/types';
+import { getRooms } from '@/lib/db';
+import type { Room } from '@/types';
 
 // GET /api/statistics
 export async function GET(request: NextRequest) {
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     
     // Подсчитываем уникальных гостей по email или name
     const uniqueGuests = new Set<string>();
-    allGuests.forEach((g: any) => {
+    allGuests.forEach((g: { email?: string; name?: string }) => {
       if (g?.email) {
         uniqueGuests.add(g.email);
       } else if (g?.name) {
@@ -134,12 +134,13 @@ export async function GET(request: NextRequest) {
       roomsByType,
       roomsByFloor
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/statistics:', error);
-    console.error('Error stack:', error.stack);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
     return NextResponse.json({ 
-      error: error.message || 'Internal server error',
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: errorMessage,
+      stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
     }, { status: 500 });
   }
 }

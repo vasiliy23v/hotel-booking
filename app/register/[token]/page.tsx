@@ -1,8 +1,9 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Building2, Eye, EyeOff, Mail, Phone, AlertCircle, CheckCircle, Key } from 'lucide-react';
+import { Eye, EyeOff, Mail, Phone, AlertCircle, CheckCircle, Key } from 'lucide-react';
 import { api } from '@/lib/api';
 import { normalizePhone, isValidPhone } from '@/lib/phone';
 
@@ -126,11 +127,10 @@ export default function RegistrationPage() {
       // Регистрация с общим токеном
       const newUser = await api.createUser({
         email: email.trim() || undefined,
-        name: name.trim() || undefined,
+        name: name.trim() || '',
         phone: phone.trim() || undefined,
         password,
         role: 'guest',
-        inviteToken: token
       });
 
       localStorage.setItem('currentUser', JSON.stringify(newUser));
