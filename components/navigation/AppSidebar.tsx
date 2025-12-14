@@ -282,16 +282,19 @@ export function AppSidebar({
 
       <SidebarFooter>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => router.push('/cms/logs')}
-              tooltip="Логи системы"
-              className={currentUser.role === 'manager' ? 'text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300' : ''}
-            >
-              <Lock className="w-4 h-4" />
-              <span>Логи системы</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {/* Кнопка "Логи системы" только для менеджеров и разработчиков */}
+          {isManager && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => router.push('/cms/logs')}
+                tooltip="Логи системы"
+                className={currentUser.role === 'manager' ? 'text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300' : ''}
+              >
+                <Lock className="w-4 h-4" />
+                <span>Логи системы</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           {/* Для менеджеров оставляем кнопки в сайдбаре */}
           {isManager && (
             <>

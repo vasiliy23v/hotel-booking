@@ -139,28 +139,52 @@ export async function apiRequest<T = unknown>(
       if (logAction && shouldLogSuccess) {
         const dataWithId = data as { id?: string } | null;
         
-        // Для бронирований добавляем детальную информацию
+        // Для бронирований добавляем детальную информацию со всеми полями
         let details: Record<string, unknown> = { method };
         if (isBookingOperation && data && typeof data === 'object') {
           const bookingData = data as { 
             id?: string; 
             roomId?: string; 
-            checkIn?: string; 
-            checkOut?: string; 
             bookedBy?: string;
-            isPaid?: boolean;
+            bookedDate?: string;
+            email?: string;
+            phone?: string;
+            checkIn?: string; 
+            checkOut?: string;
+            guests?: Array<{ name: string; email?: string; phone?: string; image?: string }>;
+            notes?: string;
             isConfirmed?: boolean;
+            confirmedBy?: string;
+            confirmedDate?: string;
+            isPaid?: boolean;
+            paymentMethod?: 'cash' | 'transfer';
+            paymentDate?: string;
+            paidBy?: string;
+            amount?: number;
           };
           
-          // Сохраняем важную информацию о бронировании
+          // Сохраняем всю информацию о бронировании
           details = {
             method,
+            id: bookingData.id,
             roomId: bookingData.roomId,
+            bookedBy: bookingData.bookedBy,
+            bookedDate: bookingData.bookedDate,
+            email: bookingData.email,
+            phone: bookingData.phone,
             checkIn: bookingData.checkIn,
             checkOut: bookingData.checkOut,
-            bookedBy: bookingData.bookedBy,
-            isPaid: bookingData.isPaid,
+            guests: bookingData.guests,
+            guestsCount: bookingData.guests?.length || 0,
+            notes: bookingData.notes,
             isConfirmed: bookingData.isConfirmed,
+            confirmedBy: bookingData.confirmedBy,
+            confirmedDate: bookingData.confirmedDate,
+            isPaid: bookingData.isPaid,
+            paymentMethod: bookingData.paymentMethod,
+            paymentDate: bookingData.paymentDate,
+            paidBy: bookingData.paidBy,
+            amount: bookingData.amount,
           };
         }
         

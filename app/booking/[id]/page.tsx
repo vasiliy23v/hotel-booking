@@ -9,6 +9,7 @@ import { DatesStep } from '@/components/booking/steps/DatesStep';
 import { GuestsStep } from '@/components/booking/steps/GuestsStep';
 import { ContactStep } from '@/components/booking/steps/ContactStep';
 import { NotesStep } from '@/components/booking/steps/NotesStep';
+import { RoomUnavailableDialog } from '@/components/booking/RoomUnavailableDialog';
 
 export default function BookingPage() {
   const router = useRouter();
@@ -54,6 +55,8 @@ export default function BookingPage() {
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+  const [showUnavailableDialog, setShowUnavailableDialog] = useState(false);
+  const [unavailableMessage, setUnavailableMessage] = useState('');
 
   const loadRoom = useCallback(async () => {
     try {
@@ -277,7 +280,8 @@ export default function BookingPage() {
 
     // Проверяем доступность перед отправкой
     if (isAvailable === false) {
-      alert(availabilityError || 'Комната недоступна на выбранные даты. Пожалуйста, выберите другие даты.');
+      setUnavailableMessage(availabilityError || 'Комната недоступна на выбранные даты. Пожалуйста, выберите другие даты.');
+      setShowUnavailableDialog(true);
       return;
     }
 
@@ -366,7 +370,8 @@ export default function BookingPage() {
       const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
       // Показываем дружелюбное сообщение об ошибке
       if (message.includes('забронировал эту комнату раньше')) {
-        alert(message);
+        setUnavailableMessage(message);
+        setShowUnavailableDialog(true);
       } else {
         alert('Ошибка при создании бронирования: ' + message);
       }
@@ -513,6 +518,12 @@ export default function BookingPage() {
           />
         </div>
       </div>
+      
+      <RoomUnavailableDialog
+        isOpen={showUnavailableDialog}
+        onClose={() => setShowUnavailableDialog(false)}
+        message={unavailableMessage}
+      />
     </div>
   );
 }
