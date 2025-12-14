@@ -125,6 +125,11 @@ export async function getActivityLogs(filters: {
   try {
     // Динамический импорт prisma только на сервере
     const { prisma } = await import('./prisma');
+    
+    // Проверяем подключение к БД перед запросом
+    console.log('[Get Logs] Prisma client initialized');
+    console.log('[Get Logs] DATABASE_URL exists:', !!process.env.DATABASE_URL);
+    
     const where: Prisma.ActivityLogWhereInput = {};
 
     if (filters.userId) where.userId = filters.userId;
@@ -139,6 +144,9 @@ export async function getActivityLogs(filters: {
       if (filters.endDate) where.createdAt.lte = filters.endDate;
     }
 
+    console.log('[Get Logs] Where clause:', JSON.stringify(where, null, 2));
+    console.log('[Get Logs] Limit:', filters.limit || 100, 'Offset:', filters.offset || 0);
+
     const [logs, total] = await Promise.all([
       prisma.activityLog.findMany({
         where,
@@ -149,10 +157,22 @@ export async function getActivityLogs(filters: {
       prisma.activityLog.count({ where }),
     ]);
 
+    console.log(`[Get Logs] Found ${logs.length} logs, total: ${total}`);
     return { logs, total };
   } catch (error) {
     console.error('[Get Logs Error]', error);
-    return { logs: [], total: 0 };
+    // Детальное логирование ошибки
+    if (error instanceof Error) {
+      console.error('[Get Logs Error] Message:', error.message);
+      console.error('[Get Logs Error] Stack:', error.stack);
+      console.error('[Get Logs Error] Name:', error.name);
+    }
+    // Проверяем, есть ли DATABASE_URL
+    if (!process.env.DATABASE_URL) {
+      console.error('[Get Logs Error] DATABASE_URL is not set!');
+    }
+    // Возвращаем ошибку в специальном формате, чтобы API мог её обработать
+    return { logs: [], total: 0, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 
