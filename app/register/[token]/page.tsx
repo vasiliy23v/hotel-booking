@@ -131,6 +131,7 @@ export default function RegistrationPage() {
         phone: phone.trim() || undefined,
         password,
         role: 'guest',
+        inviteToken: token, // Передаем токен регистрации
       });
 
       localStorage.setItem('currentUser', JSON.stringify(newUser));

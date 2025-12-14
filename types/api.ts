@@ -178,6 +178,8 @@ export type CreateUserInput = {
   password?: string;
   phone?: string;
   role: UserRole;
+  inviteToken?: string;
+  directCreate?: boolean;
 };
 
 export type UpdateUserInput = Partial<Omit<CreateUserInput, 'role'>> & {

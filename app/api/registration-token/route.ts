@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
     const response: Record<string, unknown> = {
       exists: true,
       id: registrationToken.id,
+      originalToken: registrationToken.originalToken || null,
       isActive: registrationToken.isActive,
       createdAt: registrationToken.createdAt,
       updatedAt: registrationToken.updatedAt,
@@ -139,6 +140,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       id: registrationToken.id,
       token, // Возвращаем незахэшированный токен только при создании
+      originalToken: registrationToken.originalToken || token, // Возвращаем originalToken для совместимости
       registrationUrl: `${baseUrl}/register/${token}`,
       createdAt: registrationToken.createdAt,
       updatedAt: registrationToken.updatedAt,

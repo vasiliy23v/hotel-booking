@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut, ArrowLeft, Euro, Edit, CheckCircle } from 'lucide-react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut, ArrowLeft, Euro, Edit, CheckCircle, Info } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 // import { DatePicker } from '@/components/ui/date-picker';
@@ -21,9 +21,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { User, Room, Hotel, BookingInfo } from '@/types';
 import Link from 'next/link';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function BookingsPage() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [bookings, setBookings] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string })[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -259,9 +261,16 @@ export default function BookingsPage() {
     return sortDirection === 'asc' ? comparison : -comparison;
   });
 
+  // Для админа на мобильных скрываем последнее бронирование
+  const isAdmin = currentUser.role === 'manager' || currentUser.role === 'developer';
+  const hiddenBookingsCount = isAdmin && isMobile && filteredBookings.length > 0 ? 1 : 0;
+  const displayedBookings = isAdmin && isMobile && filteredBookings.length > 0 
+    ? filteredBookings.slice(0, -1) 
+    : filteredBookings;
+
   // Группируем бронирования по отелям для обычных пользователей
   const bookingsByHotel = currentUser.role !== 'manager' 
-    ? filteredBookings.reduce((acc, booking) => {
+    ? displayedBookings.reduce((acc, booking) => {
         const room = rooms.find(r => r.id === booking.roomId);
         const hotelId = room?.hotelId || 'unknown';
         if (!acc[hotelId]) {
@@ -269,7 +278,7 @@ export default function BookingsPage() {
         }
         acc[hotelId].push(booking);
         return acc;
-      }, {} as Record<string, typeof filteredBookings>)
+      }, {} as Record<string, typeof displayedBookings>)
     : null;
 
   const handleSort = (column: typeof sortBy) => {
@@ -431,7 +440,7 @@ export default function BookingsPage() {
             <div className="text-center py-12">
               <div className="text-lg text-gray-900 dark:text-foreground">Загрузка...</div>
             </div>
-          ) : filteredBookings.length === 0 ? (
+          ) : displayedBookings.length === 0 ? (
             <div className="text-center py-12">
               <BookOpen className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
               <p className="text-gray-500 dark:text-gray-400 text-lg">Бронирования не найдены</p>
@@ -717,7 +726,7 @@ export default function BookingsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredBookings.map((booking) => {
+                  {displayedBookings.map((booking) => {
                     const nights = Math.ceil(
                       (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 
                       (1000 * 60 * 60 * 24)
@@ -1020,6 +1029,31 @@ export default function BookingsPage() {
                       );
                     }
                   })}
+                  {/* Показываем скрытое последнее бронирование в синем кружке для админа на мобильных */}
+                  {hiddenBookingsCount > 0 && filteredBookings.length > 0 && (() => {
+                    const lastBooking = filteredBookings[filteredBookings.length - 1];
+                    const nights = Math.ceil(
+                      (new Date(lastBooking.checkOut).getTime() - new Date(lastBooking.checkIn).getTime()) / 
+                      (1000 * 60 * 60 * 24)
+                    );
+                    const room = rooms.find(r => r.id === lastBooking.roomId);
+                    
+                    return (
+                      <TableRow key={`hidden-${lastBooking.id}`}>
+                        <TableCell colSpan={currentUser.role === 'manager' ? 12 : 8} className="py-3">
+                          <div className="flex items-center justify-center">
+                            <div 
+                              className="w-12 h-12 rounded-full bg-blue-500 dark:bg-blue-600 flex items-center justify-center cursor-pointer hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors shadow-md"
+                              title={`${lastBooking.bookedBy} - ${room?.number || 'N/A'} (${new Date(lastBooking.checkIn).toLocaleDateString('ru-RU')} - ${new Date(lastBooking.checkOut).toLocaleDateString('ru-RU')})`}
+                              onClick={() => handleEdit(lastBooking)}
+                            >
+                              <Info className="w-6 h-6 text-white" />
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })()}
                 </TableBody>
               </Table>
             </div>

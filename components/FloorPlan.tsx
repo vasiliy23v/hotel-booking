@@ -1928,7 +1928,7 @@ export default function FloorPlan({
                     </div>
                     {/* Информация о бронировании для менеджера в компактном режиме */}
                     {isManager && room.booking && (
-                      <div className="mt-1 text-[9px] text-gray-700 dark:text-foreground border-t border-gray-300 dark:border-border pt-1">
+                      <div className="sm:block hidden mt-1 text-[9px] text-gray-700 dark:text-foreground border-t border-gray-300 dark:border-border pt-1">
                         <div className="font-semibold truncate" title={room.booking.bookedBy}>
                           {room.booking.bookedBy}
                         </div>
@@ -2735,6 +2735,12 @@ export default function FloorPlan({
                   .filter((b: BookingInfo) => new Date(b.checkOut) >= today)
                   .sort((a: BookingInfo, b: BookingInfo) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
                 
+                // Находим последнее прошедшее бронирование (скрытое)
+                const pastBookings = (bookingsPopupRoom.bookings || [])
+                  .filter((b: BookingInfo) => new Date(b.checkOut) < today)
+                  .sort((a: BookingInfo, b: BookingInfo) => new Date(b.checkOut).getTime() - new Date(a.checkOut).getTime());
+                const lastBooking = pastBookings.length > 0 ? pastBookings[0] : null;
+                
                 if (futureBookings.length === 0) {
                   return (
                     <div className="text-center text-gray-500 dark:text-muted-foreground py-8">
@@ -2798,6 +2804,7 @@ export default function FloorPlan({
                         </div>
                       );
                     })}
+                   
                   </div>
                 );
               })()}
