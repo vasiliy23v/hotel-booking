@@ -1,5 +1,5 @@
 // API клиент для работы с бэкендом
-import { apiRequest } from './api-client';
+import { apiRequest, type ApiClientOptions } from './api-client';
 import type {
   User,
   Hotel,
@@ -44,7 +44,7 @@ function getCurrentUser(): User | null {
 }
 
 export class ApiClient {
-  private async request<T>(endpoint: string, options?: RequestInit, withRetry: boolean = true): Promise<T> {
+  private async request<T>(endpoint: string, options?: RequestInit & Partial<ApiClientOptions>, withRetry: boolean = true): Promise<T> {
     try {
       // Для FormData не устанавливаем Content-Type, браузер сам установит
       const isFormData = options?.body instanceof FormData;
@@ -59,6 +59,15 @@ export class ApiClient {
       if (withRetry && !isFormData) {
         const user = getCurrentUser();
         const url = `${API_URL}${endpoint}`;
+        const method = options?.method || 'GET';
+        const isAdmin = user?.role === 'developer' || user?.role === 'manager';
+        const isModifyingOperation = method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH';
+        
+        // Для администраторов автоматически показываем тоастеры успеха при операциях изменения данных
+        // Если showSuccessToast явно указан в options, используем его, иначе для админов включаем автоматически
+        const showSuccessToast = options?.showSuccessToast !== undefined 
+          ? options.showSuccessToast 
+          : (isAdmin && isModifyingOperation);
         
         return await apiRequest<T>(url, {
           ...options,
@@ -66,8 +75,8 @@ export class ApiClient {
           userName: user?.name || 'Неизвестный',
           userId: user?.id,
           userRole: user?.role,
-          showSuccessToast: options?.method === 'POST' || options?.method === 'PUT' || options?.method === 'DELETE',
-          successMessage: this.getSuccessMessage(options?.method || 'GET', endpoint),
+          showSuccessToast, // Устанавливаем после spread, чтобы гарантировать правильное значение
+          successMessage: this.getSuccessMessage(method, endpoint),
           retries: 3,
           retryDelay: 1000,
         });
@@ -103,12 +112,11 @@ export class ApiClient {
 
   private getSuccessMessage(method: string, endpoint: string): string {
     if (endpoint.includes('/rooms')) {
-      if (method === 'POST') return '✅ Комната создана успешно';
       if (method === 'PUT') return '✅ Комната сохранена успешно';
       if (method === 'DELETE') return '✅ Комната удалена';
     }
     if (endpoint.includes('/bookings')) {
-      if (method === 'POST') return '✅ Бронирование создано';
+      if (method === 'POST') return '✅ Бронирование успешно!';
       if (method === 'PUT') return '✅ Бронирование обновлено';
       if (method === 'DELETE') return '✅ Бронирование отменено';
     }
@@ -117,7 +125,7 @@ export class ApiClient {
       if (method === 'PUT') return '✅ Отель обновлен';
       if (method === 'DELETE') return '✅ Отель удален';
     }
-    return '✅ Операция выполнена успешно';
+    return 'Операция выполнена успешно';
   }
 
   // Users
@@ -230,6 +238,7 @@ export class ApiClient {
     return this.request<Booking>('/bookings', {
       method: 'POST',
       body: JSON.stringify(booking),
+      logAction: true, // Обязательное логирование бронирований
     });
   }
 
@@ -237,11 +246,15 @@ export class ApiClient {
     return this.request<Booking>(`/bookings/${id}`, {
       method: 'PUT',
       body: JSON.stringify(booking),
+      logAction: true, // Обязательное логирование бронирований
     });
   }
 
   async deleteBooking(id: string) {
-    return this.request<void>(`/bookings/${id}`, { method: 'DELETE' });
+    return this.request<void>(`/bookings/${id}`, { 
+      method: 'DELETE',
+      logAction: true, // Обязательное логирование удаления бронирований
+    });
   }
 
   async getBookingStats() {

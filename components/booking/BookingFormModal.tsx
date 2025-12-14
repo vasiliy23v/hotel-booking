@@ -140,7 +140,13 @@ export function BookingFormModal({
       onClose();
     } catch (error) {
       console.error('Error submitting booking:', error);
-      alert('Ошибка при сохранении бронирования');
+      const errorMessage = error instanceof Error ? error.message : 'Ошибка при сохранении бронирования';
+      // Показываем дружелюбное сообщение об ошибке
+      if (errorMessage.includes('забронировал эту комнату раньше')) {
+        alert(errorMessage);
+      } else {
+        alert('Ошибка при сохранении бронирования: ' + errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }

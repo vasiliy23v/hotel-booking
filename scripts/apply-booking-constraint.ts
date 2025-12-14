@@ -1,6 +1,29 @@
 // Скрипт для применения EXCLUDE constraint к таблице bookings
 // Запуск: npx tsx scripts/apply-booking-constraint.ts
 
+// Загружаем переменные окружения СНАЧАЛА
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+import * as fs from 'fs';
+
+// Пытаемся загрузить из разных файлов (в порядке приоритета)
+const envFiles = ['.env.local', '.env'];
+let loaded = false;
+
+for (const envFile of envFiles) {
+  const envPath = path.join(process.cwd(), envFile);
+  if (fs.existsSync(envPath)) {
+    console.log(`📄 Загрузка переменных из ${envFile}...`);
+    dotenv.config({ path: envPath });
+    loaded = true;
+    break;
+  }
+}
+
+if (!loaded) {
+  console.warn('⚠️  Не найден ни .env.local ни .env файл. Используются переменные окружения системы.');
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { PrismaClient } from '../lib/generated/prisma';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -10,9 +33,12 @@ import { neon } from '@neondatabase/serverless';
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  console.error('DATABASE_URL не установлена');
+  console.error('❌ DATABASE_URL не установлена');
+  console.log('💡 Добавьте DATABASE_URL в .env или .env.local файл, или установите переменную окружения');
   process.exit(1);
 }
+
+console.log('✅ DATABASE_URL загружена');
 
 async function applyConstraint() {
   // connectionString гарантированно не undefined после проверки выше

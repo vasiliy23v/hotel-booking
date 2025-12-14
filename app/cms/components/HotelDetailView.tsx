@@ -262,8 +262,10 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
     try {
       await api.updateHotel(hotel.id, {
         ...formData,
-        image: formData.image ? (typeof formData.image === 'string' ? Buffer.from(formData.image) : formData.image) : undefined,
-      });
+        // Передаем изображение как строку (base64 data URL), сервер сам обработает
+        // Если image пустая строка, передаем её для удаления изображения
+        image: formData.image !== undefined ? (formData.image || '') : undefined,
+      } as Parameters<typeof api.updateHotel>[1]);
       setEditing(false);
       await loadHotel();
       onHotelUpdate();

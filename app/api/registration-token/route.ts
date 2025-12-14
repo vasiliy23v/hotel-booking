@@ -12,8 +12,16 @@ export async function GET(request: NextRequest) {
     // Если запрос на проверку токена
     if (verify === 'true' && token) {
       // Передаем оригинальный токен напрямую, так как в URL используется оригинальный токен
-      const isValid = await verifyRegistrationToken(token);
-      return NextResponse.json({ valid: isValid });
+      try {
+        const isValid = await verifyRegistrationToken(token);
+        return NextResponse.json({ valid: isValid });
+      } catch (error) {
+        console.error('Error verifying registration token:', error);
+        return NextResponse.json({ 
+          valid: false, 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        });
+      }
     }
 
     // Получаем активный токен

@@ -38,7 +38,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
     // Если это ошибка о занятости комнаты, возвращаем 409 Conflict
-    if (errorMessage.includes('уже забронирована')) {
+    if (errorMessage.includes('уже забронирована') || errorMessage.includes('забронировал эту комнату раньше')) {
       return NextResponse.json({ error: errorMessage }, { status: 409 });
     }
     // Для других ошибок валидации возвращаем 400

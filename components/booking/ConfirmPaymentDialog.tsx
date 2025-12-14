@@ -45,30 +45,32 @@ export function ConfirmPaymentDialog({
             <Euro className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             Подтвердить оплату {isHalfPayment ? '50%' : '100%'}
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-700 dark:text-muted-foreground space-y-3 pt-2">
-            {roomNumber && (
-              <div className="font-medium text-gray-900 dark:text-foreground">
-                Комната: <span className="font-semibold">#{roomNumber}</span>
-              </div>
-            )}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span>Сумма к оплате:</span>
-                <span className="font-semibold text-gray-900 dark:text-foreground">
-                  {totalAmount.toFixed(2)}€
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span>Уже оплачено:</span>
-                <span className="text-gray-600 dark:text-muted-foreground">
-                  {alreadyPaid.toFixed(2)}€
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span>К доплате:</span>
-                <span className="font-semibold text-gray-900 dark:text-foreground">
-                  {amountToAdd.toFixed(2)}€
-                </span>
+          <AlertDialogDescription asChild>
+            <div className="text-gray-700 dark:text-muted-foreground space-y-3 pt-2">
+              {roomNumber && (
+                <div className="font-medium text-gray-900 dark:text-foreground">
+                  Комната: <span className="font-semibold">#{roomNumber}</span>
+                </div>
+              )}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span>Сумма к оплате:</span>
+                  <span className="font-semibold text-gray-900 dark:text-foreground">
+                    {totalAmount.toFixed(2)}€
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span>Уже оплачено:</span>
+                  <span className="text-gray-600 dark:text-muted-foreground">
+                    {alreadyPaid.toFixed(2)}€
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span>К доплате:</span>
+                  <span className="font-semibold text-gray-900 dark:text-foreground">
+                    {amountToAdd.toFixed(2)}€
+                  </span>
+                </div>
               </div>
             </div>
           </AlertDialogDescription>

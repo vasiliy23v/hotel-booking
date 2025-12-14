@@ -371,22 +371,36 @@ export default function BookingsView() {
       );
       const room = rooms.find(r => r.id === paymentBooking.roomId);
       
-      // Рассчитываем totalAmount с учётом perPerson
+      // Рассчитываем полную сумму бронирования с учётом perPerson
+      // НЕ используем paymentBooking.amount, так как это уже оплаченная сумма, а не полная
       let totalAmount: number;
-      if (paymentBooking.amount) {
-        totalAmount = paymentBooking.amount;
-      } else if (room?.pricePerPerson && paymentBooking.guests) {
+      if (room?.pricePerPerson && paymentBooking.guests) {
         const guestsCount = Array.isArray(paymentBooking.guests) ? paymentBooking.guests.length : 0;
         totalAmount = nights * (room?.price || 0) * guestsCount;
       } else {
         totalAmount = nights * (room?.price || 0);
       }
       
-      const paymentAmount = paymentType === 'half' ? totalAmount / 2 : totalAmount;
+      // Получаем уже оплаченную сумму
+      const alreadyPaid = paymentBooking.amount ? Number(paymentBooking.amount) : 0;
+      
+      // Рассчитываем новую сумму после доплаты
+      let newAmount: number;
+      if (paymentType === 'half') {
+        // Для 50% оплаты: доплачиваем до 50% от полной суммы
+        const halfAmount = totalAmount / 2;
+        // Если уже оплачено меньше 50%, доплачиваем до 50%
+        newAmount = Math.max(halfAmount, alreadyPaid);
+        // Но не больше полной суммы
+        newAmount = Math.min(newAmount, totalAmount);
+      } else {
+        // Для 100% оплаты: доплачиваем до полной суммы
+        newAmount = totalAmount;
+      }
 
       if (paymentBooking.id) {
         await api.updateBooking(paymentBooking.id, {
-          amount: paymentAmount,
+          amount: newAmount,
           isPaid: paymentType === 'full', // Полная оплата только для 100%
           paidBy: currentUser.name,
           paymentDate: new Date().toISOString(),
@@ -394,11 +408,12 @@ export default function BookingsView() {
         await loadBookings();
         setShowPaymentDialog(false);
         setPaymentBooking(null);
-        alert(`Подтверждена оплата ${paymentType === 'half' ? '50%' : '100%'} (${paymentAmount.toFixed(2)}€)`);
+        const addedAmount = newAmount - alreadyPaid;
+        alert(`Подтверждена оплата ${paymentType === 'half' ? '50%' : '100%'} (${addedAmount.toFixed(2)}€ добавлено, всего: ${newAmount.toFixed(2)}€)`);
       }
     } catch (error) {
       console.error('Error confirming payment:', error);
-      alert('Ошибка при подтверждении оплаты');
+      alert('Ошибка при подтверждении оплаты: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     } finally {
       setIsProcessingPayment(false);
     }
@@ -1508,7 +1523,8 @@ export default function BookingsView() {
         
         // Рассчитываем totalBookingAmount с учётом perPerson
         let totalBookingAmount: number;
-        if (paymentBooking.amount) {
+        if (paymentBooking.amount && paymentBooking.isPaid) {
+          // Если уже полностью оплачено, используем сохранённую сумму
           totalBookingAmount = paymentBooking.amount;
         } else if (room?.pricePerPerson && paymentBooking.guests) {
           const guestsCount = Array.isArray(paymentBooking.guests) ? paymentBooking.guests.length : 0;
@@ -1517,8 +1533,20 @@ export default function BookingsView() {
           totalBookingAmount = nights * (room?.price || 0);
         }
         
-        const alreadyPaid = paymentBooking.isPaid ? totalBookingAmount : 0;
-        const paymentAmount = paymentType === 'half' ? totalBookingAmount / 2 : totalBookingAmount;
+        // Уже оплаченная сумма берется из amount, а не из isPaid
+        const alreadyPaid = paymentBooking.amount ? Number(paymentBooking.amount) : 0;
+        
+        // Рассчитываем сумму к доплате
+        let paymentAmount: number;
+        if (paymentType === 'half') {
+          // Для 50%: если уже оплачено меньше 50%, доплачиваем до 50%
+          const halfAmount = totalBookingAmount / 2;
+          paymentAmount = Math.max(halfAmount, alreadyPaid + (totalBookingAmount / 2));
+          paymentAmount = Math.min(paymentAmount, totalBookingAmount);
+        } else {
+          // Для 100%: доплачиваем до полной суммы
+          paymentAmount = totalBookingAmount;
+        }
         const amountToAdd = paymentAmount - alreadyPaid;
 
         return (

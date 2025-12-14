@@ -94,7 +94,9 @@ export async function apiRequest<T = unknown>(
   const startTime = Date.now();
   let lastError: Error | null = null;
   
-  const toastId = toast.loading(`Выполняется запрос...`);
+  // Показываем загрузку только администраторам (developer или manager) и только для не-GET запросов
+  const isAdmin = userRole === 'developer' || userRole === 'manager';
+  const toastId = (isAdmin && method !== 'GET') ? toast.loading(`Выполняется запрос...`) : undefined;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -115,19 +117,53 @@ export async function apiRequest<T = unknown>(
       }
 
       const data = await response.json();
-      const duration = Date.now() - startTime;
 
       // Успешный запрос
-      if (showSuccessToast) {
-        toast.success(successMessage || 'Операция выполнена успешно', { id: toastId });
-      } else {
+      // Не показываем success тоастер для GET запросов
+      if (showSuccessToast === true && method !== 'GET') {
+        toast.success(successMessage || 'Операция выполнена успешно', { 
+          id: toastId,
+          duration: 3000, // Автоматически закрывается через 3 секунды
+        });
+      } else if (toastId) {
         toast.dismiss(toastId);
       }
 
-      // Логирование успешного запроса
-      if (logAction) {
-        const { action, entity } = parseAction(method, url);
+      // Компактное логирование успешных операций для всех пользователей
+      // Логируем только POST и PUT запросы (создание и обновление)
+      // Бронирования логируются всегда (POST, PUT, DELETE)
+      const { action, entity } = parseAction(method, url);
+      const isBookingOperation = entity === 'booking';
+      const shouldLogSuccess = method === 'POST' || method === 'PUT' || (isBookingOperation && method === 'DELETE');
+      
+      if (logAction && shouldLogSuccess) {
         const dataWithId = data as { id?: string } | null;
+        
+        // Для бронирований добавляем детальную информацию
+        let details: Record<string, unknown> = { method };
+        if (isBookingOperation && data && typeof data === 'object') {
+          const bookingData = data as { 
+            id?: string; 
+            roomId?: string; 
+            checkIn?: string; 
+            checkOut?: string; 
+            bookedBy?: string;
+            isPaid?: boolean;
+            isConfirmed?: boolean;
+          };
+          
+          // Сохраняем важную информацию о бронировании
+          details = {
+            method,
+            roomId: bookingData.roomId,
+            checkIn: bookingData.checkIn,
+            checkOut: bookingData.checkOut,
+            bookedBy: bookingData.bookedBy,
+            isPaid: bookingData.isPaid,
+            isConfirmed: bookingData.isConfirmed,
+          };
+        }
+        
         await logActivity({
           userId,
           userName,
@@ -135,13 +171,11 @@ export async function apiRequest<T = unknown>(
           action,
           entity,
           entityId: dataWithId?.id,
-          details: {
-            url,
-            method,
-            attempt: attempt + 1,
-          },
+          details,
           status: 'success',
-          duration,
+          // Не сохраняем duration для успешных запросов, чтобы экономить место
+        }).catch(() => {
+          // Тихо игнорируем ошибки логирования, чтобы не прерывать работу
         });
       }
 
@@ -163,12 +197,15 @@ export async function apiRequest<T = unknown>(
       const errorMsg = errorObj.message || 'Неизвестная ошибка';
       
       if (showErrorToast) {
-        toast.error(errorMessage || `Ошибка: ${errorMsg}`, { id: toastId });
-      } else {
+        toast.error(errorMessage || `Ошибка: ${errorMsg}`, { 
+          id: toastId,
+          duration: 5000, // Автоматически закрывается через 5 секунд
+        });
+      } else if (toastId) {
         toast.dismiss(toastId);
       }
 
-      // Логирование ошибки
+      // Компактное логирование ошибок
       if (logAction) {
         const { action, entity } = parseAction(method, url);
         await logActivity({
@@ -177,14 +214,16 @@ export async function apiRequest<T = unknown>(
           userRole,
           action,
           entity,
+          // Компактные детали - только метод и количество попыток
           details: {
-            url,
             method,
             attempts: attempt + 1,
           },
           status: 'error',
           errorMessage: errorMsg,
           duration,
+        }).catch(() => {
+          // Тихо игнорируем ошибки логирования, чтобы не прерывать работу
         });
       }
 

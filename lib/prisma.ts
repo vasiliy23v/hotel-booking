@@ -34,7 +34,8 @@ function createPrismaClient(): PrismaClient {
   try {
     const connectionString = getConnectionString();
     
-    // Создаем адаптер с connectionString (PrismaNeon сам создаст Pool внутри)
+    // Создаем адаптер с connectionString
+    // PrismaNeon сам создаст Pool внутри
     const adapter = new PrismaNeon({ connectionString });
     
     const client = new PrismaClient({ 

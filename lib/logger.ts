@@ -2,7 +2,6 @@
  * Система логирования действий пользователей
  */
 
-import { prisma } from './prisma';
 import type { Prisma } from './generated/prisma';
 
 export type LogAction = 
@@ -42,30 +41,47 @@ export interface LogData {
  * Логирование действия пользователя
  */
 export async function logActivity(data: LogData): Promise<void> {
-  try {
-    // Пытаемся записать в БД (если таблица существует)
+  // На клиенте отправляем логи на сервер через API
+  if (typeof window !== 'undefined') {
     try {
-      await prisma.activityLog.create({
-        data: {
-          userId: data.userId,
-          userName: data.userName,
-          userRole: data.userRole,
-          action: data.action,
-          entity: data.entity,
-          entityId: data.entityId,
-          details: data.details as Prisma.InputJsonValue,
-          status: data.status,
-          errorMessage: data.errorMessage,
-          ipAddress: data.ipAddress,
-          userAgent: data.userAgent,
-          duration: data.duration,
+      // Отправляем асинхронно, не ждем ответа, чтобы не блокировать выполнение
+      fetch('/api/logs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify(data),
+      }).catch((error) => {
+        // Тихо игнорируем ошибки отправки логов, чтобы не прерывать работу приложения
+        console.warn('[Logger] Failed to send activity log:', error);
       });
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (dbError) {
-      // Если таблица не существует, логируем в консоль
-      console.log('[Activity Log]', JSON.stringify(data, null, 2));
+    } catch (error) {
+      // Тихо игнорируем ошибки, чтобы не прерывать работу приложения
+      console.warn('[Logger] Failed to send activity log:', error);
     }
+    return;
+  }
+
+  // На сервере записываем напрямую в БД
+  try {
+    // Динамический импорт prisma только на сервере
+    const { prisma } = await import('./prisma');
+    await prisma.activityLog.create({
+      data: {
+        userId: data.userId,
+        userName: data.userName,
+        userRole: data.userRole,
+        action: data.action,
+        entity: data.entity,
+        entityId: data.entityId,
+        details: data.details as Prisma.InputJsonValue,
+        status: data.status,
+        errorMessage: data.errorMessage,
+        ipAddress: data.ipAddress,
+        userAgent: data.userAgent,
+        duration: data.duration,
+      },
+    });
   } catch (error) {
     // Не прерываем выполнение, если логирование не удалось
     console.error('[Logger Error]', error);
@@ -87,7 +103,14 @@ export async function getActivityLogs(filters: {
   limit?: number;
   offset?: number;
 }) {
+  // Работает только на сервере
+  if (typeof window !== 'undefined') {
+    return { logs: [], total: 0 };
+  }
+
   try {
+    // Динамический импорт prisma только на сервере
+    const { prisma } = await import('./prisma');
     const where: Prisma.ActivityLogWhereInput = {};
 
     if (filters.userId) where.userId = filters.userId;
@@ -123,7 +146,14 @@ export async function getActivityLogs(filters: {
  * Получить статистику по пользователям
  */
 export async function getUserActivityStats(startDate?: Date, endDate?: Date) {
+  // Работает только на сервере
+  if (typeof window !== 'undefined') {
+    return [];
+  }
+
   try {
+    // Динамический импорт prisma только на сервере
+    const { prisma } = await import('./prisma');
     const where: Prisma.ActivityLogWhereInput = {};
     
     if (startDate || endDate) {
@@ -145,7 +175,7 @@ export async function getUserActivityStats(startDate?: Date, endDate?: Date) {
       },
     });
 
-    return stats.map(stat => ({
+    return stats.map((stat: { userName: string; userId: string | null; userRole: string | null; _count: { id: number } }) => ({
       userName: stat.userName,
       userId: stat.userId,
       userRole: stat.userRole,
@@ -161,7 +191,14 @@ export async function getUserActivityStats(startDate?: Date, endDate?: Date) {
  * Получить логи ошибок
  */
 export async function getErrorLogs(limit: number = 50) {
+  // Работает только на сервере
+  if (typeof window !== 'undefined') {
+    return [];
+  }
+
   try {
+    // Динамический импорт prisma только на сервере
+    const { prisma } = await import('./prisma');
     return await prisma.activityLog.findMany({
       where: { status: 'error' },
       orderBy: { createdAt: 'desc' },

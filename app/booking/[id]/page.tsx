@@ -152,7 +152,7 @@ export default function BookingPage() {
             if (conflicting) {
               const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
               const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
-              setAvailabilityError(`Комната уже забронирована на период ${existingCheckIn} - ${existingCheckOut}`);
+              setAvailabilityError(`К сожалению, кто-то забронировал эту комнату раньше вас на период ${existingCheckIn} - ${existingCheckOut}`);
             } else {
               setAvailabilityError('Комната недоступна на выбранные даты');
             }
@@ -364,7 +364,12 @@ export default function BookingPage() {
       router.push('/dashboard');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
-      alert('Ошибка при создании бронирования: ' + message);
+      // Показываем дружелюбное сообщение об ошибке
+      if (message.includes('забронировал эту комнату раньше')) {
+        alert(message);
+      } else {
+        alert('Ошибка при создании бронирования: ' + message);
+      }
     } finally {
       setSubmitting(false);
     }

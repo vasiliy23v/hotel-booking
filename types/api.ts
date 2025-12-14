@@ -190,7 +190,7 @@ export type CreateHotelInput = {
   description?: string;
   floors?: number;
   hasEGFloor?: boolean;
-  image?: Buffer;
+  image?: Buffer | string; // Может быть Buffer или base64 строка (data URL)
   displayOrder?: number;
 };
 

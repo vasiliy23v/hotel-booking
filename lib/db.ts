@@ -854,110 +854,170 @@ export async function createBooking(
     throw new Error('Дата заезда должна быть раньше даты выезда');
   }
 
-  // Проверяем доступность комнаты перед созданием бронирования
-  const isAvailable = await isRoomAvailable(booking.roomId, checkInDate, checkOutDate);
-  if (!isAvailable) {
-    // Получаем информацию о конфликтующем бронировании для более понятного сообщения
-    const conflicting = await prisma.booking.findFirst({
-      where: {
-        roomId: booking.roomId,
-        AND: [
-          {
-            checkIn: {
-              lte: checkOutDate,
-            },
-          },
-          {
-            checkOut: {
-              gte: checkInDate,
-            },
-          },
-        ],
-      },
-      orderBy: {
-        checkIn: 'asc',
-      },
-    });
+  // ТРОЙНАЯ ЗАЩИТА от race condition для наплыва в 100+ человек:
+  // 1. Advisory lock - блокирует комнату на уровне приложения
+  // 2. SELECT FOR UPDATE - блокирует строки на уровне БД
+  // 3. EXCLUDE constraint - финальная защита на уровне БД
+  const maxRetries = 5;
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Advisory lock - блокируем комнату на уровне приложения
+        // Используем более надежный способ генерации lock ID
+        const roomHash = booking.roomId.split('').reduce((acc, char, idx) => {
+          return acc + (char.charCodeAt(0) * (idx + 1));
+        }, 0);
+        const lockId = Math.abs(roomHash) % 2147483647; // PostgreSQL advisory lock range
+        
+        // Блокируем комнату с помощью advisory lock
+        // При наплыве в 100 человек, все остальные будут ждать освобождения блокировки
+        await tx.$executeRawUnsafe(
+          `SELECT pg_advisory_xact_lock($1)`,
+          lockId
+        );
+        
+        // 2. SELECT FOR UPDATE - блокируем существующие бронирования на уровне БД
+        // Это гарантирует, что между проверкой и созданием не появится новое бронирование
+        const conflictingBookings = await tx.$queryRawUnsafe<Array<{ id: string; check_in: Date; check_out: Date }>>(
+          `SELECT id, check_in, check_out 
+           FROM bookings 
+           WHERE room_id = $1 
+           AND check_in < $2 
+           AND check_out > $3 
+           FOR UPDATE`,
+          booking.roomId,
+          checkOutDate.toISOString().split('T')[0],
+          checkInDate.toISOString().split('T')[0]
+        );
+        
+        if (conflictingBookings && conflictingBookings.length > 0) {
+          const conflicting = conflictingBookings[0];
+          const existingCheckIn = new Date(conflicting.check_in).toLocaleDateString('ru-RU');
+          const existingCheckOut = new Date(conflicting.check_out).toLocaleDateString('ru-RU');
+          throw new Error(
+            `К сожалению, кто-то забронировал эту комнату раньше вас на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
+          );
+        }
 
-    if (conflicting) {
-      const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
-      const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
-      throw new Error(
-        `Комната уже забронирована на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
-      );
-    }
-    throw new Error('Комната уже забронирована на выбранные даты. Пожалуйста, выберите другие даты.');
-  }
-
-  try {
-    // Создаем бронирование
-    // EXCLUDE constraint на уровне базы данных автоматически предотвратит пересечения
-    const bookingId = booking.id || `booking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const newBooking = await prisma.booking.create({
-      data: {
-        id: bookingId,
-        roomId: booking.roomId,
-        bookedBy: booking.bookedBy,
-        bookedDate: new Date(booking.bookedDate),
-        email: booking.email || null,
-        phone: booking.phone,
-        checkIn: checkInDate,
-        checkOut: checkOutDate,
-        guests: (booking.guests || []) as unknown as Prisma.InputJsonValue,
-        notes: booking.notes || null,
-        isConfirmed: booking.isConfirmed || false,
-        confirmedBy: booking.confirmedBy || null,
-        confirmedDate: booking.confirmedDate ? new Date(booking.confirmedDate) : null,
-        isPaid: booking.isPaid || false,
-        paymentMethod: booking.paymentMethod || null,
-        paymentDate: booking.paymentDate ? new Date(booking.paymentDate) : null,
-        paidBy: booking.paidBy || null,
-        amount: booking.amount || null,
-      },
-    });
-
-    return transformBooking(newBooking);
-  } catch (error: unknown) {
-    // Обрабатываем ошибку constraint от PostgreSQL
-    if ((error as { code?: string; message?: string }).code === '23P01' || (error as { message?: string }).message?.includes('bookings_no_overlap') || (error as { message?: string }).message?.includes('violates exclusion constraint')) {
-      // Получаем информацию о конфликтующем бронировании для более понятного сообщения
-      try {
-        const conflicting = await prisma.booking.findFirst({
-          where: {
+        // 3. Создаем бронирование внутри той же транзакции
+        // EXCLUDE constraint на уровне базы данных дополнительно предотвратит пересечения
+        const bookingId = booking.id || `booking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Обработка bookedDate: если не передан или невалиден, используем текущую дату
+        let bookedDateValue: Date;
+        if (booking.bookedDate) {
+          const parsedDate = new Date(booking.bookedDate);
+          if (isNaN(parsedDate.getTime())) {
+            bookedDateValue = new Date();
+          } else {
+            bookedDateValue = parsedDate;
+          }
+        } else {
+          bookedDateValue = new Date();
+        }
+        
+        const newBooking = await tx.booking.create({
+          data: {
+            id: bookingId,
             roomId: booking.roomId,
-            AND: [
-              {
-                checkIn: {
-                  lt: checkOutDate,
-                },
-              },
-              {
-                checkOut: {
-                  gt: checkInDate,
-                },
-              },
-            ],
-          },
-          orderBy: {
-            checkIn: 'asc',
+            bookedBy: booking.bookedBy,
+            bookedDate: bookedDateValue,
+            email: booking.email || null,
+            phone: booking.phone,
+            checkIn: checkInDate,
+            checkOut: checkOutDate,
+            guests: (booking.guests || []) as unknown as Prisma.InputJsonValue,
+            notes: booking.notes || null,
+            isConfirmed: booking.isConfirmed || false,
+            confirmedBy: booking.confirmedBy || null,
+            confirmedDate: booking.confirmedDate ? new Date(booking.confirmedDate) : null,
+            isPaid: booking.isPaid || false,
+            paymentMethod: booking.paymentMethod || null,
+            paymentDate: booking.paymentDate ? new Date(booking.paymentDate) : null,
+            paidBy: booking.paidBy || null,
+            amount: booking.amount || null,
           },
         });
 
-        if (conflicting) {
-          const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
-          const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
-          throw new Error(
-            `Комната уже забронирована на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
-          );
+        return transformBooking(newBooking);
+      }, {
+        // Используем уровень изоляции Serializable для максимальной защиты
+        // При наплыве в 100 человек это гарантирует строгую сериализацию
+        isolationLevel: 'Serializable',
+        timeout: 30000, // Увеличенный таймаут для обработки очереди из 100 человек
+        maxWait: 30000, // Максимальное время ожидания начала транзакции
+      });
+
+      return result;
+    } catch (error: unknown) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      
+      // Обрабатываем ошибки сериализации - повторяем попытку
+      const errorCode = (error as { code?: string })?.code;
+      const errorMessage = errorObj.message || '';
+      
+      // PostgreSQL код ошибки для serialization failure
+      if (errorCode === '40001' || errorMessage.includes('serialization failure') || errorMessage.includes('could not serialize')) {
+        lastError = errorObj;
+        // Экспоненциальная задержка перед повтором
+        const delay = Math.min(100 * Math.pow(2, attempt), 2000);
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue; // Повторяем попытку
         }
-      } catch {
-        // Если не удалось получить информацию, используем общее сообщение
       }
-      throw new Error('Комната уже забронирована на выбранные даты. Пожалуйста, выберите другие даты.');
+      
+      // Обрабатываем ошибку constraint от PostgreSQL
+      if (errorCode === '23P01' || errorMessage.includes('bookings_no_overlap') || errorMessage.includes('violates exclusion constraint')) {
+        // Получаем информацию о конфликтующем бронировании для более понятного сообщения
+        try {
+          const conflicting = await prisma.booking.findFirst({
+            where: {
+              roomId: booking.roomId,
+              AND: [
+                {
+                  checkIn: {
+                    lt: checkOutDate,
+                  },
+                },
+                {
+                  checkOut: {
+                    gt: checkInDate,
+                  },
+                },
+              ],
+            },
+            orderBy: {
+              checkIn: 'asc',
+            },
+          });
+
+          if (conflicting) {
+            const existingCheckIn = new Date(conflicting.checkIn).toLocaleDateString('ru-RU');
+            const existingCheckOut = new Date(conflicting.checkOut).toLocaleDateString('ru-RU');
+            throw new Error(
+              `К сожалению, кто-то забронировал эту комнату раньше вас на период ${existingCheckIn} - ${existingCheckOut}. Пожалуйста, выберите другие даты.`
+            );
+          }
+        } catch {
+          // Если не удалось получить информацию, используем общее сообщение
+        }
+        throw new Error('К сожалению, кто-то забронировал эту комнату раньше вас на выбранные даты. Пожалуйста, выберите другие даты.');
+      }
+      
+      // Если это не ошибка сериализации или закончились попытки, пробрасываем ошибку
+      throw errorObj;
     }
-    // Пробрасываем другие ошибки
-    throw error;
   }
+  
+  // Если все попытки исчерпаны
+  if (lastError) {
+    throw lastError;
+  }
+  
+  throw new Error('Не удалось создать бронирование после нескольких попыток');
 }
 
 /**

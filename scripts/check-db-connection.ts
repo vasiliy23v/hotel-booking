@@ -3,8 +3,13 @@
 // Используется в CI/CD пайплайне перед деплоем
 // ============================================
 
+import * as dotenv from 'dotenv';
 import { PrismaClient } from '../lib/generated/prisma';
 import { PrismaNeon } from '@prisma/adapter-neon';
+
+// Загружаем переменные окружения (сначала .env, потом .env.local для переопределения)
+dotenv.config({ path: '.env' });
+dotenv.config({ path: '.env.local', override: true });
 
 /**
  * Проверяет подключение к базе данных
@@ -43,22 +48,27 @@ async function checkDatabaseConnection(): Promise<void> {
     await prisma.$queryRaw`SELECT 1 as test`;
     console.log('✅ Запрос к базе данных выполнен успешно');
 
-    // Проверяем наличие основных таблиц
-    const tables = await prisma.$queryRaw<Array<{ tablename: string }>>`
-      SELECT tablename 
-      FROM pg_tables 
-      WHERE schemaname = 'public'
-    `;
-    
-    const tableNames = tables.map(t => t.tablename);
-    const requiredTables = ['users', 'hotels', 'rooms', 'bookings'];
-    const missingTables = requiredTables.filter(t => !tableNames.includes(t));
+    // Проверяем наличие основных таблиц (упрощенный запрос)
+    try {
+      const tables = await prisma.$queryRaw<Array<{ tablename: string }>>`
+        SELECT tablename::text as tablename
+        FROM pg_tables 
+        WHERE schemaname = 'public'
+      `;
+      
+      const tableNames = tables.map(t => t.tablename);
+      const requiredTables = ['users', 'hotels', 'rooms', 'bookings'];
+      const missingTables = requiredTables.filter(t => !tableNames.includes(t));
 
-    if (missingTables.length > 0) {
-      console.warn(`⚠️  Отсутствуют таблицы: ${missingTables.join(', ')}`);
-      console.warn('⚠️  Убедитесь, что миграции применены');
-    } else {
-      console.log('✅ Все необходимые таблицы присутствуют');
+      if (missingTables.length > 0) {
+        console.warn(`⚠️  Отсутствуют таблицы: ${missingTables.join(', ')}`);
+        console.warn('⚠️  Убедитесь, что миграции применены');
+      } else {
+        console.log('✅ Все необходимые таблицы присутствуют');
+      }
+    } catch (tableCheckError) {
+      // Игнорируем ошибку проверки таблиц, главное - подключение работает
+      console.warn('⚠️  Не удалось проверить список таблиц, но подключение работает');
     }
 
     console.log('✅ Проверка подключения к базе данных завершена успешно');

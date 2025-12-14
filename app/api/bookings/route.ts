@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Ошибка при создании бронирования';
     // Если это ошибка о занятости комнаты, возвращаем 409 Conflict
-    if (errorMessage.includes('уже забронирована')) {
+    if (errorMessage.includes('уже забронирована') || errorMessage.includes('забронировал эту комнату раньше')) {
       return NextResponse.json({ error: errorMessage }, { status: 409 });
     }
     // Для других ошибок валидации возвращаем 400
