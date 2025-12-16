@@ -1629,7 +1629,7 @@ export default function FloorPlan({
                     localStorage.setItem('floorPlan_showBookingInfo', String(newValue));
                   }
                 }}
-                className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+                className={`px-2 sm:px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-1 sm:gap-2 ${
                   showBookingInfo 
                     ? 'bg-blue-600 text-white hover:bg-blue-700' 
                     : 'bg-gray-200 dark:bg-muted text-gray-700 dark:text-foreground hover:bg-gray-300 dark:hover:bg-accent'
@@ -1637,7 +1637,12 @@ export default function FloorPlan({
                 title={showBookingInfo ? 'Скрыть информацию о бронировании' : 'Показать информацию о бронировании'}
               >
                 {showBookingInfo ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                {showBookingInfo ? 'Скрыть последнюю бронь в комнатах' : 'Показать последнюю бронь в комнатах'}
+                <span className="hidden sm:inline">
+                  {showBookingInfo ? 'Скрыть последнюю бронь в комнатах' : 'Показать последнюю бронь в комнатах'}
+                </span>
+                <span className="sm:hidden">
+                  {showBookingInfo ? 'Скрыть брони' : 'Показать брони'}
+                </span>
               </button>
             )}
             {!editMode ? (
@@ -1960,7 +1965,7 @@ export default function FloorPlan({
                     </div>
                     {/* Информация о бронировании для менеджера в компактном режиме */}
                     {isManager && room.booking && showBookingInfo && (
-                      <div className="sm:block hidden mt-1 text-[9px] text-gray-700 dark:text-foreground border-t border-gray-300 dark:border-border pt-1">
+                      <div className="mt-1 text-[9px] text-gray-700 dark:text-foreground border-t border-gray-300 dark:border-border pt-1">
                         <div className="font-semibold truncate" title={room.booking.bookedBy}>
                           {room.booking.bookedBy}
                         </div>
