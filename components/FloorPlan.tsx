@@ -5,7 +5,7 @@ import { Rnd } from 'react-rnd';
 import { 
   Bed, Users, DoorOpen, Lock, CheckCircle, Edit2, Plus, X, Trash2, 
   ArrowUpDown, Copy, ShowerHead, Toilet, Grid3x3, Loader2, Calendar,
-  ArrowLeft, ArrowRight, Info
+  ArrowLeft, ArrowRight, Info, Eye, EyeOff
 } from 'lucide-react';
 import type { Room, Stairs, BookingInfo } from '@/types';
 import { api } from '@/lib/api';
@@ -77,6 +77,14 @@ export default function FloorPlan({
   const [internalDateFilterEnabled] = useState(false);
   const [internalCheckInDate] = useState('');
   const [internalCheckOutDate] = useState('');
+  // Состояние для отображения информации о бронировании (хранится в localStorage)
+  const [showBookingInfo, setShowBookingInfo] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('floorPlan_showBookingInfo');
+      return saved !== null ? saved === 'true' : true; // По умолчанию показываем
+    }
+    return true;
+  });
   const dateFilterEnabled = externalDateFilterEnabled !== undefined ? externalDateFilterEnabled : internalDateFilterEnabled;
   const checkInDate = externalCheckInDate !== undefined ? externalCheckInDate : internalCheckInDate;
   const checkOutDate = externalCheckOutDate !== undefined ? externalCheckOutDate : internalCheckOutDate;
@@ -1612,6 +1620,26 @@ export default function FloorPlan({
         </h3>
         {isManager && (
           <div className="flex gap-2 flex-wrap">
+            {!editMode && (
+              <button
+                onClick={() => {
+                  const newValue = !showBookingInfo;
+                  setShowBookingInfo(newValue);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('floorPlan_showBookingInfo', String(newValue));
+                  }
+                }}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+                  showBookingInfo 
+                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                    : 'bg-gray-200 dark:bg-muted text-gray-700 dark:text-foreground hover:bg-gray-300 dark:hover:bg-accent'
+                }`}
+                title={showBookingInfo ? 'Скрыть информацию о бронировании' : 'Показать информацию о бронировании'}
+              >
+                {showBookingInfo ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showBookingInfo ? 'Скрыть последнюю бронь в комнатах' : 'Показать последнюю бронь в комнатах'}
+              </button>
+            )}
             {!editMode ? (
               <button
                 onClick={() => setEditMode(true)}
@@ -1896,6 +1924,10 @@ export default function FloorPlan({
                   <>
                     {/* Компактный режим для маленьких комнат */}
                     <div className="flex flex-col gap-y-0.5 mt-1 text-xs text-gray-700 dark:text-foreground">
+                      {/* Тип комнаты */}
+                      <div className="text-[10px] text-gray-600 dark:text-muted-foreground leading-tight">
+                        {room.type === 'FZ' ? 'FZ' : room.type === 'DZ' ? 'DZ' : room.type === 'EZ' ? 'EZ' : room.type === 'MZ' ? 'MZ' : room.type === 'App' ? 'App' : ''}
+                      </div>
                       {room.capacity && (
                         <div className="flex items-center gap-1">
                           {/* <Users className="w-4 h-4" /> */}
@@ -1927,7 +1959,7 @@ export default function FloorPlan({
                       </div>
                     </div>
                     {/* Информация о бронировании для менеджера в компактном режиме */}
-                    {isManager && room.booking && (
+                    {isManager && room.booking && showBookingInfo && (
                       <div className="sm:block hidden mt-1 text-[9px] text-gray-700 dark:text-foreground border-t border-gray-300 dark:border-border pt-1">
                         <div className="font-semibold truncate" title={room.booking.bookedBy}>
                           {room.booking.bookedBy}
@@ -1996,7 +2028,7 @@ export default function FloorPlan({
                     )}
                     
                     {/* Информация о бронировании для менеджера */}
-                    {isManager && room.booking && (
+                    {isManager && room.booking && showBookingInfo && (
                       <div className="mt-2 pt-2 border-t border-gray-300 dark:border-border text-[10px] text-gray-700 dark:text-foreground">
                         <div className="font-semibold truncate" title={room.booking.bookedBy}>
                           {room.booking.bookedBy}
@@ -2030,19 +2062,30 @@ export default function FloorPlan({
               )}
 
               {editMode && (isSelected || selectedRooms.has(room.id)) && (
-                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs p-1 overflow-x-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}>
+                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs p-1 overflow-x-auto z-50" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}>
                   <div className="flex gap-1 min-w-max whitespace-nowrap">
                   <button
                     onClick={async (e) => {
                       e.stopPropagation();
+                      e.preventDefault();
                       // Автосохранение предыдущей комнаты, если она редактировалась
                       if (editingRoom && editingRoom.id !== room.id) {
                         await autoSaveRoom(editingRoom.id);
                       }
                       setEditingRoom(room);
                     }}
-                    className="bg-green-500 hover:bg-green-600 rounded px-1 shrink-0"
+                    onTouchStart={async (e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      // Автосохранение предыдущей комнаты, если она редактировалась
+                      if (editingRoom && editingRoom.id !== room.id) {
+                        await autoSaveRoom(editingRoom.id);
+                      }
+                      setEditingRoom(room);
+                    }}
+                    className="bg-green-500 hover:bg-green-600 active:bg-green-700 rounded px-1 shrink-0 touch-manipulation"
                     title="Редактировать"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
                     <Edit2 className="w-3 h-3 inline" />
                   </button>

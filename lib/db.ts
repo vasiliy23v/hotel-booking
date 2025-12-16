@@ -1080,6 +1080,53 @@ export async function updateBooking(
   if (updates.paidBy !== undefined) updateData.paidBy = updates.paidBy;
   if (updates.amount !== undefined) updateData.amount = updates.amount;
   
+  // Автоматическая синхронизация isPaid с amount
+  // Пересчитываем isPaid если обновляется amount, даты, комната или гости
+  // (так как ожидаемая сумма может измениться)
+  const shouldRecalculateIsPaid = 
+    updates.amount !== undefined || 
+    updates.checkIn !== undefined || 
+    updates.checkOut !== undefined || 
+    updates.roomId !== undefined || 
+    updates.guests !== undefined;
+  
+  if (shouldRecalculateIsPaid) {
+    const finalAmount = updates.amount !== undefined 
+      ? updates.amount 
+      : (currentBooking.amount ? Number(currentBooking.amount) : 0);
+    const finalCheckIn = updates.checkIn ? new Date(updates.checkIn) : new Date(currentBooking.checkIn);
+    const finalCheckOut = updates.checkOut ? new Date(updates.checkOut) : new Date(currentBooking.checkOut);
+    const finalRoomId = updates.roomId || currentBooking.roomId;
+    const finalGuests = updates.guests || (currentBooking.guests as unknown as Array<{ name: string }>);
+    
+    // Получаем информацию о комнате для расчета ожидаемой суммы
+    const room = await prisma.room.findUnique({
+      where: { id: finalRoomId },
+      select: { price: true, pricePerPerson: true },
+    });
+    
+    if (room) {
+      const nights = Math.ceil(
+        (finalCheckOut.getTime() - finalCheckIn.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      
+      // Рассчитываем ожидаемую сумму
+      let expectedAmount: number;
+      if (room.pricePerPerson && finalGuests && Array.isArray(finalGuests) && finalGuests.length > 0) {
+        const guestsCount = finalGuests.length;
+        expectedAmount = nights * Number(room.price) * guestsCount;
+      } else {
+        expectedAmount = nights * Number(room.price);
+      }
+      
+      // Автоматически устанавливаем isPaid на основе фактической оплаченной суммы
+      // Учитываем погрешность округления 0.01
+      // isPaid = true только если фактически оплачено >= ожидаемой суммы
+      const isFullyPaid = expectedAmount > 0 && finalAmount >= (expectedAmount - 0.01);
+      updateData.isPaid = isFullyPaid;
+    }
+  }
+  
   try {
     // EXCLUDE constraint автоматически проверит пересечения при обновлении
     const updatedBooking = await prisma.booking.update({

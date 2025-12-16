@@ -698,7 +698,23 @@ export default function BookingsView() {
 
   // Вычисляем статистику бронирований на основе отфильтрованных данных
   const totalBookings = filteredBookings.length;
-  const paidBookings = filteredBookings.filter(b => b.isPaid).length;
+  // Считаем полностью оплаченные бронирования на основе фактически оплаченной суммы, а не флага isPaid
+  const paidBookings = filteredBookings.filter(b => {
+    const nights = Math.ceil(
+      (new Date(b.checkOut).getTime() - new Date(b.checkIn).getTime()) / 
+      (1000 * 60 * 60 * 24)
+    );
+    const room = rooms.find(r => r.id === b.roomId);
+    let expectedAmount: number;
+    if (room?.pricePerPerson && b.guests) {
+      const guestsCount = Array.isArray(b.guests) ? b.guests.length : 0;
+      expectedAmount = nights * (room?.price || 0) * guestsCount;
+    } else {
+      expectedAmount = nights * (room?.price || 0);
+    }
+    const alreadyPaid = b.amount ? Number(b.amount) : 0;
+    return expectedAmount > 0 && alreadyPaid >= (expectedAmount - 0.01);
+  }).length;
   
   // Вычисляем финансовую статистику на основе отфильтрованных бронирований
   let totalRevenue = 0; // Ожидаемый доход (общая сумма всех бронирований)
@@ -728,8 +744,12 @@ export default function BookingsView() {
     // Уже оплаченная сумма берется из amount
     const alreadyPaid = booking.amount ? Number(booking.amount) : 0;
     
+    // Определяем полную оплату ТОЛЬКО на основе фактически оплаченной суммы
+    // Игнорируем booking.isPaid из базы данных
+    const isFullyPaid = expectedAmount > 0 && alreadyPaid >= (expectedAmount - 0.01);
+    
     // Если бронирование полностью оплачено, добавляем к оплаченному доходу
-    if (booking.isPaid || alreadyPaid >= expectedAmount) {
+    if (isFullyPaid) {
       paidRevenue += expectedAmount;
     } else {
       // Добавляем к неоплаченной сумме только разницу
@@ -1007,7 +1027,10 @@ export default function BookingsView() {
                   const alreadyPaid = booking.amount ? Number(booking.amount) : 0;
                   // eslint-disable-next-line @typescript-eslint/no-unused-vars
                   const _remainingAmount = Math.max(0, expectedAmount - alreadyPaid);
-                  const isFullyPaid = alreadyPaid >= expectedAmount || booking.isPaid;
+                  // Проверяем полную оплату ТОЛЬКО на основе фактически оплаченной суммы
+                  // Игнорируем booking.isPaid из базы данных, так как он может быть неправильным
+                  // Полностью оплачено, если оплачено >= ожидаемой суммы (с учетом погрешности округления 0.01)
+                  const isFullyPaid = expectedAmount > 0 && alreadyPaid >= (expectedAmount - 0.01);
                   const isHalfPaidOrMore = alreadyPaid >= (totalPrice / 2) && alreadyPaid > 0 && !isFullyPaid;
 
                   const isFirstInGroup = index === 0;
