@@ -25,6 +25,24 @@ export default function RegistrationPage() {
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordTouched, setPasswordTouched] = useState(false);
+  const [nameError, setNameError] = useState('');
+  const [nameTouched, setNameTouched] = useState(false);
+
+  // Проверка на латинские буквы, пробелы и дефисы
+  const isValidLatinName = (name: string): boolean => {
+    return /^[A-Za-z\s-]*$/.test(name);
+  };
+
+  // Валидация имени: обязательно и только латиница
+  const validateName = (nameValue: string): string => {
+    if (!nameValue.trim()) {
+      return 'Имя обязательно';
+    }
+    if (!isValidLatinName(nameValue.trim())) {
+      return 'Используйте только латинские буквы, пробелы и дефисы';
+    }
+    return '';
+  };
 
   // Валидация пароля: только латинские символы, минимум 6 символов
   const validatePassword = (pwd: string): string => {
@@ -95,6 +113,16 @@ export default function RegistrationPage() {
     setError('');
 
     try {
+      // Валидация имени
+      const nameValidationError = validateName(name);
+      if (nameValidationError) {
+        setNameTouched(true);
+        setNameError(nameValidationError);
+        setError(nameValidationError);
+        setLoading(false);
+        return;
+      }
+
       // Валидация пароля
       const passwordValidationError = validatePassword(password);
       if (passwordValidationError) {
@@ -127,7 +155,7 @@ export default function RegistrationPage() {
       // Регистрация с общим токеном
       const newUser = await api.createUser({
         email: email.trim() || undefined,
-        name: name.trim() || '',
+        name: name.trim(), // Имя теперь обязательно
         phone: phone.trim() || undefined,
         password,
         role: 'guest',
@@ -206,18 +234,52 @@ export default function RegistrationPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-foreground">
-                Имя
+                Имя <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setName(value);
+                  setError('');
+                  
+                  // Валидация в реальном времени
+                  if (nameTouched || value.length > 0) {
+                    setNameError(validateName(value));
+                  }
+                }}
+                onBlur={() => {
+                  setNameTouched(true);
+                  setNameError(validateName(name));
+                }}
                 placeholder="Muller Felix"
-                className="w-full px-4 py-3 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-gray-900 dark:text-foreground focus:border-gray-900 dark:focus:border-ring focus:outline-none"
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground ${
+                  nameError && nameTouched
+                    ? 'border-red-500 dark:border-destructive focus:border-red-500 dark:focus:border-destructive'
+                    : nameTouched && !nameError && name.trim()
+                    ? 'border-green-500 dark:border-green-600 focus:border-green-500 dark:focus:border-green-600'
+                    : 'border-gray-300 dark:border-border focus:border-gray-900 dark:focus:border-ring'
+                }`}
+                required
               />
-              <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
-                Опционально. Можно указать позже
-              </p>
+              {nameError && nameTouched && (
+                <p className="text-xs text-red-500 dark:text-destructive-foreground mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {nameError}
+                </p>
+              )}
+              {!nameError && nameTouched && name.trim() && (
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  Имя введено корректно
+                </p>
+              )}
+              {!nameTouched && (
+                <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
+                  Обязательное поле. Используйте только латинские буквы, пробелы и дефисы
+                </p>
+              )}
             </div>
 
             <div>
