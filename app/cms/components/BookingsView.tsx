@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect, ReactElement } from 'react';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, Search, Edit, MoreVertical, Trash2 } from 'lucide-react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, Search, Edit, MoreVertical, Trash2, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -592,6 +592,34 @@ export default function BookingsView() {
     return sortDirection === 'asc' ? comparison : -comparison;
   });
 
+  // Функция для проверки пересечения дат
+  const datesOverlap = (checkIn1: string, checkOut1: string, checkIn2: string, checkOut2: string): boolean => {
+    const start1 = new Date(checkIn1).getTime();
+    const end1 = new Date(checkOut1).getTime();
+    const start2 = new Date(checkIn2).getTime();
+    const end2 = new Date(checkOut2).getTime();
+    
+    // Проверяем пересечение: начало одного периода внутри другого или наоборот
+    return (start1 < end2 && end1 > start2);
+  };
+
+  // Определяем дубликаты: бронирования с одинаковыми комнатами и пересекающимися датами
+  const duplicateBookingIds = new Set<string>();
+  filteredBookings.forEach((booking1, index1) => {
+    filteredBookings.forEach((booking2, index2) => {
+      if (index1 !== index2 && booking1.roomId === booking2.roomId) {
+        if (datesOverlap(booking1.checkIn, booking1.checkOut, booking2.checkIn, booking2.checkOut)) {
+          if (booking1.id) {
+            duplicateBookingIds.add(booking1.id);
+          }
+          if (booking2.id) {
+            duplicateBookingIds.add(booking2.id);
+          }
+        }
+      }
+    });
+  });
+
   // Группируем бронирования по комнатам для визуального объединения
   // Сначала сортируем по номеру комнаты, затем по датам заезда
   const sortedForGrouping = [...filteredBookings].sort((a, b) => {
@@ -969,6 +997,18 @@ export default function BookingsView() {
                       {sortBy !== 'bookedBy' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                     </div>
                   </TableHead>
+                  <TableHead 
+                    className="text-xs text-gray-600 dark:text-muted-foreground cursor-pointer whitespace-nowrap font-normal"
+                    onClick={() => handleSort('bookedDate')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Дата бронирования
+                      {sortBy === 'bookedDate' && (
+                        sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                      )}
+                      {sortBy !== 'bookedDate' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
                   <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Контакты</TableHead>
                   <TableHead 
                     className="text-xs text-gray-600 dark:text-muted-foreground cursor-pointer whitespace-nowrap font-normal"
@@ -1037,6 +1077,8 @@ export default function BookingsView() {
                   const isLastInGroup = index === group.bookings.length - 1;
                   const hasMultipleBookings = group.bookings.length > 1;
                   
+                  const isDuplicate = booking.id ? duplicateBookingIds.has(booking.id) : false;
+                  
                   return (
                     <TableRow 
                       key={booking.id}
@@ -1045,12 +1087,19 @@ export default function BookingsView() {
                         setSelectedBookingForDetail(booking);
                         setShowDetailModal(true);
                       }}
-                      className={`cursor-pointer hover:bg-gray-100 dark:hover:bg-accent transition-colors ${hasMultipleBookings ? 'bg-gray-50 dark:bg-muted border-l-3 border-l-gray-200 dark:border-l-border' : ''} ${isFirstInGroup && hasMultipleBookings ? 'border-t border-t-gray-200 dark:border-t-border' : ''} ${isLastInGroup && hasMultipleBookings ? 'border-b border-b-gray-200 dark:border-b-border' : ''}`}
+                      className={`cursor-pointer hover:bg-gray-100 dark:hover:bg-accent transition-colors ${hasMultipleBookings ? 'bg-gray-50 dark:bg-muted border-l-3 border-l-gray-200 dark:border-l-border' : ''} ${isFirstInGroup && hasMultipleBookings ? 'border-t border-t-gray-200 dark:border-t-border' : ''} ${isLastInGroup && hasMultipleBookings ? 'border-b border-b-gray-200 dark:border-b-border' : ''} ${isDuplicate ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-l-red-500 dark:border-l-red-400' : ''}`}
                     >
                       <TableCell className="py-3">
                         {isFirstInGroup ? (
-                          <div className="text-sm text-gray-700 dark:text-foreground">
-                            {searchQuery ? highlightText(booking.hotelName || 'N/A', searchQuery) : (booking.hotelName || 'N/A')}
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm text-gray-700 dark:text-foreground">
+                              {searchQuery ? highlightText(booking.hotelName || 'N/A', searchQuery) : (booking.hotelName || 'N/A')}
+                            </div>
+                            {isDuplicate && (
+                              <div title="Дубликат: другая бронь на эту же комнату в те же даты">
+                                <AlertTriangle className="w-4 h-4 text-red-500 dark:text-red-400" />
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="text-sm text-gray-400 dark:text-muted-foreground">—</div>
@@ -1079,7 +1128,10 @@ export default function BookingsView() {
                         <div className="text-sm text-gray-700 dark:text-foreground">
                           {searchQuery ? highlightText(booking.bookedBy, searchQuery) : booking.bookedBy}
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
+                      </TableCell>
+                      
+                      <TableCell className="py-3">
+                        <div className="text-sm text-gray-700 dark:text-foreground">
                           {new Date(booking.bookedDate).toLocaleDateString('ru-RU')}
                         </div>
                       </TableCell>
