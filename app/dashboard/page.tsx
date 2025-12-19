@@ -1296,7 +1296,7 @@ export default function Dashboard() {
                   className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span className="hidden sm:inline">Назад</span>
+                  <span className="inline">Назад к отелям</span>
                 </button>
                 <button
                   onClick={() => setViewMode("plan")}
@@ -1309,7 +1309,7 @@ export default function Dashboard() {
                   <LayoutGrid className="w-4 h-4" />
                   <span className="hidden sm:inline">План</span>
                 </button>
-                <button
+                {/* <button
                   onClick={() => setViewMode("list")}
                   className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 ${
                     viewMode === "list"
@@ -1319,7 +1319,7 @@ export default function Dashboard() {
                 >
                   <List className="w-4 h-4" />
                   <span className="hidden sm:inline">Список</span>
-                </button>
+                </button> */}
               </div>
 
               {/* Выбор этажа (для обоих режимов) */}
