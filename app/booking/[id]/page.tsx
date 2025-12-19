@@ -10,6 +10,7 @@ import { GuestsStep } from '@/components/booking/steps/GuestsStep';
 import { ContactStep } from '@/components/booking/steps/ContactStep';
 import { NotesStep } from '@/components/booking/steps/NotesStep';
 import { RoomUnavailableDialog } from '@/components/booking/RoomUnavailableDialog';
+import { BookingSuccessDialog } from '@/components/booking/BookingSuccessDialog';
 
 export default function BookingPage() {
   const router = useRouter();
@@ -57,6 +58,7 @@ export default function BookingPage() {
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [showUnavailableDialog, setShowUnavailableDialog] = useState(false);
   const [unavailableMessage, setUnavailableMessage] = useState('');
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   const loadRoom = useCallback(async () => {
     try {
@@ -354,7 +356,7 @@ export default function BookingPage() {
       };
 
       await api.createBooking(booking);
-      // Сохраняем даты в фильтр перед возвратом на dashboard
+      // Сохраняем даты в фильтр перед показом попапа успеха
       // Сохраняем даты только если они заполнены
       if (typeof window !== 'undefined') {
         localStorage.setItem('dashboard_dateFilterEnabled', 'true');
@@ -365,7 +367,8 @@ export default function BookingPage() {
           localStorage.setItem('dashboard_checkOutDate', checkOut);
         }
       }
-      router.push('/dashboard');
+      // Показываем попап успешного бронирования вместо немедленного редиректа
+      setShowSuccessDialog(true);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
       // Показываем дружелюбное сообщение об ошибке
@@ -523,6 +526,14 @@ export default function BookingPage() {
         isOpen={showUnavailableDialog}
         onClose={() => setShowUnavailableDialog(false)}
         message={unavailableMessage}
+      />
+      
+      <BookingSuccessDialog
+        isOpen={showSuccessDialog}
+        onClose={() => {
+          setShowSuccessDialog(false);
+          router.push('/dashboard');
+        }}
       />
     </div>
   );

@@ -8,6 +8,7 @@ import { GuestsStep } from './steps/GuestsStep';
 import { ContactStep } from './steps/ContactStep';
 import { NotesStep } from './steps/NotesStep';
 import { RoomUnavailableDialog } from './RoomUnavailableDialog';
+import { BookingSuccessDialog } from './BookingSuccessDialog';
 import type { Guest, User, Room } from '@/types';
 import { api } from '@/lib/api';
 
@@ -61,6 +62,7 @@ export function BookingFormModal({
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [showUnavailableDialog, setShowUnavailableDialog] = useState(false);
   const [unavailableMessage, setUnavailableMessage] = useState('');
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   // Обновление формы при открытии модального окна или изменении данных
   useEffect(() => {
@@ -140,7 +142,13 @@ export function BookingFormModal({
         manualUserPhone,
         includeManager,
       });
-      onClose();
+      // Если это создание нового бронирования, показываем попап успеха
+      if (mode === 'create') {
+        setShowSuccessDialog(true);
+      } else {
+        // При редактировании просто закрываем модальное окно
+        onClose();
+      }
     } catch (error) {
       console.error('Error submitting booking:', error);
       const errorMessage = error instanceof Error ? error.message : 'Ошибка при сохранении бронирования';
@@ -304,6 +312,14 @@ export function BookingFormModal({
         isOpen={showUnavailableDialog}
         onClose={() => setShowUnavailableDialog(false)}
         message={unavailableMessage}
+      />
+      
+      <BookingSuccessDialog
+        isOpen={showSuccessDialog}
+        onClose={() => {
+          setShowSuccessDialog(false);
+          onClose();
+        }}
       />
     </div>
   );

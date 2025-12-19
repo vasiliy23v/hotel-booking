@@ -59,13 +59,14 @@ export default function BookingsPage() {
 
   useEffect(() => {
     const userStr = localStorage.getItem('currentUser');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      setCurrentUser(user);
+    if (!userStr) {
+      // Если пользователь не авторизован, перенаправляем на главную
+      router.push('/');
+      return;
     }
+    const user = JSON.parse(userStr);
+    setCurrentUser(user);
     loadBookings();
-    // Перенаправляем на главную страницу, где бронирования отображаются по умолчанию
-    router.push('/dashboard');
   }, [router]);
 
   const loadBookings = async () => {
