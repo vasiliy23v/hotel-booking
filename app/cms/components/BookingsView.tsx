@@ -621,34 +621,40 @@ export default function BookingsView() {
   });
 
   // Группируем бронирования по комнатам для визуального объединения
-  // Сначала сортируем по номеру комнаты, затем по датам заезда
-  const sortedForGrouping = [...filteredBookings].sort((a, b) => {
-    const roomCompare = (a.roomNumber || '').localeCompare(b.roomNumber || '');
-    if (roomCompare !== 0) return roomCompare;
-    return new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime();
-  });
-  
+  // Если сортировка не по номеру комнаты, создаем плоский список (каждое бронирование - отдельная группа)
+  // чтобы сохранить правильный порядок сортировки
   const groupedBookings: Array<{
     roomKey: string;
     bookings: typeof filteredBookings;
   }> = [];
   
-  const roomGroups = new Map<string, typeof filteredBookings>();
-  sortedForGrouping.forEach(booking => {
-    const room = rooms.find(r => r.id === booking.roomId);
-    const hotelId = room?.hotelId || '';
-    const roomKey = `${hotelId}_${booking.roomId || ''}`;
-    if (!roomGroups.has(roomKey)) {
-      roomGroups.set(roomKey, []);
-    }
-    roomGroups.get(roomKey)!.push(booking);
-  });
-  
-  roomGroups.forEach((bookings, roomKey) => {
-    // Сортируем бронирования внутри группы по датам
-    bookings.sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
-    groupedBookings.push({ roomKey, bookings });
-  });
+  if (sortBy === 'roomNumber') {
+    // При сортировке по номеру комнаты группируем по комнатам
+    const roomGroups = new Map<string, typeof filteredBookings>();
+    filteredBookings.forEach(booking => {
+      const room = rooms.find(r => r.id === booking.roomId);
+      const hotelId = room?.hotelId || '';
+      const roomKey = `${hotelId}_${booking.roomId || ''}`;
+      if (!roomGroups.has(roomKey)) {
+        roomGroups.set(roomKey, []);
+      }
+      roomGroups.get(roomKey)!.push(booking);
+    });
+    
+    roomGroups.forEach((bookings, roomKey) => {
+      // Сортируем бронирования внутри группы по датам заезда
+      bookings.sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+      groupedBookings.push({ roomKey, bookings });
+    });
+  } else {
+    // При сортировке по другим полям создаем плоский список, чтобы сохранить порядок
+    filteredBookings.forEach(booking => {
+      const room = rooms.find(r => r.id === booking.roomId);
+      const hotelId = room?.hotelId || '';
+      const roomKey = `${hotelId}_${booking.roomId || ''}`;
+      groupedBookings.push({ roomKey, bookings: [booking] });
+    });
+  }
 
   const handleSort = (column: typeof sortBy) => {
     if (sortBy === column) {
