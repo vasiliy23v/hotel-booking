@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Users, BookOpen, MessageCircle, LogOut } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -37,6 +37,7 @@ export default function CMSDashboard() {
   const [bookingStats, setBookingStats] = useState({ unconfirmed: 0, unpaid: 0 });
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const isModalOpenRef = useRef(false);
 
   const loadHotels = async () => {
     try {
@@ -83,9 +84,11 @@ export default function CMSDashboard() {
     loadHotels();
     loadBookingStats();
     
-    // Обновляем статистику каждые 30 секунд
+    // Обновляем статистику каждые 30 секунд, но только если модальное окно закрыто
     const interval = setInterval(() => {
-      loadBookingStats();
+      if (!isModalOpenRef.current) {
+        loadBookingStats();
+      }
     }, 30000);
     
     return () => clearInterval(interval);
@@ -164,9 +167,9 @@ export default function CMSDashboard() {
           />
         )}
 
-        {viewMode === 'bookings' && (
-          <BookingsView />
-        )}
+         {viewMode === 'bookings' && (
+           <BookingsView onModalStateChange={(isOpen) => { isModalOpenRef.current = isOpen; }} />
+         )}
 
         {viewMode === 'feedback' && (
           <FeedbackView />

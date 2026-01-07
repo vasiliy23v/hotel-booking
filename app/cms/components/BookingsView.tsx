@@ -12,7 +12,7 @@ import { ConfirmPaymentDialog } from '@/components/booking/ConfirmPaymentDialog'
 import type { User, Room, Hotel, BookingInfo, Guest } from '@/types';
 import type { StatisticsResponse } from '@/types/api';
 
-export default function BookingsView() {
+export default function BookingsView({ onModalStateChange }: { onModalStateChange?: (isOpen: boolean) => void } = {}) {
   const [bookings, setBookings] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string })[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -197,7 +197,11 @@ export default function BookingsView() {
     if (showDetailModal || showEditModal) {
       setOpenMenuId(null);
     }
-  }, [showDetailModal, showEditModal]);
+    // Уведомляем родительский компонент о состоянии модального окна
+    if (onModalStateChange) {
+      onModalStateChange(showDetailModal || showEditModal);
+    }
+  }, [showDetailModal, showEditModal, onModalStateChange]);
 
   const loadBookings = async () => {
     try {
@@ -274,6 +278,9 @@ export default function BookingsView() {
     setOpenMenuId(null);
     setSelectedBookingForEdit(booking);
     setShowEditModal(true);
+    if (onModalStateChange) {
+      onModalStateChange(true);
+    }
   };
 
   const handleSaveEdit = async (data: BookingFormData) => {
@@ -290,6 +297,9 @@ export default function BookingsView() {
       });
       setShowEditModal(false);
       setSelectedBookingForEdit(null);
+      if (onModalStateChange) {
+        onModalStateChange(false);
+      }
       await loadBookings();
     } catch (error) {
       console.error('Error updating booking:', error);
@@ -1673,6 +1683,9 @@ export default function BookingsView() {
             onClose={() => {
               setShowEditModal(false);
               setSelectedBookingForEdit(null);
+              if (onModalStateChange) {
+                onModalStateChange(false);
+              }
             }}
             onSubmit={handleSaveEdit}
             initialData={{
