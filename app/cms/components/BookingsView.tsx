@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect, useMemo, ReactElement } from 'react';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, Search, Edit, MoreVertical, Trash2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, Search, Edit, MoreVertical, Trash2, AlertTriangle, Eye, EyeOff, Printer } from 'lucide-react';
 import { api } from '@/lib/api';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -16,6 +16,7 @@ import {
   isPastFestivalBooking,
   parseLocalDate,
 } from '@/lib/festival-dates';
+import { openBookingsPrintWindow } from '@/lib/bookings-print';
 
 export default function BookingsView({ onModalStateChange }: { onModalStateChange?: (isOpen: boolean) => void } = {}) {
   const [bookings, setBookings] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string })[]>([]);
@@ -788,6 +789,26 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
 
   const hasActiveFilters = searchQuery || filterHotel || filterBookedBy || filterRoomNumber || filterDateFrom || filterDateTo;
 
+  const handlePrint = () => {
+    if (filteredBookings.length === 0) {
+      alert('Нет данных для печати. Измените фильтры или покажите бронирования прошлого фестиваля.');
+      return;
+    }
+
+    try {
+      openBookingsPrintWindow({
+        bookings: filteredBookings,
+        rooms,
+        activeRanges: allowedDateRanges,
+        allRanges: allDateRanges,
+        title: 'Регистрация участников фестиваля',
+      });
+    } catch (error) {
+      console.error('Print error:', error);
+      alert('Ошибка при подготовке печати. Попробуйте ещё раз.');
+    }
+  };
+
   // Вычисляем статистику бронирований на основе отфильтрованных данных
   const totalBookings = filteredBookings.length;
   // Считаем полностью оплаченные бронирования на основе фактически оплаченной суммы, а не флага isPaid
@@ -965,6 +986,16 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
                 <span className="hidden sm:inline">Сбросить</span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={loading || filteredBookings.length === 0}
+              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Печать таблицы регистрации по дням"
+            >
+              <Printer className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Печать</span>
+            </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
