@@ -36,6 +36,24 @@ export interface BookingFormData {
   includeManager?: boolean; // Учитывать ли менеджера при бронировании
 }
 
+export function getBookedByAndPhoneFromFormData(
+  data: BookingFormData,
+  currentUser?: User | null
+): { bookedBy?: string; phone: string } {
+  const canEditBookedBy = currentUser?.role === 'manager' || currentUser?.role === 'developer';
+
+  if (canEditBookedBy && data.manualUserName?.trim()) {
+    return {
+      bookedBy: data.manualUserName.trim(),
+      phone: (data.manualUserPhone || data.phone).replace(/\s/g, ''),
+    };
+  }
+
+  return {
+    phone: data.phone.replace(/\s/g, ''),
+  };
+}
+
 export function BookingFormModal({
   isOpen,
   onClose,
@@ -179,8 +197,7 @@ export function BookingFormModal({
   };
 
   const validateContact = () => {
-    if (currentUser?.role === 'manager') {
-      // Проверяем, что имя заполнено, телефон заполнен И имя содержит только латинские буквы
+    if (currentUser?.role === 'manager' || currentUser?.role === 'developer') {
       const isNameValid = manualUserName && /^[A-Za-z\s-]+$/.test(manualUserName.trim());
       return !!(isNameValid && manualUserPhone);
     }
@@ -221,6 +238,7 @@ export function BookingFormModal({
           manualUserPhone={manualUserPhone}
           onManualUserNameChange={setManualUserName}
           onManualUserPhoneChange={setManualUserPhone}
+          mode={mode}
         />
       ),
       validate: validateContact,

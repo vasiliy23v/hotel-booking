@@ -56,7 +56,7 @@ import type {
 import FloorPlan from "@/components/FloorPlan";
 import Link from "next/link";
 import FeedbackForm from "@/components/FeedbackForm";
-import { BookingFormModal, type BookingFormData } from "@/components/booking/BookingFormModal";
+import { BookingFormModal, type BookingFormData, getBookedByAndPhoneFromFormData } from "@/components/booking/BookingFormModal";
 import { ConfirmCancelBookingDialog } from "@/components/booking/ConfirmCancelBookingDialog";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
@@ -5040,13 +5040,16 @@ function BookingsView({
         }
       }
       
+      const { bookedBy, phone } = getBookedByAndPhoneFromFormData(data, currentUser);
+      
       await api.updateBooking(selectedBookingForEdit.id, {
         checkIn: data.checkIn,
         checkOut: data.checkOut,
         guests: finalGuests,
         email: data.email,
-        phone: data.phone,
+        phone,
         notes: data.notes,
+        ...(bookedBy ? { bookedBy } : {}),
       });
 
       setShowEditModal(false);
@@ -5426,6 +5429,8 @@ function BookingsView({
               email: selectedBookingForEdit.email || '',
               phone: selectedBookingForEdit.phone || '',
               notes: selectedBookingForEdit.notes || '',
+              manualUserName: selectedBookingForEdit.bookedBy || '',
+              manualUserPhone: selectedBookingForEdit.phone || '',
               includeManager: (currentUser?.role === 'manager' || currentUser?.role === 'developer') && 
                 (selectedBookingForEdit.guests || []).some(g => g.name === currentUser?.name),
             }}

@@ -7,7 +7,7 @@ import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Building2, LogOut
 import { api } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 // import { DatePicker } from '@/components/ui/date-picker';
-import { BookingFormModal, type BookingFormData } from '@/components/booking/BookingFormModal';
+import { BookingFormModal, type BookingFormData, getBookedByAndPhoneFromFormData } from '@/components/booking/BookingFormModal';
 import { ConfirmCancelBookingDialog } from '@/components/booking/ConfirmCancelBookingDialog';
 import {
   AlertDialog,
@@ -172,13 +172,16 @@ export default function BookingsPage() {
         }
       }
 
+      const { bookedBy, phone } = getBookedByAndPhoneFromFormData(data, currentUser);
+
       await api.updateBooking(selectedBookingForEdit.id, {
         checkIn: data.checkIn,
         checkOut: data.checkOut,
         guests: finalGuests,
         notes: data.notes,
         email: data.email,
-        phone: data.phone,
+        phone,
+        ...(bookedBy ? { bookedBy } : {}),
       });
       setShowEditModal(false);
       setSelectedBookingForEdit(null);
@@ -1082,6 +1085,8 @@ export default function BookingsPage() {
               email: selectedBookingForEdit.email || '',
               phone: selectedBookingForEdit.phone || '',
               notes: selectedBookingForEdit.notes || '',
+              manualUserName: selectedBookingForEdit.bookedBy || '',
+              manualUserPhone: selectedBookingForEdit.phone || '',
               includeManager: (currentUser?.role === 'manager' || currentUser?.role === 'developer') && 
                 (selectedBookingForEdit.guests || []).some(g => g.name === currentUser?.name),
             }}

@@ -6,7 +6,7 @@ import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Calendar, U
 import { api } from '@/lib/api';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BookingFormModal, type BookingFormData } from '@/components/booking/BookingFormModal';
+import { BookingFormModal, type BookingFormData, getBookedByAndPhoneFromFormData } from '@/components/booking/BookingFormModal';
 import { ConfirmCancelBookingDialog } from '@/components/booking/ConfirmCancelBookingDialog';
 import { ConfirmPaymentDialog } from '@/components/booking/ConfirmPaymentDialog';
 import type { User, Room, Hotel, BookingInfo, Guest } from '@/types';
@@ -287,13 +287,16 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
     if (!selectedBookingForEdit?.id) return;
     
     try {
+      const { bookedBy, phone } = getBookedByAndPhoneFromFormData(data, currentUser);
+
       await api.updateBooking(selectedBookingForEdit.id, {
         checkIn: data.checkIn,
         checkOut: data.checkOut,
         notes: data.notes,
         guests: data.guests,
         email: data.email,
-        phone: data.phone,
+        phone,
+        ...(bookedBy ? { bookedBy } : {}),
       });
       setShowEditModal(false);
       setSelectedBookingForEdit(null);

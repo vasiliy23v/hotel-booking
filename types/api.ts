@@ -233,7 +233,7 @@ export type CreateBookingInput = {
   notes?: string;
 };
 
-export type UpdateBookingInput = Partial<Omit<CreateBookingInput, 'roomId' | 'bookedBy'>> & {
+export type UpdateBookingInput = Partial<Omit<CreateBookingInput, 'roomId'>> & {
   isConfirmed?: boolean;
   confirmedBy?: string;
   confirmedDate?: Date | string;

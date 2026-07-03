@@ -13,6 +13,7 @@ interface ContactStepProps {
   manualUserPhone?: string;
   onManualUserNameChange?: (name: string) => void;
   onManualUserPhoneChange?: (phone: string) => void;
+  mode?: 'create' | 'edit';
 }
 
 // Проверка на латинские буквы, пробелы и дефисы
@@ -30,9 +31,11 @@ export function ContactStep({
   manualUserPhone,
   onManualUserNameChange,
   onManualUserPhoneChange,
+  mode = 'create',
 }: ContactStepProps) {
-  const isManager = currentUser?.role === 'manager';
-  const hasNameError = isManager && manualUserName && !isValidLatinName(manualUserName);
+  const canEditBookedBy = currentUser?.role === 'manager' || currentUser?.role === 'developer';
+  const hasNameError = canEditBookedBy && manualUserName && !isValidLatinName(manualUserName);
+  const bookedByLabel = mode === 'edit' ? 'Кто бронировал' : 'Имя пользователя';
 
   return (
     <div className="space-y-6">
@@ -43,11 +46,11 @@ export function ContactStep({
       </div>
 
       <div className="space-y-4">
-        {isManager ? (
+        {canEditBookedBy ? (
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-foreground mb-2">
-                Имя пользователя <span className="text-red-500">*</span>
+                {bookedByLabel} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-muted-foreground" />
@@ -120,7 +123,7 @@ export function ContactStep({
           </div>
         </div>
 
-        {!isManager && (
+        {!canEditBookedBy && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-foreground mb-2">
               Телефон <span className="text-red-500">*</span>
