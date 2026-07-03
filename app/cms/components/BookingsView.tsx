@@ -1,8 +1,8 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 
-import { useState, useEffect, ReactElement } from 'react';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, Search, Edit, MoreVertical, Trash2, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useMemo, ReactElement } from 'react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, Search, Edit, MoreVertical, Trash2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { api } from '@/lib/api';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -11,6 +11,11 @@ import { ConfirmCancelBookingDialog } from '@/components/booking/ConfirmCancelBo
 import { ConfirmPaymentDialog } from '@/components/booking/ConfirmPaymentDialog';
 import type { User, Room, Hotel, BookingInfo, Guest } from '@/types';
 import type { StatisticsResponse } from '@/types/api';
+import {
+  getCurrentFestivalVisibleMonths,
+  isPastFestivalBooking,
+  parseLocalDate,
+} from '@/lib/festival-dates';
 
 export default function BookingsView({ onModalStateChange }: { onModalStateChange?: (isOpen: boolean) => void } = {}) {
   const [bookings, setBookings] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string })[]>([]);
@@ -22,6 +27,8 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_filterHotelId, setFilterHotelId] = useState<string>('');
   const [allowedDateRanges, setAllowedDateRanges] = useState<Array<{ startDate: string; endDate: string }>>([]);
+  const [allDateRanges, setAllDateRanges] = useState<Array<{ startDate: string; endDate: string }>>([]);
+  const [hidePastFestivalBookings, setHidePastFestivalBookings] = useState(true);
   
   // Поиск
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -148,11 +155,20 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
     // Загружаем активные диапазоны дат для валидации и подчёркивания невалидных дат
     const loadDateRanges = async () => {
       try {
-        const ranges = await api.getBookingDateRanges(true);
-        setAllowedDateRanges(ranges.map((r) => ({
+        const ranges = await api.getBookingDateRanges(false);
+        const normalizedRanges = ranges.map((r) => ({
           startDate: typeof r.startDate === 'string' ? r.startDate : r.startDate.toISOString().split('T')[0],
           endDate: typeof r.endDate === 'string' ? r.endDate : r.endDate.toISOString().split('T')[0],
-        })));
+        }));
+        setAllDateRanges(normalizedRanges);
+        setAllowedDateRanges(
+          ranges
+            .filter((r) => r.isActive)
+            .map((r) => ({
+              startDate: typeof r.startDate === 'string' ? r.startDate : r.startDate.toISOString().split('T')[0],
+              endDate: typeof r.endDate === 'string' ? r.endDate : r.endDate.toISOString().split('T')[0],
+            }))
+        );
       } catch (error) {
         console.error('Error loading date ranges:', error);
       }
@@ -522,88 +538,117 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
   };
 
 
-  // Фильтруем бронирования
-  let filteredBookings = bookings;
+  const currentFestivalVisibleMonths = useMemo(
+    () => getCurrentFestivalVisibleMonths(bookings, allowedDateRanges, allDateRanges),
+    [bookings, allowedDateRanges, allDateRanges]
+  );
 
-  // Поиск по комнатам, именам, почте и названию отеля
-  if (searchQuery) {
-    const query = searchQuery.toLowerCase().trim();
-    filteredBookings = filteredBookings.filter(b => {
-      // Поиск по названию отеля
-      const matchesHotel = b.hotelName?.toLowerCase().includes(query);
-      
-      // Поиск по номеру комнаты
-      const matchesRoom = b.roomNumber?.toLowerCase().includes(query);
-      
-      // Поиск по имени того, кто бронировал
-      const matchesBookedBy = b.bookedBy.toLowerCase().includes(query);
-      
-      // Поиск по email того, кто бронировал
-      const matchesEmail = b.email?.toLowerCase().includes(query);
-      
-      // Поиск по именам гостей
-      const matchesGuestNames = b.guests?.some((guest: Guest) => 
-        guest.name?.toLowerCase().includes(query)
-      ) || false;
-      
-      // Поиск по email гостей
-      const matchesGuestEmails = b.guests?.some((guest: Guest) => 
-        guest.email?.toLowerCase().includes(query)
-      ) || false;
-      
-      return matchesHotel || matchesRoom || matchesBookedBy || matchesEmail || matchesGuestNames || matchesGuestEmails;
-    });
-  }
+  const bookingsAfterFilters = useMemo(() => {
+    let result = bookings;
 
-  if (filterHotel) {
-    filteredBookings = filteredBookings.filter(b => 
-      b.hotelName?.toLowerCase().includes(filterHotel.toLowerCase()) || 
-      hotels.find(h => h.id === filterHotel)?.name === b.hotelName
-    );
-  }
-  if (filterBookedBy) {
-    filteredBookings = filteredBookings.filter(b => 
-      b.bookedBy.toLowerCase().includes(filterBookedBy.toLowerCase())
-    );
-  }
-  if (filterRoomNumber) {
-    filteredBookings = filteredBookings.filter(b => 
-      b.roomNumber?.toLowerCase().includes(filterRoomNumber.toLowerCase())
-    );
-  }
-  if (filterDateFrom) {
-    filteredBookings = filteredBookings.filter(b => 
-      new Date(b.checkIn) >= new Date(filterDateFrom)
-    );
-  }
-  if (filterDateTo) {
-    filteredBookings = filteredBookings.filter(b => 
-      new Date(b.checkIn) <= new Date(filterDateTo)
-    );
-  }
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((b) => {
+        const matchesHotel = b.hotelName?.toLowerCase().includes(query);
+        const matchesRoom = b.roomNumber?.toLowerCase().includes(query);
+        const matchesBookedBy = b.bookedBy.toLowerCase().includes(query);
+        const matchesEmail = b.email?.toLowerCase().includes(query);
+        const matchesGuestNames =
+          b.guests?.some((guest: Guest) => guest.name?.toLowerCase().includes(query)) || false;
+        const matchesGuestEmails =
+          b.guests?.some((guest: Guest) => guest.email?.toLowerCase().includes(query)) || false;
 
-  // Применяем сортировку
-  filteredBookings.sort((a, b) => {
-    let comparison = 0;
-    switch (sortBy) {
-      case 'checkIn':
-        comparison = new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime();
-        break;
-      case 'checkOut':
-        comparison = new Date(a.checkOut).getTime() - new Date(b.checkOut).getTime();
-        break;
-      case 'bookedDate':
-        comparison = new Date(a.bookedDate).getTime() - new Date(b.bookedDate).getTime();
-        break;
-      case 'bookedBy':
-        comparison = a.bookedBy.localeCompare(b.bookedBy);
-        break;
-      case 'roomNumber':
-        comparison = (a.roomNumber || '').localeCompare(b.roomNumber || '');
-        break;
+        return (
+          matchesHotel ||
+          matchesRoom ||
+          matchesBookedBy ||
+          matchesEmail ||
+          matchesGuestNames ||
+          matchesGuestEmails
+        );
+      });
     }
-    return sortDirection === 'asc' ? comparison : -comparison;
-  });
+
+    if (filterHotel) {
+      result = result.filter(
+        (b) =>
+          b.hotelName?.toLowerCase().includes(filterHotel.toLowerCase()) ||
+          hotels.find((h) => h.id === filterHotel)?.name === b.hotelName
+      );
+    }
+    if (filterBookedBy) {
+      result = result.filter((b) => b.bookedBy.toLowerCase().includes(filterBookedBy.toLowerCase()));
+    }
+    if (filterRoomNumber) {
+      result = result.filter((b) =>
+        b.roomNumber?.toLowerCase().includes(filterRoomNumber.toLowerCase())
+      );
+    }
+    if (filterDateFrom) {
+      result = result.filter((b) => parseLocalDate(b.checkIn) >= parseLocalDate(filterDateFrom));
+    }
+    if (filterDateTo) {
+      result = result.filter((b) => parseLocalDate(b.checkIn) <= parseLocalDate(filterDateTo));
+    }
+
+    return result;
+  }, [
+    bookings,
+    searchQuery,
+    filterHotel,
+    filterBookedBy,
+    filterRoomNumber,
+    filterDateFrom,
+    filterDateTo,
+    hotels,
+  ]);
+
+  const pastFestivalBookingsCount = useMemo(
+    () =>
+      bookingsAfterFilters.filter((b) =>
+        isPastFestivalBooking(b, allDateRanges, currentFestivalVisibleMonths)
+      ).length,
+    [bookingsAfterFilters, allDateRanges, currentFestivalVisibleMonths]
+  );
+
+  const filteredBookings = useMemo(() => {
+    let result = bookingsAfterFilters;
+
+    if (hidePastFestivalBookings) {
+      result = result.filter(
+        (b) => !isPastFestivalBooking(b, allDateRanges, currentFestivalVisibleMonths)
+      );
+    }
+
+    return [...result].sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'checkIn':
+          comparison = new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime();
+          break;
+        case 'checkOut':
+          comparison = new Date(a.checkOut).getTime() - new Date(b.checkOut).getTime();
+          break;
+        case 'bookedDate':
+          comparison = new Date(a.bookedDate).getTime() - new Date(b.bookedDate).getTime();
+          break;
+        case 'bookedBy':
+          comparison = a.bookedBy.localeCompare(b.bookedBy);
+          break;
+        case 'roomNumber':
+          comparison = (a.roomNumber || '').localeCompare(b.roomNumber || '');
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [
+    bookingsAfterFilters,
+    hidePastFestivalBookings,
+    allDateRanges,
+    currentFestivalVisibleMonths,
+    sortBy,
+    sortDirection,
+  ]);
 
   // Функция для проверки пересечения дат
   const datesOverlap = (checkIn1: string, checkOut1: string, checkIn2: string, checkOut2: string): boolean => {
@@ -879,7 +924,38 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
               </div>
             )}
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+            {pastFestivalBookingsCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setHidePastFestivalBookings(!hidePastFestivalBookings)}
+                className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                  hidePastFestivalBookings
+                    ? 'bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent'
+                    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-200 dark:hover:bg-amber-900/50'
+                }`}
+                title={
+                  hidePastFestivalBookings
+                    ? `Показать ${pastFestivalBookingsCount} бронирований прошлого фестиваля`
+                    : 'Скрыть бронирования прошлого фестиваля'
+                }
+              >
+                {hidePastFestivalBookings ? (
+                  <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                ) : (
+                  <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {hidePastFestivalBookings ? 'Показать прошлый фестиваль' : 'Скрыть прошлый фестиваль'}
+                </span>
+                <span className="sm:hidden">
+                  {hidePastFestivalBookings ? 'Показать' : 'Скрыть'}
+                </span>
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground">
+                  {pastFestivalBookingsCount}
+                </span>
+              </button>
+            )}
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
@@ -985,6 +1061,29 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
                 />
               </div>
             </div>
+          </div>
+        )}
+
+        {!loading && pastFestivalBookingsCount > 0 && (
+          <div
+            className={`mb-3 rounded-lg border px-3 py-2 text-xs sm:text-sm ${
+              hidePastFestivalBookings
+                ? 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200'
+                : 'border-gray-200 bg-gray-50 text-gray-700 dark:border-border dark:bg-muted dark:text-foreground'
+            }`}
+          >
+            {hidePastFestivalBookings ? (
+              <>
+                Скрыто <strong>{pastFestivalBookingsCount}</strong> бронирований прошлого фестиваля.
+                Показано <strong>{filteredBookings.length}</strong> из{' '}
+                <strong>{bookingsAfterFilters.length}</strong>.
+              </>
+            ) : (
+              <>
+                Показаны все бронирования, включая <strong>{pastFestivalBookingsCount}</strong> прошлого
+                фестиваля (выделены жёлтым).
+              </>
+            )}
           </div>
         )}
 
@@ -1097,6 +1196,9 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
                   const hasMultipleBookings = group.bookings.length > 1;
                   
                   const isDuplicate = booking.id ? duplicateBookingIds.has(booking.id) : false;
+                  const isPastRow =
+                    !hidePastFestivalBookings &&
+                    isPastFestivalBooking(booking, allDateRanges, currentFestivalVisibleMonths);
                   
                   return (
                     <TableRow 
@@ -1106,7 +1208,7 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
                         setSelectedBookingForDetail(booking);
                         setShowDetailModal(true);
                       }}
-                      className={`cursor-pointer hover:bg-gray-100 dark:hover:bg-accent transition-colors ${hasMultipleBookings ? 'bg-gray-50 dark:bg-muted border-l-3 border-l-gray-200 dark:border-l-border' : ''} ${isFirstInGroup && hasMultipleBookings ? 'border-t border-t-gray-200 dark:border-t-border' : ''} ${isLastInGroup && hasMultipleBookings ? 'border-b border-b-gray-200 dark:border-b-border' : ''} ${isDuplicate ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-l-red-500 dark:border-l-red-400' : ''}`}
+                      className={`cursor-pointer hover:bg-gray-100 dark:hover:bg-accent transition-colors ${hasMultipleBookings ? 'bg-gray-50 dark:bg-muted border-l-3 border-l-gray-200 dark:border-l-border' : ''} ${isFirstInGroup && hasMultipleBookings ? 'border-t border-t-gray-200 dark:border-t-border' : ''} ${isLastInGroup && hasMultipleBookings ? 'border-b border-b-gray-200 dark:border-b-border' : ''} ${isDuplicate ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-l-red-500 dark:border-l-red-400' : ''} ${isPastRow ? 'bg-amber-50/80 dark:bg-amber-900/15 border-l-4 border-l-amber-400 dark:border-l-amber-500' : ''}`}
                     >
                       <TableCell className="py-3">
                         {isFirstInGroup ? (
