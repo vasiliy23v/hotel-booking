@@ -14,8 +14,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Только для Vercel Preview (ветка develop): никогда не показывается в production
+const isPreview = process.env.VERCEL_ENV === "preview";
+
 export const metadata: Metadata = {
-  title: "Hotel Booking System",
+  title: isPreview ? "[TEST] Hotel Booking System" : "Hotel Booking System",
   description: "Система управления бронированием отелей",
 };
 
@@ -35,6 +38,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          {isPreview && (
+            <div className="fixed top-0 left-0 right-0 z-[100000] bg-fuchsia-600 text-white text-center text-xs font-bold py-1 pointer-events-none">
+              🧪 ТЕСТОВАЯ ВЕРСИЯ (develop) — тестовая база, не продакшн
+            </div>
+          )}
           {children}
           <Toaster richColors position="top-right" />
         </ThemeProvider>
