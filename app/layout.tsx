@@ -14,11 +14,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Только для Vercel Preview (ветка develop): никогда не показывается в production
-const isPreview = process.env.VERCEL_ENV === "preview";
+// Индикатор окружения (не зависит от настроек Vercel).
+// Определяем по хосту базы, к которой подключено приложение: продовая БД Neon известна,
+// всё остальное считается тестовой базой. Сам DATABASE_URL никуда не выводится.
+const PROD_DB_ENDPOINT = "ep-twilight-rain-ag21bm04";
+function getDbHost(): string {
+  try {
+    return new URL(process.env.DATABASE_URL ?? "").hostname;
+  } catch {
+    return "";
+  }
+}
+const dbHost = getDbHost();
+const isProdDb = dbHost.includes(PROD_DB_ENDPOINT);
+const isTestDb = dbHost !== "" && !isProdDb;
+// Preview-деплой, подключённый к боевой базе — опасная ситуация
+const isPreviewOnProdDb = isProdDb && process.env.VERCEL_ENV === "preview";
 
 export const metadata: Metadata = {
-  title: isPreview ? "[TEST] Hotel Booking System" : "Hotel Booking System",
+  title: isTestDb ? "[TEST] Hotel Booking System" : "Hotel Booking System",
   description: "Система управления бронированием отелей",
 };
 
@@ -38,9 +52,14 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {isPreview && (
+          {isTestDb && (
             <div className="fixed top-0 left-0 right-0 z-[100000] bg-fuchsia-600 text-white text-center text-xs font-bold py-1 pointer-events-none">
-              🧪 ТЕСТОВАЯ ВЕРСИЯ (develop) — тестовая база, не продакшн
+              🧪 ТЕСТОВАЯ ВЕРСИЯ — подключена тестовая база, не продакшн
+            </div>
+          )}
+          {isPreviewOnProdDb && (
+            <div className="fixed top-0 left-0 right-0 z-[100000] bg-red-600 text-white text-center text-xs font-bold py-1 pointer-events-none">
+              ⚠️ PREVIEW ПОДКЛЮЧЁН К БОЕВОЙ БАЗЕ — не вносите изменения!
             </div>
           )}
           {children}
