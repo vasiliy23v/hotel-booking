@@ -83,9 +83,9 @@ export default function Home() {
         {/* Фото (только на компьютере) */}
         <div className="relative hidden lg:block lg:w-1/2 overflow-hidden rounded-[1.5rem]">
           <img
-            src="https://images.unsplash.com/photo-1416339306562-f3d12fefd36f?w=1200&q=80"
+            src="/login-hero.jpg"
             alt=""
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover object-[40%_60%]"
           />
         </div>
 
