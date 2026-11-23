@@ -2,7 +2,6 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { serif } from '@/lib/fonts';
 import { api } from '@/lib/api';
@@ -157,11 +156,7 @@ export default function Home() {
                 </button>
               </div>
 
-              <div className="text-right">
-                <Link href="/forgot-password" className="text-base font-medium text-[#6b4a36] hover:underline">
-                  Забыли пароль?
-                </Link>
-              </div>
+              {/* "Забыли пароль?" временно скрыто: <Link href="/forgot-password"> */}
 
               {authError && (
                 <div role="alert" className="rounded-2xl bg-[#fde8e4] px-5 py-3 text-base text-[#9b2c1f]">
