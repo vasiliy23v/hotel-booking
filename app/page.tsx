@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Eye, EyeOff } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import { api } from '@/lib/api';
 
 export default function Home() {
@@ -75,27 +75,28 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex bg-white">
-      {/* Форма входа: крупный текст, высокий контраст, большие поля и кнопки */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-5 py-10 sm:px-10">
-        <div className="w-full max-w-lg">
-          <div className="text-center mb-10">
-            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-700">
-              <Building2 className="h-11 w-11 text-white" aria-hidden="true" />
-            </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-3">Hotel Booking</h1>
-            <p className="text-xl text-gray-700">Войдите, чтобы забронировать комнату</p>
-          </div>
+    <div className="min-h-screen flex bg-[#f4f4f6] lg:p-4 lg:gap-4">
+      {/* Форма входа */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-5 py-10 lg:bg-white lg:rounded-[2rem]">
+        <div className="w-full max-w-md">
+          <Building2 className="h-9 w-9 text-gray-900 mb-10" strokeWidth={1.5} aria-hidden="true" />
+
+          <h1 className="text-[2.5rem] leading-[1.1] font-semibold tracking-tight text-gray-900">
+            Добро пожаловать
+          </h1>
+          <p className="mt-3 mb-10 text-lg text-gray-600">
+            Войдите, чтобы забронировать комнату
+          </p>
 
           <form
-            className="space-y-6"
+            className="space-y-5"
             onSubmit={(e) => {
               e.preventDefault();
               handleLogin();
             }}
           >
             <div>
-              <label htmlFor="login-identifier" className="block text-xl font-semibold mb-2 text-gray-900">
+              <label htmlFor="login-identifier" className="block text-lg font-medium mb-2 text-gray-900">
                 Email или телефон
               </label>
               <input
@@ -108,13 +109,13 @@ export default function Home() {
                   setIdentifier(e.target.value);
                   setAuthError('');
                 }}
-                placeholder="email@example.com или +49…"
-                className="w-full h-16 px-5 text-xl border-2 border-gray-500 rounded-2xl bg-white text-gray-900 placeholder:text-gray-500 focus:border-blue-700 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                placeholder="email@example.com"
+                className="w-full h-14 px-5 text-lg rounded-2xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-900 focus:ring-2 focus:ring-gray-900 focus:outline-none"
               />
             </div>
 
             <div>
-              <label htmlFor="login-password" className="block text-xl font-semibold mb-2 text-gray-900">
+              <label htmlFor="login-password" className="block text-lg font-medium mb-2 text-gray-900">
                 Пароль
               </label>
               <div className="relative">
@@ -128,22 +129,21 @@ export default function Home() {
                     setAuthError('');
                   }}
                   placeholder="Ваш пароль"
-                  className="w-full h-16 pl-5 pr-32 text-xl border-2 border-gray-500 rounded-2xl bg-white text-gray-900 placeholder:text-gray-500 focus:border-blue-700 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                  className="w-full h-14 pl-5 pr-28 text-lg rounded-2xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-900 focus:ring-2 focus:ring-gray-900 focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-12 items-center gap-2 rounded-xl px-3 text-lg font-semibold text-blue-800 hover:bg-blue-50 focus:outline-none focus:ring-4 focus:ring-blue-200"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-10 rounded-xl px-3 text-base font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900"
                   aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
                 >
-                  {showPassword ? <EyeOff className="h-6 w-6" aria-hidden="true" /> : <Eye className="h-6 w-6" aria-hidden="true" />}
                   {showPassword ? 'Скрыть' : 'Показать'}
                 </button>
               </div>
             </div>
 
             {authError && (
-              <div role="alert" className="rounded-2xl border-2 border-red-600 bg-red-50 px-5 py-4 text-lg font-medium text-red-800">
+              <div role="alert" className="rounded-2xl bg-red-50 px-5 py-4 text-base text-red-800">
                 {authError}
               </div>
             )}
@@ -151,20 +151,20 @@ export default function Home() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-16 rounded-2xl bg-blue-700 text-xl font-bold text-white transition-colors hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-60"
+              className="mt-2 w-full h-14 rounded-full bg-gray-900 text-lg font-medium text-white transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-60"
             >
               {loading ? 'Входим…' : 'Войти'}
             </button>
-
-            <p className="border-t-2 border-gray-200 pt-6 text-center text-lg text-gray-700">
-              Регистрация доступна только по приглашению
-            </p>
           </form>
+
+          <p className="mt-8 text-center text-base text-gray-600">
+            Регистрация доступна только по приглашению
+          </p>
         </div>
       </div>
 
-      {/* Правая часть - Фото (только на компьютере) */}
-      <div className="hidden lg:block lg:w-1/2 relative">
+      {/* Фото (только на компьютере) */}
+      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden rounded-[2rem]">
         <img
           src="https://images.unsplash.com/photo-1416339306562-f3d12fefd36f?w=1200&q=80"
           alt=""
