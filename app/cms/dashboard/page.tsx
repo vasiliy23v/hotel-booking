@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Users, BookOpen, MessageCircle, LogOut } from 'lucide-react';
+import { BedDouble, Users, CalendarCheck, PartyPopper, MessageSquareText, LogOut } from 'lucide-react';
+import { serif } from '@/lib/fonts';
+import { LogoutDialog } from '@/components/LogoutDialog';
 import { api } from '@/lib/api';
 import type { User, Hotel } from '@/types';
 import HotelsView from '../components/HotelsView';
@@ -14,23 +16,12 @@ import FeedbackForm from '@/components/FeedbackForm';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/navigation/AppSidebar';
 import { MobileNav } from '@/components/navigation/MobileNav';
-import { ModeToggle } from '@/components/mode-toggle';
-import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+
 
 export default function CMSDashboard() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [viewMode, setViewMode] = useState<'hotels' | 'users' | 'bookings' | 'feedback' | 'dateRanges'>('hotels');
+  const [viewMode, setViewMode] = useState<'hotels' | 'users' | 'bookings' | 'feedback' | 'dateRanges'>('bookings');
   const [selectedHotel, setSelectedHotel] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -43,9 +34,6 @@ export default function CMSDashboard() {
     try {
       const data = await api.getHotels();
       setHotels(data);
-      if (data.length > 0 && !selectedHotel) {
-        setSelectedHotel(data[0].id);
-      }
     } catch (error) {
       console.error('Error loading hotels:', error);
     }
@@ -109,7 +97,7 @@ export default function CMSDashboard() {
   }
 
   return (
-    <SidebarProvider className="min-h-screen bg-gray-50 dark:bg-[hsl(var(--background))] flex">
+    <SidebarProvider className="cms-root min-h-screen bg-gray-50 dark:bg-[hsl(var(--background))] flex">
       {/* Sidebar */}
       <AppSidebar
         currentUser={currentUser}
@@ -125,30 +113,35 @@ export default function CMSDashboard() {
       {/* Main Content */}
       <SidebarInset className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0">
         {/* Header */}
-        <header className="bg-background dark:bg-background border-border dark:border-border sticky top-0 z-30">
-          <div className="px-3 sm:px-4 py-3 sm:py-4">
-            <div className="flex items-center justify-between gap-3 sm:gap-4">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-foreground">CMS - Управление</h1>
+        <header className="sticky top-0 z-30 border-b border-[#eadfd3] bg-[#faf8f5]/90 backdrop-blur-md dark:border-white/10 dark:bg-background/90">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand-hotel-v2.png" alt="" className="h-10 w-auto lg:hidden" />
+              <h1 className={`${serif.className} text-2xl font-semibold tracking-tight text-[#3d2f27] dark:text-foreground sm:text-3xl`}>
+                {viewMode === 'bookings' ? 'Бронирования'
+                  : viewMode === 'hotels' ? 'Отели'
+                  : viewMode === 'users' ? 'Пользователи'
+                  : viewMode === 'dateRanges' ? 'Фестивали'
+                  : 'Отзывы'}
+              </h1>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="hidden items-center gap-3 rounded-full bg-[#f1e4d6] py-1.5 pl-1.5 pr-4 dark:bg-white/10 sm:flex">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#6b4a36] text-base font-semibold text-white">
+                  {currentUser.name?.charAt(0).toUpperCase()}
+                </span>
+                <span className="text-base font-medium text-[#5a3b28] dark:text-foreground">{currentUser.name}</span>
               </div>
-              <div className="flex items-center gap-2 sm:gap-3">
-                {/* Переключатель темы */}
-                <ModeToggle />
-
-                {/* Кнопка выхода */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleLogout}
-                  title="Выйти"
-                  className="h-9 w-9"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span className="sr-only">Выйти</span>
-                </Button>
-
-                <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:inline">{currentUser.name}</span>
-              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Выйти"
+                aria-label="Выйти"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-[#e3d5c6] bg-white text-[#5a3b28] transition-colors hover:bg-[#f6ede2] dark:border-border dark:bg-card dark:text-foreground"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
             </div>
           </div>
         </header>
@@ -185,28 +178,34 @@ export default function CMSDashboard() {
       <MobileNav
         items={[
           {
-            id: 'hotels',
-            label: 'Отели',
-            icon: Building2,
-            onClick: () => setViewMode('hotels'),
-          },
-          {
-            id: 'users',
-            label: 'Пользователи',
-            icon: Users,
-            onClick: () => setViewMode('users'),
-          },
-          {
             id: 'bookings',
-            label: 'Бронирования',
-            icon: BookOpen,
+            label: 'Брони',
+            icon: CalendarCheck,
             onClick: () => setViewMode('bookings'),
             badge: bookingStats.unconfirmed > 0 ? bookingStats.unconfirmed : undefined,
           },
           {
+            id: 'hotels',
+            label: 'Отели',
+            icon: BedDouble,
+            onClick: () => setViewMode('hotels'),
+          },
+          {
+            id: 'users',
+            label: 'Люди',
+            icon: Users,
+            onClick: () => setViewMode('users'),
+          },
+          {
+            id: 'dateRanges',
+            label: 'Фестивали',
+            icon: PartyPopper,
+            onClick: () => setViewMode('dateRanges'),
+          },
+          {
             id: 'feedback',
             label: 'Отзывы',
-            icon: MessageCircle,
+            icon: MessageSquareText,
             onClick: () => setViewMode('feedback'),
           },
         ]}
@@ -223,27 +222,7 @@ export default function CMSDashboard() {
       )}
 
       {/* Диалог подтверждения выхода */}
-      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Подтверждение выхода</AlertDialogTitle>
-            <AlertDialogDescription>
-              Вы уверены, что хотите выйти?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setShowLogoutDialog(false);
-                confirmLogout();
-              }}
-            >
-              Выйти
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <LogoutDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog} onConfirm={() => { setShowLogoutDialog(false); confirmLogout(); }} />
     </SidebarProvider>
   );
 }

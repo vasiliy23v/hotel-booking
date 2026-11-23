@@ -406,47 +406,27 @@ export default function UsersManagementView({
       )}
       <div className="space-y-4 sm:space-y-6">
         {/* Секция управления общим токеном регистрации */}
-        <div className="bg-white dark:bg-card rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-border">
+        <div className="rounded-2xl border border-[#eadfd3] bg-white p-5 sm:p-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground flex items-center gap-2 mb-2">
-                <Key className="w-5 h-5 sm:w-6 sm:h-6" />
+              <h3 className="flex items-center gap-2 mb-1 text-xl font-semibold text-[#3d2f27]">
+                <Key className="h-5 w-5 text-[#a8917f]" />
                 Общий токен регистрации
               </h3>
-              <p className="text-sm text-gray-600 dark:text-muted-foreground">
-                Создайте общую ссылку для регистрации. Люди с этой ссылкой смогут регистрироваться без индивидуальных приглашений.
-              </p>
             </div>
           </div>
 
           {registrationToken?.exists ? (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                <CheckCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">Активный токен создан</span>
-              </div>
-              <div className="bg-gray-50 dark:bg-muted rounded-lg p-3 border border-gray-200 dark:border-border">
-                <div className="text-xs text-gray-600 dark:text-muted-foreground mb-2">Создан:</div>
-                <div className="text-sm text-gray-900 dark:text-foreground">
-                  {registrationToken.createdAt && new Date(registrationToken.createdAt).toLocaleString('ru-RU', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </div>
-              </div>
-              
               {/* Ссылка для копирования */}
               {activeRegistrationUrl ? (
-                <div className="bg-gray-50 dark:bg-muted border border-gray-200 dark:border-border rounded-lg p-3">
+                <div className="pt-1">
                   <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                     <input
                       type="text"
                       value={activeRegistrationUrl}
                       readOnly
-                      className="w-full sm:flex-1 px-3 py-2 border border-gray-300 dark:border-border rounded-lg bg-white dark:bg-input text-sm text-gray-700 dark:text-foreground"
+                      className="w-full sm:flex-1 h-12 px-4 rounded-xl border border-[#eadfd3] bg-[#fbf8f4] text-base text-[#4a3a30] outline-none focus:border-[#c4622d]"
                       onClick={(e) => (e.target as HTMLInputElement).select()}
                     />
                     <button
@@ -466,7 +446,7 @@ export default function UsersManagementView({
                           });
                         }
                       }}
-                      className="w-full sm:w-auto px-4 py-2 bg-gray-700 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/80 text-white dark:text-primary-foreground rounded-lg flex items-center justify-center gap-2 text-sm font-semibold sm:shrink-0 transition-colors"
+                      className="w-full sm:w-auto h-12 px-6 bg-[#6b4a36] hover:bg-[#5a3b28] text-white rounded-xl flex items-center justify-center gap-2 text-base font-semibold sm:shrink-0 transition-colors"
                     >
                       {copiedRegistrationUrl ? (
                         <>
@@ -483,9 +463,9 @@ export default function UsersManagementView({
                   </div>
                 </div>
               ) : (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <div className="rounded-2xl border border-[#e8b790] bg-[#fde9da] p-4">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-yellow-800">
+                    <div className="flex items-center gap-2 text-[#a8431f]">
                       <AlertCircle className="w-4 h-4" />
                       <span className="text-sm">Ссылка не загружена. Получите ссылку для активного токена.</span>
                     </div>
@@ -520,7 +500,7 @@ export default function UsersManagementView({
                         }
                       }}
                       disabled={registrationTokenLoading}
-                      className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50 shrink-0"
+                      className="h-12 px-6 bg-[#c4622d] hover:bg-[#b4532a] text-white rounded-xl text-base font-semibold flex items-center gap-2 disabled:opacity-50 shrink-0"
                     >
                       <RefreshCw className={`w-4 h-4 ${registrationTokenLoading ? 'animate-spin' : ''}`} />
                       {registrationTokenLoading ? 'Загрузка...' : 'Получить ссылку'}
@@ -528,6 +508,20 @@ export default function UsersManagementView({
                   </div>
                 </div>
               )}
+
+              <div className="flex items-center gap-1.5 text-sm text-[#a8917f]">
+                <CheckCircle className="h-4 w-4 text-[#2f6b3a]" />
+                <span>
+                  Активный токен создан ·{' '}
+                  {registrationToken.createdAt && new Date(registrationToken.createdAt).toLocaleString('ru-RU', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              </div>
 
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
@@ -568,21 +562,18 @@ export default function UsersManagementView({
                     }
                   }}
                   disabled={registrationTokenLoading}
-                  className="px-4 py-2 bg-gray-700 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/80 text-white dark:text-primary-foreground rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50 transition-colors"
+                  className="h-11 px-1 text-[#8a7566] hover:text-[#5a3b28] text-base font-medium flex items-center gap-2 disabled:opacity-50 transition-colors underline-offset-4 hover:underline"
                 >
                   <RefreshCw className={`w-4 h-4 ${registrationTokenLoading ? 'animate-spin' : ''}`} />
                   {registrationTokenLoading ? 'Создание...' : 'Создать новый токен'}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 dark:text-muted-foreground">
-                При создании нового токена старый автоматически деактивируется. Все ссылки со старым токеном перестанут работать.
-              </p>
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-gray-600 dark:text-muted-foreground">
+              <div className="flex items-center gap-2 text-[#8a7566]">
                 <AlertCircle className="w-5 h-5" />
-                <span className="text-sm">Общий токен регистрации не создан</span>
+                <span className="text-base">Общий токен регистрации не создан</span>
               </div>
               <button
                 onClick={async () => {
@@ -622,7 +613,7 @@ export default function UsersManagementView({
                   }
                 }}
                 disabled={registrationTokenLoading}
-                className="px-4 py-2 bg-gray-900 dark:bg-primary hover:bg-gray-800 dark:hover:bg-primary/80 text-white dark:text-primary-foreground rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50 transition-colors"
+                className="h-12 px-6 bg-[#6b4a36] hover:bg-[#5a3b28] text-white rounded-xl text-base font-semibold flex items-center gap-2 disabled:opacity-50 transition-colors"
               >
                 <Key className={`w-4 h-4 ${registrationTokenLoading ? 'animate-spin' : ''}`} />
                 {registrationTokenLoading ? 'Создание...' : 'Создать токен регистрации'}

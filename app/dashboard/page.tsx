@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { LogoutDialog } from "@/components/LogoutDialog";
 import {
   Building2,
   Bed,
@@ -61,18 +62,7 @@ import { ConfirmCancelBookingDialog } from "@/components/booking/ConfirmCancelBo
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/navigation/AppSidebar";
 import { MobileNav } from "@/components/navigation/MobileNav";
-import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 // Вспомогательная функция для проверки прав менеджера или разработчика
 const isManagerOrDeveloper = (user: User | null): boolean => {
@@ -164,7 +154,12 @@ export default function Dashboard() {
   });
 
   // Состояние для активной вкладки в мобильном меню (только для обычных пользователей)
-  const [activeTab, setActiveTab] = useState<"hotels" | "bookings">("hotels");
+  const [activeTab, setActiveTab] = useState<"hotels" | "bookings">(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("tab") === "bookings"
+      ? "bookings"
+      : "hotels"
+  );
 
   // Ref для отслеживания предыдущего значения выбранного отеля
   const prevSelectedHotelRef = useRef<string | null>(null);
@@ -231,9 +226,8 @@ export default function Dashboard() {
       return;
     }
 
-    // Только менеджеры автоматически перенаправляются на CMS
-    // Developer может оставаться на dashboard
-    if (user.role === "manager") {
+    // Менеджеры и разработчики работают в CMS
+    if (user.role === "manager" || user.role === "developer") {
       router.push("/cms/dashboard");
       return;
     }
@@ -466,24 +460,9 @@ export default function Dashboard() {
             savedFloor as "EG" | "1OG" | "2OG" | "3OG" | "4OG" | "5OG" | "6OG"
           );
         }
+        // Гость сначала попадает на список всех отелей — сохранённый отель не восстанавливаем
         if (savedHotel) {
-          const hotelExists = hotelsData.find((h) => h.id === savedHotel);
-          if (hotelExists) {
-            setSelectedHotel(savedHotel);
-          } else {
-            // Если отель не найден, очищаем из localStorage
-            localStorage.removeItem("dashboard_selectedHotel");
-            // Выбираем первый отель по displayOrder
-            if (hotelsData.length > 0) {
-              setSelectedHotel(hotelsData[0].id);
-            }
-          }
-        } else {
-          // Если нет сохраненного отеля, автоматически выбираем первый по displayOrder
-          // API уже возвращает отели отсортированными по displayOrder
-          if (hotelsData.length > 0) {
-            setSelectedHotel(hotelsData[0].id);
-          }
+          localStorage.removeItem("dashboard_selectedHotel");
         }
         // Восстанавливаем фильтр по датам
         // Если есть сохраненные даты, включаем фильтр автоматически
@@ -1128,158 +1107,85 @@ export default function Dashboard() {
       {/* Main Content */}
       <SidebarInset className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0">
         {/* Header */}
-        <header className="bg-white dark:bg-background border-b border-gray-200 dark:border-border sticky top-0 z-30">
-          <div className="px-3 sm:px-4 py-2 sm:py-3">
-            <div className="flex justify-between items-center gap-2 sm:gap-4">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <header className="sticky top-0 z-30 bg-[#faf8f5]/95 backdrop-blur-md">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
+            <Link
+              href="/"
+              prefetch={false}
+              className="flex min-w-0 items-center gap-3 transition-opacity hover:opacity-80"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand-hotel-v2.png" alt="" className="h-11 w-auto shrink-0" />
+              <span className="truncate text-xl font-semibold tracking-tight text-[#2a1d15] sm:text-2xl">
+                Hotel Drei Bären
+              </span>
+            </Link>
 
-                <Link
-                  href="/"
-                  prefetch={false}
-                  className="flex items-center gap-2 sm:gap-3 min-w-0 hover:opacity-80 transition-opacity"
-                >
-                  <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 dark:text-gray-300 shrink-0" />
-                  <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground truncate cursor-pointer">
-                    Hotel Booking
-                  </h1>
-                </Link>
-                <span
-                  className={`hidden sm:inline text-xs px-2 py-0.5 rounded ${
-                    isManagerOrDeveloper(currentUser)
-                      ? "bg-gray-700 dark:bg-gray-600 text-white dark:text-gray-100"
-                      : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                  } font-semibold`}
-                >
-                  {currentUser.role === "developer"
-                    ? "Разработчик"
-                    : currentUser.role === "manager"
-                    ? "Менеджер"
-                    : "Гость"}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {selectedHotel && (
+                <div className="hidden items-center gap-2 rounded-full bg-[#e8f3e6] px-4 py-2 text-base text-[#2f6b3a] sm:flex">
+                  Свободно
+                  <span className="text-lg font-semibold">{availableRooms}</span>
+                </div>
+              )}
+
+              <div className="hidden items-center gap-3 rounded-full bg-[#f1e4d6] py-1.5 pl-1.5 pr-4 lg:flex">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#6b4a36] text-base font-semibold text-white">
+                  {currentUser.name?.charAt(0).toUpperCase()}
                 </span>
+                <span className="text-base font-medium text-[#5a3b28]">{currentUser.name}</span>
               </div>
 
-              <div className="flex items-center gap-2 sm:gap-3">
-                {selectedHotel && (
-                  <div className="hidden sm:flex items-center gap-3 text-xs sm:text-sm">
-                    <div className="text-gray-700 dark:text-gray-300">
-                      Свободно:{" "}
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                        {availableRooms}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Переключатель темы */}
-                <ModeToggle />
-
-                {/* Кнопка выхода для всех пользователей */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleLogout}
-                  title="Выйти"
-                  className="h-9 w-9"
+              {currentUser.role === "guest" && (
+                <button
+                  onClick={() => setShowFeedbackForm(true)}
+                  title="Обратная связь"
+                  className="flex h-12 items-center gap-2 rounded-full border border-[#e3d5c6] bg-white px-4 text-base font-medium text-[#5a3b28] transition-colors hover:bg-[#f6ede2]"
                 >
-                  <LogOut className="h-4 w-4" />
-                  <span className="sr-only">Выйти</span>
-                </Button>
+                  <MessageSquare className="h-5 w-5" />
+                  <span className="hidden md:inline">Отзыв</span>
+                </button>
+              )}
 
-                {/* Кнопки для обычных пользователей */}
-                {currentUser.role === "guest" && (
-                  <>
-                    {/* Кнопка обратной связи */}
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowFeedbackForm(true)}
-                      title="Обратная связь"
-                      className="h-9 w-9"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      <span className="sr-only">Обратная связь</span>
-                    </Button>
-                  </>
-                )}
+              {isManagerOrDeveloper(currentUser) && (
+                <Link
+                  href="/cms/dashboard"
+                  className="flex h-12 items-center gap-2 rounded-full bg-[#6b4a36] px-5 text-base font-semibold text-white transition-colors hover:bg-[#5a3b28]"
+                  title="CMS - Управление"
+                >
+                  <Building2 className="h-5 w-5" />
+                  <span className="hidden sm:inline">Управление</span>
+                </Link>
+              )}
 
-                {/* Кнопка CMS для менеджеров */}
-                {isManagerOrDeveloper(currentUser) && (
-                  <Link
-                    href="/cms/dashboard"
-                    className="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2"
-                    title="CMS - Управление"
-                  >
-                    <Building2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">CMS</span>
-                  </Link>
-                )}
-
-              </div>
+              <button
+                onClick={handleLogout}
+                title="Выйти"
+                className="flex h-12 items-center gap-2 rounded-full border border-[#e3d5c6] bg-white px-4 text-base font-medium text-[#5a3b28] transition-colors hover:bg-[#f6ede2]"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="hidden md:inline">Выйти</span>
+              </button>
             </div>
           </div>
         </header>
 
-        {/* Информация о выбранном отеле */}
+        {/* Выбранный отель */}
         {selectedHotel && currentHotel && (
-          <div className="bg-white dark:bg-background border-b border-gray-200 dark:border-border relative overflow-hidden">
-            {/* Индикатор обновления данных */}
-            {isRefreshing && (
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                <div
-                  className="h-full w-1/3 bg-gray-900 dark:bg-gray-300 animate-[shimmer_1s_ease-in-out_infinite]"
-                  style={{ animation: "shimmer 1s ease-in-out infinite" }}
-                />
-              </div>
-            )}
-            <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
-              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                {/* Фото отеля */}
-                {currentHotel.image ? (
-                  <div
-                    className={`w-full sm:w-48 h-48 sm:h-32 shrink-0 rounded-xl overflow-hidden shadow-sm transition-opacity ${
-                      isRefreshing ? "opacity-70" : ""
-                    }`}
-                  >
-                    <img
-                      src={typeof currentHotel.image === 'string' ? currentHotel.image : ''}
-                      alt={currentHotel?.name || ""}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div
-                    className={`w-full sm:w-48 h-48 sm:h-32 shrink-0 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center shadow-sm transition-opacity ${
-                      isRefreshing ? "opacity-70" : ""
-                    }`}
-                  >
-                    <Building2 className="w-12 h-12 text-gray-400 dark:text-gray-500" />
-                  </div>
-                )}
-
-                {/* Информация об отеле */}
-                <div
-                  className={`flex-1 transition-opacity ${
-                    isRefreshing ? "opacity-70" : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-foreground">
-                      {currentHotel?.name}
-                    </h1>
-                    {isRefreshing && (
-                      <RefreshCw className="w-4 h-4 text-gray-400 dark:text-gray-500 animate-spin" />
-                    )}
-                  </div>
-                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-3 flex items-center gap-1.5">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                    {currentHotel.address}
-                  </p>
-                  {currentHotel.description && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
-                      {currentHotel.description}
-                    </p>
-                  )}
-                </div>
+          <div className="bg-[#faf8f5]">
+            <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-5 sm:px-6">
+              <button
+                onClick={() => setSelectedHotel("")}
+                className="flex h-12 shrink-0 items-center gap-2 rounded-full border border-[#e3d5c6] bg-white px-5 text-lg font-semibold text-[#5a3b28] transition-colors hover:bg-[#f6ede2]"
+              >
+                <ArrowLeft className="h-5 w-5" />
+                <span className="hidden sm:inline">Все отели</span>
+              </button>
+              <div className={`min-w-0 transition-opacity ${isRefreshing ? "opacity-60" : ""}`}>
+                <h1 className="truncate text-2xl font-semibold tracking-tight text-[#2a1d15] sm:text-3xl">
+                  {currentHotel.name}
+                </h1>
+                <p className="truncate text-lg text-[#6f5a4c]">{currentHotel.address}</p>
               </div>
             </div>
           </div>
@@ -1287,52 +1193,19 @@ export default function Dashboard() {
 
         {/* Общие компоненты навигации (только если выбран отель) */}
         {selectedHotel && (
-          <div className="bg-white dark:bg-background border-b border-gray-200 dark:border-border">
-            <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3 space-y-3">
-              {/* Переключатель режимов: План - Список */}
-              <div className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
-                <button
-                  onClick={() => setSelectedHotel("")}
-                  className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="inline">Назад к отелям</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("plan")}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 ${
-                    viewMode === "plan"
-                      ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-                      : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                  <span className="hidden sm:inline">План</span>
-                </button>
-                {/* <button
-                  onClick={() => setViewMode("list")}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap shrink-0 ${
-                    viewMode === "list"
-                      ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-                      : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  <List className="w-4 h-4" />
-                  <span className="hidden sm:inline">Список</span>
-                </button> */}
-              </div>
-
+          <div className="bg-[#faf8f5]">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-4 space-y-3">
               {/* Выбор этажа (для обоих режимов) */}
               {currentHotel && getAvailableFloors.length > 0 && (
-                <div className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide">
                   {getAvailableFloors.map((floor) => (
                     <button
                       key={floor}
                       onClick={() => setSelectedFloor(floor)}
-                      className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
+                      className={`h-12 min-w-14 shrink-0 whitespace-nowrap rounded-full px-5 text-lg font-semibold transition-colors ${
                         selectedFloor === floor
-                          ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-sm"
-                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          ? "bg-[#6b4a36] text-white"
+                          : "border border-[#e3d5c6] bg-white text-[#5a3b28] hover:bg-[#f6ede2]"
                       }`}
                     >
                       {floor}
@@ -1344,7 +1217,7 @@ export default function Dashboard() {
               {dateFilterEnabled && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-foreground mb-1.5 flex items-center gap-2">
+                    <label className="block text-base font-medium text-[#6f5a4c] mb-1.5 flex items-center gap-2">
                       Дата заезда
                       {loadingAvailability && checkInDate && checkOutDate && (
                         <div className="w-3 h-3 border-2 border-gray-400 dark:border-gray-500 border-t-transparent rounded-full animate-spin"></div>
@@ -1382,12 +1255,12 @@ export default function Dashboard() {
                       placeholder="Выберите дату заезда"
                       minDate={new Date()}
                       allowedDateRanges={currentUser && (currentUser.role === 'developer' || currentUser.role === 'manager') ? undefined : allowedDateRanges}
-                      className="w-full text-xs"
+                      className="w-full text-base"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-foreground mb-1.5">
+                    <label className="block text-base font-medium text-[#6f5a4c] mb-1.5">
                       Дата выезда
                     </label>
                     <DatePicker
@@ -1414,7 +1287,7 @@ export default function Dashboard() {
                       placeholder="Выберите дату выезда"
                       minDate={checkInDate ? new Date(new Date(checkInDate).getTime() + 86400000) : new Date()}
                       allowedDateRanges={currentUser && (currentUser.role === 'developer' || currentUser.role === 'manager') ? undefined : allowedDateRanges}
-                      className="w-full text-xs"
+                      className="w-full text-base"
                     />
                   </div>
                 </div>
@@ -1476,16 +1349,16 @@ export default function Dashboard() {
 
                   {/* Карточки отелей для выбора - показываем в зависимости от вкладки */}
                   {showHotels && hotels.length > 0 && (
-                    <div className="space-y-6">
+                    <div className="mx-auto max-w-7xl space-y-8">
                       <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-foreground mb-2">
+                        <h1 className="text-3xl font-semibold tracking-tight text-[#2a1d15] sm:text-4xl">
                           Выберите отель
                         </h1>
-                        <p className="text-gray-600 dark:text-gray-400">
-                          Выберите отель для просмотра доступных номеров
+                        <p className="mt-2 text-lg text-[#6f5a4c]">
+                          Где вы хотите остановиться?
                         </p>
                       </div>
-                      <div className="grid grid-cols-1 gap-4 sm:gap-6">
+                      <div className="grid grid-cols-1 items-stretch gap-8 md:grid-cols-2 xl:grid-cols-3">
                         {hotels.map((hotel) => {
                           const minPrice = getHotelMinPrice(hotel.id);
                           const hotelRoomsCount = rooms.filter(
@@ -1502,94 +1375,61 @@ export default function Dashboard() {
                             <div
                               key={hotel.id}
                               onClick={() => setSelectedHotel(hotel.id)}
-                              className="bg-white dark:bg-card border-2 border-gray-200 dark:border-border rounded-lg overflow-hidden hover:border-gray-300 dark:hover:border-accent hover:shadow-lg transition-all cursor-pointer"
+                              className="group flex h-full cursor-pointer flex-col"
                             >
-                              <div className="flex flex-col sm:flex-row">
-                                {/* Фото отеля */}
-                                <div className="w-full sm:w-64 h-48 sm:h-auto flex-shrink-0">
-                                  {hotel.image ? (
-                                    <img
-                                      src={typeof hotel.image === 'string' ? hotel.image : ''}
-                                      alt={hotel.name}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
-                                      <Building2 className="w-16 h-16 text-gray-400 dark:text-gray-500" />
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Информация об отеле */}
-                                <div className="flex-1 p-4 sm:p-6 flex flex-col justify-between">
-                                  <div>
-                                    <div className="flex justify-between items-start mb-2">
-                                      <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-foreground pr-4">
-                                        {hotel.name}
-                                      </h3>
-                                      {minPrice > 0 && (
-                                        <div className="text-right flex-shrink-0">
-                                          <div className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground">
-                                            От € {minPrice}
-                                          </div>
-                                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                                            за ночь
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                    <p className="text-sm sm:text-base light:text-gray-600 dark:text-gray-300 mb-2">
-                                      {hotel.address}
-                                    </p>
-                                    {hotel.description && (
-                                      <p className="text-sm text-gray-500 mb-3 line-clamp-2 dark:text-foreground-300">
-                                        {hotel.description}
-                                      </p>
-                                    )}
-                                    <div className="flex flex-wrap gap-3 text-xs sm:text-sm light:text-gray-600 dark:text-gray-400">
-                                      {hotel.floors && (
-                                        <div className="flex items-center gap-1">
-                                          <Building2 className="w-4 h-4" />
-                                          <span>
-                                            {hotel.floors}{" "}
-                                            {hotel.floors === 1
-                                              ? "этаж"
-                                              : hotel.floors < 5
-                                              ? "этажа"
-                                              : "этажей"}
-                                          </span>
-                                        </div>
-                                      )}
-                                      <div className="flex items-center gap-1">
-                                        <Bed className="w-4 h-4" />
-                                        <span>
-                                          {hotelRoomsCount}{" "}
-                                          {hotelRoomsCount === 1
-                                            ? "номер"
-                                            : hotelRoomsCount < 5
-                                            ? "номера"
-                                            : "номеров"}
-                                        </span>
-                                      </div>
-                                      {availableCount > 0 && (
-                                        <div className="flex items-center gap-1 text-emerald-600">
-                                          <span className="font-semibold">
-                                            {availableCount} свободно
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
+                              <div className="aspect-[3/2] w-full overflow-hidden rounded-2xl bg-[#f1e4d6]">
+                                {hotel.image ? (
+                                  <img
+                                    src={typeof hotel.image === 'string' ? hotel.image : ''}
+                                    alt={hotel.name}
+                                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center">
+                                    <Building2 className="h-14 w-14 text-[#c9b4a0]" />
                                   </div>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedHotel(hotel.id);
-                                    }}
-                                    className="mt-4 bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors w-full sm:w-auto dark:bg-primary dark:hover:bg-primary-500 dark:text-primary-foreground"
-                                  >
-                                    Выбрать отель
-                                  </button>
+                                )}
+                              </div>
+
+                              <div className="mt-4 flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                  <h3 className="text-2xl font-semibold text-[#2a1d15]">
+                                    {hotel.name}
+                                  </h3>
+                                  <p className="mt-1 text-lg text-[#6f5a4c]">
+                                    {hotel.address}
+                                  </p>
                                 </div>
+                                {minPrice > 0 && (
+                                  <div className="shrink-0 text-right">
+                                    <div className="text-xl font-semibold text-[#2a1d15]">
+                                      от € {minPrice}
+                                    </div>
+                                    <div className="text-base text-[#8a7566]">за ночь</div>
+                                  </div>
+                                )}
+                              </div>
+
+                              <p className="mt-2 text-lg text-[#4a3a30]">
+                                {hotelRoomsCount}{" "}
+                                {hotelRoomsCount === 1 ? "номер" : hotelRoomsCount < 5 ? "номера" : "номеров"}
+                                {availableCount > 0 && (
+                                  <span className="font-semibold text-[#2f6b3a]">
+                                    {" · "}свободно {availableCount}
+                                  </span>
+                                )}
+                              </p>
+
+                              <div className="mt-auto pt-4">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedHotel(hotel.id);
+                                  }}
+                                  className="h-14 w-full rounded-full bg-[#6b4a36] text-lg font-semibold text-white transition-colors hover:bg-[#5a3b28]"
+                                >
+                                  Выбрать
+                                </button>
                               </div>
                             </div>
                           );
@@ -2825,27 +2665,7 @@ export default function Dashboard() {
           )}
 
           {/* Диалог подтверждения выхода */}
-          <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Подтверждение выхода</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Вы уверены, что хотите выйти?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Отмена</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => {
-                    setShowLogoutDialog(false);
-                    confirmLogout();
-                  }}
-                >
-                  Выйти
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <LogoutDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog} onConfirm={() => { setShowLogoutDialog(false); confirmLogout(); }} />
 
           {/* Футер с контактами разработчика */}
           {currentUser.role === "guest" && (
@@ -5079,16 +4899,20 @@ function BookingsView({
 
   return (
     <div className="space-y-6">
-      <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
+      <div className={isManagerOrDeveloper(currentUser) ? "bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6" : "mx-auto max-w-5xl"}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-foreground flex items-center gap-2">
-            <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
-            {isManagerOrDeveloper(currentUser)
-              ? "Бронирования"
-              : "Мои бронирования"}
-          </h2>
+          {isManagerOrDeveloper(currentUser) ? (
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-foreground flex items-center gap-2">
+              <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
+              Бронирования
+            </h2>
+          ) : (
+            <h2 className="text-3xl font-semibold tracking-tight text-[#2a1d15] sm:text-4xl">
+              Мои бронирования
+            </h2>
+          )}
 
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className={isManagerOrDeveloper(currentUser) ? "flex gap-2 w-full sm:w-auto" : "hidden"}>
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
@@ -5113,7 +4937,7 @@ function BookingsView({
         </div>
 
         {/* Панель фильтров */}
-        {showBookingsFilters && (
+        {isManagerOrDeveloper(currentUser) && showBookingsFilters && (
           <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200 dark:bg-gray-900">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {isManagerOrDeveloper(currentUser) && (
@@ -5178,6 +5002,100 @@ function BookingsView({
           <div className="text-center py-12">
             <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">Бронирования не найдены</p>
+          </div>
+        ) : !isManagerOrDeveloper(currentUser) ? (
+          <div className="space-y-5">
+            {filteredBookings.map((booking) => {
+              const nights = Math.ceil(
+                (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+              const room = rooms.find((r) => r.id === booking.roomId);
+              const hotel = hotels.find((h) => h.id === room?.hotelId);
+              let totalPrice: number;
+              if (booking.amount) {
+                totalPrice = booking.amount;
+              } else if (room?.pricePerPerson && booking.guests) {
+                totalPrice = nights * (room?.price || 0) * (Array.isArray(booking.guests) ? booking.guests.length : 0);
+              } else {
+                totalPrice = nights * (room?.price || 0);
+              }
+              return (
+                <div
+                  key={booking.id}
+                  className="overflow-hidden rounded-3xl border border-[#eadfd3] bg-white shadow-[0_1px_8px_rgba(107,74,54,0.06)]"
+                >
+                  <div className="flex flex-col sm:flex-row">
+                    <div className="h-24 w-full shrink-0 bg-[#f1e4d6] sm:h-auto sm:w-60">
+                      {hotel?.image && typeof hotel.image === "string" ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={hotel.image} alt={hotel.name} className="h-full w-full object-cover" />
+                      ) : null}
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+                      <div className="min-w-0 flex-1">
+                        <p className="mb-0.5 text-base text-[#8a7566] sm:text-lg">{hotel?.name || booking.hotelName}</p>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="text-2xl font-semibold text-[#2a1d15] sm:text-3xl">
+                            Комната {booking.roomNumber || "N/A"}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-lg text-[#2a1d15] sm:text-xl">
+                          {new Date(booking.checkIn).toLocaleDateString("ru-RU")} — {new Date(booking.checkOut).toLocaleDateString("ru-RU")}
+                          <span className="ml-2 text-lg text-[#8a7566]">
+                            {nights} {nights === 1 ? "ночь" : nights < 5 ? "ночи" : "ночей"}
+                          </span>
+                        </p>
+                        {booking.guests && booking.guests.length > 0 && (
+                          <p className="mt-1 text-base text-[#6f5a4c] sm:text-lg">
+                            {booking.guests.map((g) => g.name).join(", ")}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex shrink-0 flex-col gap-3 sm:w-56 sm:items-end">
+                        <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:gap-1">
+                          {totalPrice > 0 && (
+                            <div className="text-2xl font-semibold text-[#2a1d15]">{totalPrice.toFixed(0)} €</div>
+                          )}
+                          <div className="text-right text-base leading-snug">
+                            <div className={booking.isConfirmed ? "text-[#2f6b3a]" : "text-[#8a5a00]"}>
+                              {booking.isConfirmed ? "Подтверждено" : "Ждёт подтверждения"}
+                            </div>
+                            <div className={booking.isPaid ? "text-[#2f6b3a]" : "text-[#a8431f]"}>
+                              {booking.isPaid ? "Оплачено" : "Не оплачено"}
+                            </div>
+                          </div>
+                        </div>
+                        {booking.id && (
+                          <div className="flex gap-2 max-sm:justify-between">
+                            <button
+                              onClick={() => handleEdit(booking)}
+                              className="h-12 rounded-full border border-[#d8cabb] px-6 text-lg font-medium text-[#5a3b28] transition-colors hover:bg-[#f1e4d6]"
+                            >
+                              Изменить
+                            </button>
+                            <button
+                              onClick={() => {
+                                setBookingToCancel({
+                                  id: booking.id!,
+                                  roomNumber: booking.roomNumber,
+                                  bookedBy: booking.bookedBy,
+                                });
+                                setShowCancelDialog(true);
+                              }}
+                              className="h-12 rounded-full px-4 text-lg font-medium text-[#a8431f] transition-colors hover:bg-[#fde9da]"
+                            >
+                              Отменить
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="overflow-x-auto">

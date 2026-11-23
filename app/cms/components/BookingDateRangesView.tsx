@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, Plus, Edit, Trash2, X, Save } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Save } from 'lucide-react';
 import { api } from '@/lib/api';
 import { DatePicker } from '@/components/ui/date-picker';
 
@@ -131,109 +131,73 @@ export default function BookingDateRangesView() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-foreground flex items-center gap-2">
-            <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
-            Диапазоны дат для бронирования
-          </h2>
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <p className="text-base text-[#8a7566]">Когда можно бронировать</p>
           <button
             onClick={handleAdd}
-            className="px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors flex items-center gap-2"
+            className="flex h-12 items-center gap-2 rounded-full bg-[#6b4a36] px-6 text-base font-semibold text-white transition-colors hover:bg-[#5a3b28]"
           >
-            <Plus className="w-4 h-4" />
-            Добавить диапазон
+            <Plus className="h-5 w-5" />
+            Добавить
           </button>
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="text-lg text-gray-900 dark:text-foreground">Загрузка...</div>
-          </div>
+          <div className="py-12 text-center text-lg text-[#8a7566]">Загрузка...</div>
         ) : ranges.length === 0 ? (
-          <div className="text-center py-12">
-            <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">Диапазоны дат не найдены</p>
-            <p className="text-gray-400 text-sm mt-2">Добавьте диапазоны дат, чтобы ограничить бронирования</p>
+          <div className="py-12 text-center">
+            <p className="text-lg text-[#8a7566]">Фестивалей пока нет</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {ranges.map((range) => (
-              <div
-                key={range.id}
-                className={`p-4 rounded-lg border ${
-                  range.isActive
-                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                    : 'bg-gray-50 dark:bg-muted border-gray-200 dark:border-border'
-                }`}
-              >
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-gray-900 dark:text-foreground">
+          <div className="divide-y divide-[#eadfd3] rounded-2xl border border-[#eadfd3] bg-white">
+            {ranges.map((range) => {
+              const fmt = (d: string | Date) =>
+                new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+              return (
+                <div key={range.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className={`h-3 w-3 shrink-0 rounded-full ${range.isActive ? 'bg-[#3f9d5a]' : 'bg-[#d8cabb]'}`}
+                      title={range.isActive ? 'Активен' : 'Неактивен'}
+                    />
+                    <div className="min-w-0">
+                      <h3 className={`truncate text-lg font-semibold ${range.isActive ? 'text-[#3d2f27]' : 'text-[#8a7566]'}`}>
                         {range.name || 'Без названия'}
                       </h3>
-                      {range.isActive ? (
-                        <span className="px-2 py-1 text-xs font-semibold bg-green-500 text-white rounded">
-                          Активен
-                        </span>
-                      ) : (
-                        <span className="px-2 py-1 text-xs font-semibold bg-gray-400 text-white rounded">
-                          Неактивен
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-muted-foreground">
-                      <span className="font-medium">
-                        {new Date(range.startDate).toLocaleDateString('ru-RU', {
-                          day: '2-digit',
-                          month: 'long',
-                          year: 'numeric',
-                        })}
-                      </span>
-                      {' - '}
-                      <span className="font-medium">
-                        {new Date(range.endDate).toLocaleDateString('ru-RU', {
-                          day: '2-digit',
-                          month: 'long',
-                          year: 'numeric',
-                        })}
-                      </span>
+                      <div className="text-base text-[#a8917f]">
+                        {fmt(range.startDate)} — {fmt(range.endDate)}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleToggleActive(range)}
-                      className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
-                        range.isActive
-                          ? 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-500'
-                          : 'bg-green-500 dark:bg-green-600 text-white hover:bg-green-600 dark:hover:bg-green-700'
-                      }`}
+                      className="h-11 rounded-full px-4 text-base font-medium text-[#6b4a36] transition-colors hover:bg-[#f1e4d6]"
                     >
-                      {range.isActive ? 'Деактивировать' : 'Активировать'}
+                      {range.isActive ? 'Выключить' : 'Включить'}
                     </button>
                     <button
                       onClick={() => handleEdit(range)}
-                      className="p-1.5 text-gray-600 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground hover:bg-gray-100 dark:hover:bg-accent rounded transition-colors"
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-[#a8917f] transition-colors hover:bg-[#f1e4d6] hover:text-[#5a3b28]"
                       title="Редактировать"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="h-5 w-5" />
                     </button>
                     <button
                       onClick={() => handleDelete(range.id)}
-                      className="p-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-[#a8917f] transition-colors hover:bg-[#fde4d8] hover:text-[#a8431f]"
                       title="Удалить"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
-
       {/* Модальное окно для добавления/редактирования */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4" onClick={() => setShowAddModal(false)}>

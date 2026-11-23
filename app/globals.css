@@ -2,39 +2,65 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Тёплая нейтральная шкала вместо холодных серых — меняет все gray-* во всём приложении */
+@theme {
+  --color-gray-50: #faf8f5;
+  --color-gray-100: #f1ece6;
+  --color-gray-200: #e8dfd6;
+  --color-gray-300: #d6c9bd;
+  --color-gray-400: #a39489;
+  --color-gray-500: #7d7068;
+  --color-gray-600: #6a5d55;
+  --color-gray-700: #51453e;
+  --color-gray-800: #3a2f29;
+  --color-gray-900: #2a1d15;
+}
+
+/* Крупнее текст и сенсорные зоны в админке (для читаемости 50+) */
+.cms-root .text-xs { font-size: 0.9375rem; line-height: 1.4; }
+.cms-root .text-sm { font-size: 1.0625rem; line-height: 1.5; }
+.cms-root .text-base { font-size: 1.125rem; line-height: 1.55; }
+.cms-root select,
+.cms-root input:not([type='checkbox']):not([type='radio']) {
+  min-height: 2.75rem;
+}
+@media (max-width: 1023px) {
+  .cms-root button:not([data-no-min]) { min-height: 2.75rem; }
+}
+
 :root {
   /* Основные цвета - светлая тема */
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf8f5;
+  --foreground: #2a1d15;
 
   --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #0f172a;
-  --primary-foreground: #f8fafc;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
+  --primary: #6b4a36;
+  --primary-foreground: #ffffff;
+  --secondary: #f1ece6;
+  --secondary-foreground: #2a1d15;
+  --muted: #f1ece6;
+  --muted-foreground: #6f625a;
+  --accent: #f1ece6;
+  --accent-foreground: #2a1d15;
   --destructive: #ef4444;
   --destructive-foreground: #f8fafc;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #0f172a;
-  --radius: 0.5rem;
+  --border: #e8dfd6;
+  --input: #e8dfd6;
+  --ring: #6b4a36;
+  --radius: 1rem;
   
   /* Сайдбар - светлая тема */
-  --sidebar: #fafafa;
-  --sidebar-foreground: #1f2937;
-  --sidebar-primary: #1f2937;
-  --sidebar-primary-foreground: #fafafa;
-  --sidebar-accent: #f5f5f5;
-  --sidebar-accent-foreground: #1f2937;
-  --sidebar-border: #e5e7eb;
-  --sidebar-ring: #3b82f6;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #2a1d15;
+  --sidebar-primary: #6b4a36;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1ece6;
+  --sidebar-accent-foreground: #2a1d15;
+  --sidebar-border: #e8dfd6;
+  --sidebar-ring: #6b4a36;
 }
 
 @theme inline {

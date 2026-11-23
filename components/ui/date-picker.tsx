@@ -99,17 +99,17 @@ export function DatePicker({
         <Button
           variant={"outline"}
           className={cn(
-            "w-full justify-start text-left font-normal bg-white dark:bg-input text-gray-900 dark:text-foreground border-gray-300 dark:border-border hover:bg-gray-50 dark:hover:bg-accent hover:text-gray-900 dark:hover:text-foreground",
-            !date && "text-gray-500 dark:text-muted-foreground",
+            "h-12 w-full justify-start rounded-2xl border-[#e3d5c6] bg-white px-4 text-left text-base font-normal text-[#3d2f27] hover:bg-[#f6ede2] hover:text-[#3d2f27] dark:border-border dark:bg-input dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground",
+            !date && "text-[#b9a493] dark:text-muted-foreground",
             className
           )}
           disabled={disabled}
         >
-          <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+          <CalendarIcon className="mr-2 h-5 w-5 shrink-0 text-[#a8917f]" />
           {date ? format(date, "PPP", { locale: ru }) : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 bg-white dark:bg-card border border-gray-200 dark:border-border shadow-lg z-[10000]" align="center">
+      <PopoverContent className="z-[10000] w-auto rounded-2xl border border-[#eadfd3] bg-white p-0 shadow-xl dark:border-border dark:bg-card" align="start">
         <Calendar
           mode="single"
           selected={date}
@@ -234,7 +234,7 @@ export function DateRangePicker({
         <Button
           variant={"outline"}
           className={cn(
-            "w-full justify-start text-left font-normal bg-white dark:bg-input text-gray-900 dark:text-foreground border-gray-300 dark:border-border hover:bg-gray-50 dark:hover:bg-accent hover:text-gray-900 dark:hover:text-foreground",
+            "h-12 w-full justify-start rounded-2xl border-[#e3d5c6] bg-white px-4 text-left text-base font-normal text-[#3d2f27] hover:bg-[#f6ede2] hover:text-[#3d2f27] dark:border-border dark:bg-input dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground",
             !dateFrom && "text-gray-500 dark:text-muted-foreground",
             className
           )}

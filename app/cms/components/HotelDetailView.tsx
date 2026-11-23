@@ -44,6 +44,7 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
   const [isCanceling, setIsCanceling] = useState(false);
   
   // Фильтр по датам
+  const [descExpanded, setDescExpanded] = useState(false);
   const [dateFilterEnabled, setDateFilterEnabled] = useState(false);
   const [checkInDate, setCheckInDate] = useState('');
   const [checkOutDate, setCheckOutDate] = useState('');
@@ -388,201 +389,183 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4 ">
+      {/* Шапка отеля */}
+      <div className="rounded-3xl border border-[#eadfd3] bg-white p-5 sm:p-8">
+        <div className="mb-6 flex items-center justify-between gap-3">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 light:text-gray-600 dark:text-gray-600 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground font-semibold"
+            className="flex h-12 items-center gap-2 rounded-full px-4 text-lg font-medium text-[#6b4a36] transition-colors hover:bg-[#f1e4d6]"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="h-5 w-5" />
+            Все отели
           </button>
-          {!editing && (
-            <div className="flex sm:flex-row flex-col gap-2">
+          {!editing ? (
+            <div className="flex gap-3">
               <button
                 onClick={() => setEditing(true)}
-                className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+                className="flex h-12 items-center gap-2 rounded-full border-2 border-[#6b4a36] px-6 text-lg font-semibold text-[#5a3b28] transition-colors hover:bg-[#f1e4d6]"
               >
-                <Edit className="w-4 h-4" />
-                Редактировать
+                <Edit className="h-5 w-5" />
+                Изменить
               </button>
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 bg-pink-900 hover:bg-pink-950 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+                className="flex h-12 items-center gap-2 rounded-full border-2 border-[#c4622d] px-6 text-lg font-semibold text-[#a8431f] transition-colors hover:bg-[#fde9da]"
               >
-                <Trash2 className="w-4 h-4" />
-                Удалить
+                <Trash2 className="h-5 w-5" />
+                <span className="hidden sm:inline">Удалить</span>
               </button>
             </div>
-          )}
-          {editing && (
-            <div className="flex gap-2">
+          ) : (
+            <div className="flex gap-3">
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 bg-gray-300 dark:bg-muted hover:bg-gray-400 dark:hover:bg-accent text-gray-700 dark:text-foreground rounded-lg text-sm font-semibold flex items-center gap-2"
+                className="flex h-12 items-center gap-2 rounded-full border-2 border-[#e3d5c6] px-6 text-lg font-semibold text-[#5a3b28] transition-colors hover:bg-[#f6ede2]"
               >
-                <X className="w-4 h-4" />
+                <X className="h-5 w-5" />
                 Отмена
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+                className="flex h-12 items-center gap-2 rounded-full bg-[#6b4a36] px-6 text-lg font-semibold text-white transition-colors hover:bg-[#5a3b28]"
               >
-                <Save className="w-4 h-4" />
+                <Save className="h-5 w-5" />
                 Сохранить
               </button>
             </div>
           )}
         </div>
 
-        {/* Hotel Image */}
-        <div className="mb-6">
-          {imagePreview ? (
-            <div className="relative w-full h-64 sm:h-96 rounded-lg overflow-hidden border-2 border-gray-300 dark:border-border">
-              <img
-                src={imagePreview}
-                alt={hotel.name}
-                className="w-full h-full object-cover"
-              />
-              {editing && (
-                <button
-                  onClick={handleRemoveImage}
-                  className="absolute top-2 right-2 bg-pink-900 hover:bg-pink-950 text-white rounded-full p-2"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="w-full h-64 sm:h-96 rounded-lg bg-gray-200 dark:bg-muted flex items-center justify-center border-2 border-gray-300 dark:border-border">
-              <Building2 className="w-16 h-16 text-gray-400 dark:text-muted-foreground" />
-            </div>
-          )}
-          {editing && (
-            <div className="mt-4">
-              <label className="block text-sm font-semibold mb-2">Загрузить фото отеля</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                disabled={uploading}
-                className="w-full px-3 py-2 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none disabled:opacity-50 bg-white dark:bg-input text-gray-900 dark:text-foreground"
-              />
-              {uploading && (
-                <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">Загрузка изображения...</p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                Максимальный размер файла: 5MB. Поддерживаемые форматы: JPG, PNG, GIF, WebP.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Hotel Information */}
-        <div className="space-y-4">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+          {/* Фото */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-foreground mb-2">
-              Название <span className="text-red-500">*</span>
-            </label>
-            {editing ? (
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none text-lg bg-white dark:bg-input text-gray-900 dark:text-foreground"
-                required
-              />
+            {imagePreview ? (
+              <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-[#f1e4d6]">
+                <img src={imagePreview} alt={hotel.name} className="h-full w-full object-cover" />
+                {editing && (
+                  <button
+                    onClick={handleRemoveImage}
+                    className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-[#a8431f] shadow hover:bg-white"
+                    title="Убрать фото"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
             ) : (
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-foreground">{hotel.name}</h1>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-foreground mb-2">
-              Адрес <span className="text-red-500">*</span>
-            </label>
-            {editing ? (
-              <input
-                type="text"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground"
-                required
-              />
-            ) : (
-              <p className="text-base sm:text-lg text-gray-700 dark:text-foreground">{hotel.address}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-foreground mb-2">Описание</label>
-            {editing ? (
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={4}
-                className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground"
-              />
-            ) : (
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
-                {hotel.description || <span className="text-gray-400 dark:text-gray-500">Описание не указано</span>}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-foreground mb-2">
-              Количество этажей <span className="text-red-500">*</span>
-            </label>
-            {editing ? (
-              <select
-                value={formData.floors}
-                onChange={(e) => setFormData({ ...formData, floors: parseInt(e.target.value) || 3 })}
-                className="w-full px-4 py-3 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground"
-                required
-              >
-                <option value={1}>1 этаж</option>
-                <option value={2}>2 этажа</option>
-                <option value={3}>3 этажа</option>
-                <option value={4}>4 этажа</option>
-              </select>
-            ) : (
-              <p className="text-base sm:text-lg text-gray-700 font-semibold">
-                {hotel.floors || 0} {(hotel.floors || 0) === 1 ? 'этаж' : (hotel.floors || 0) < 5 ? 'этажа' : 'этажей'}
-              </p>
+              <div className="flex aspect-[4/3] w-full items-center justify-center rounded-2xl bg-[#f1e4d6]">
+                <Building2 className="h-14 w-14 text-[#c9b4a0]" />
+              </div>
             )}
             {editing && (
-              <p className="text-xs text-gray-500 mt-1">
-                Выберите количество этажей в отеле. Это определит доступные этажи для размещения комнат.
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-foreground mb-2">
-              Этаж EG (первый этаж)
-            </label>
-            {editing ? (
-              <label className="flex items-center gap-2 cursor-pointer">
+              <div className="mt-4">
+                <label className="mb-2 block text-base font-medium text-[#6f5a4c]">Загрузить фото</label>
                 <input
-                  type="checkbox"
-                  checked={formData.hasEGFloor}
-                  onChange={(e) => setFormData({ ...formData, hasEGFloor: e.target.checked })}
-                  className="w-4 h-4 text-gray-700 border-gray-300 rounded focus:ring-gray-500"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  disabled={uploading}
+                  className="w-full rounded-2xl border border-dashed border-[#d8cabb] bg-[#fbf8f4] px-4 py-3 text-base text-[#4a3a30] file:mr-4 file:rounded-full file:border-0 file:bg-[#6b4a36] file:px-5 file:py-2 file:text-base file:font-medium file:text-white disabled:opacity-50"
                 />
-                <span className="text-sm">
-                  Есть этаж EG (первый этаж)
-                </span>
-              </label>
-            ) : (
-              <p className="text-base sm:text-lg text-gray-700 font-semibold">
-                {hotel.hasEGFloor !== false ? 'Есть этаж EG' : 'Нет этажа EG (начинается с 1OG)'}
-              </p>
+                {uploading && <p className="mt-2 text-base text-[#8a7566]">Загрузка изображения…</p>}
+                <p className="mt-2 text-sm text-[#a8917f]">До 5 МБ · JPG, PNG, GIF, WebP</p>
+              </div>
             )}
-            {editing && (
-              <p className="text-xs text-gray-500 mt-1">
-                Если отмечено, отель начинается с этажа EG. Если не отмечено, отель начинается с этажа 1OG.
-              </p>
+          </div>
+
+          {/* Информация */}
+          <div className="min-w-0">
+            {editing ? (
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-2 block text-base font-medium text-[#6f5a4c]">Название</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="h-14 w-full rounded-2xl border border-[#e3d5c6] bg-white px-5 text-lg text-[#2a1d15] outline-none focus:border-[#6b4a36] focus:ring-2 focus:ring-[#6b4a36]/20"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-base font-medium text-[#6f5a4c]">Адрес</label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className="h-14 w-full rounded-2xl border border-[#e3d5c6] bg-white px-5 text-lg text-[#2a1d15] outline-none focus:border-[#6b4a36] focus:ring-2 focus:ring-[#6b4a36]/20"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-base font-medium text-[#6f5a4c]">Описание</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={6}
+                    className="w-full rounded-2xl border border-[#e3d5c6] bg-white px-5 py-4 text-lg text-[#2a1d15] outline-none focus:border-[#6b4a36] focus:ring-2 focus:ring-[#6b4a36]/20"
+                  />
+                </div>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-base font-medium text-[#6f5a4c]">Этажей</label>
+                    <select
+                      value={formData.floors}
+                      onChange={(e) => setFormData({ ...formData, floors: parseInt(e.target.value) || 3 })}
+                      className="h-14 w-full rounded-2xl border border-[#e3d5c6] bg-white px-5 text-lg text-[#2a1d15] outline-none focus:border-[#6b4a36] focus:ring-2 focus:ring-[#6b4a36]/20"
+                    >
+                      <option value={1}>1 этаж</option>
+                      <option value={2}>2 этажа</option>
+                      <option value={3}>3 этажа</option>
+                      <option value={4}>4 этажа</option>
+                    </select>
+                  </div>
+                  <label className="flex h-14 cursor-pointer items-center gap-3 self-end rounded-2xl border border-[#e3d5c6] bg-white px-5 text-lg text-[#2a1d15]">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasEGFloor}
+                      onChange={(e) => setFormData({ ...formData, hasEGFloor: e.target.checked })}
+                      className="h-5 w-5 accent-[#6b4a36]"
+                    />
+                    Есть этаж EG
+                  </label>
+                </div>
+                <p className="text-sm text-[#a8917f]">
+                  Без EG отель начинается с этажа 1OG.
+                </p>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-3xl font-semibold tracking-tight text-[#2a1d15] sm:text-4xl">{hotel.name}</h1>
+                <p className="mt-2 text-lg text-[#6f5a4c]">{hotel.address}</p>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-[#f1e4d6] px-4 py-2 text-base font-medium text-[#5a3b28]">
+                    {hotel.floors || 0} {(hotel.floors || 0) === 1 ? 'этаж' : (hotel.floors || 0) < 5 ? 'этажа' : 'этажей'}
+                  </span>
+                  <span className="rounded-full bg-[#f1e4d6] px-4 py-2 text-base font-medium text-[#5a3b28]">
+                    {hotel.hasEGFloor !== false ? 'Есть этаж EG' : 'Начинается с 1OG'}
+                  </span>
+                </div>
+                <div className="mt-6">
+                  {hotel.description ? (
+                    <>
+                      <p className={`whitespace-pre-wrap text-lg leading-relaxed text-[#4a3a30] ${descExpanded ? '' : 'line-clamp-5'}`}>
+                        {hotel.description}
+                      </p>
+                      {hotel.description.length > 280 && (
+                        <button
+                          onClick={() => setDescExpanded(!descExpanded)}
+                          className="mt-2 text-lg font-medium text-[#6b4a36] underline-offset-4 hover:underline"
+                        >
+                          {descExpanded ? 'Свернуть' : 'Читать полностью'}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-lg text-[#a8917f]">Описание не указано</p>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>

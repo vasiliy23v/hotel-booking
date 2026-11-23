@@ -1740,17 +1740,13 @@ export default function FloorPlan({
           <div 
             className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[99999] animate-bounce"
           >
-            <div className="bg-green-600 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2">
-              <div className="flex gap-1">
-                <ArrowLeft className="w-4 h-4 animate-pulse" />
-                <ArrowRight className="w-4 h-4 animate-pulse" />
-              </div>
-              <span className="text-xs font-semibold whitespace-nowrap">
-                Прокрутите план
-              </span>
+            <div className="flex items-center gap-3 rounded-full bg-[#6b4a36] py-2 pl-5 pr-2 text-white shadow-lg">
+              <ArrowLeft className="h-5 w-5 animate-pulse" />
+              <span className="whitespace-nowrap text-base font-medium">Листайте план</span>
+              <ArrowRight className="h-5 w-5 animate-pulse" />
               <button
                 onClick={handleCloseHint}
-                className="bg-white dark:bg-card text-green-600 dark:text-green-400 px-3 py-1 rounded text-xs font-semibold hover:bg-gray-100 dark:hover:bg-accent transition-colors ml-1"
+                className="ml-1 h-10 rounded-full bg-[#faf8f5] px-4 text-base font-semibold text-[#5a3b28] transition-colors hover:bg-white"
               >
                 Понятно
               </button>

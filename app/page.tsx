@@ -2,12 +2,11 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Building2 } from 'lucide-react';
-import { Lora } from 'next/font/google';
+import { serif } from '@/lib/fonts';
 import { api } from '@/lib/api';
 
-const serif = Lora({ subsets: ['latin', 'cyrillic'], weight: ['500', '600'] });
 
 export default function Home() {
   const router = useRouter();
@@ -39,7 +38,7 @@ export default function Home() {
       }
       
       // Менеджеры перенаправляются на CMS, гости - на обычный dashboard
-      if (user.role === 'manager') {
+      if (user.role === 'manager' || user.role === 'developer') {
         router.push('/cms/dashboard');
       } else {
         router.push('/dashboard');
@@ -65,7 +64,7 @@ export default function Home() {
         }
         
         // Менеджеры перенаправляются на CMS, гости - на обычный dashboard
-        if (user.role === 'manager') {
+        if (user.role === 'manager' || user.role === 'developer') {
           router.push('/cms/dashboard');
         } else {
           router.push('/dashboard');
@@ -79,19 +78,31 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#faf8f5] lg:flex">
-      <div className="flex min-h-screen w-full lg:w-[42%] lg:shrink-0">
+      <div className="relative flex min-h-screen w-full flex-col overflow-hidden lg:w-[42%] lg:shrink-0">
+        {/* Мягкое персиковое свечение */}
+        <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-[#ffd9c2]/50 blur-3xl" aria-hidden="true" />
+
+        {/* Иллюстрация сверху на телефоне */}
+        <div className="relative h-52 w-full shrink-0 lg:hidden">
+          <img src="/login-hero-v2.jpg" alt="" className="h-full w-full object-cover object-[30%_45%]" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#faf8f5] to-transparent" />
+        </div>
+
         {/* Форма входа */}
-        <div className="flex w-full items-center justify-center px-6 py-12 lg:px-14">
+        <div className="relative flex w-full flex-1 items-center justify-center px-6 pb-12 pt-6 lg:px-14 lg:py-12">
           <div className="w-full max-w-sm">
-            <div className="mx-auto mb-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ffd9c2]">
-              <Building2 className="h-7 w-7 text-[#6b4a36]" strokeWidth={1.75} aria-hidden="true" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand-hotel-v2.png"
+              alt="Hotel Drei Bären"
+              className="mx-auto mb-4 w-40"
+            />
 
             <h1 className={`${serif.className} text-center text-4xl font-semibold tracking-tight text-[#2a1d15]`}>
-              Добро пожаловать
+              Рады вас видеть
             </h1>
-            <p className="mt-3 mb-10 text-center text-lg text-[#6f625a]">
-              Войдите, чтобы забронировать комнату
+            <p className="mt-3 mb-9 text-center text-lg text-[#6f625a]">
+              Войдите, чтобы выбрать комнату
             </p>
 
             <form
@@ -146,6 +157,12 @@ export default function Home() {
                 </button>
               </div>
 
+              <div className="text-right">
+                <Link href="/forgot-password" className="text-base font-medium text-[#6b4a36] hover:underline">
+                  Забыли пароль?
+                </Link>
+              </div>
+
               {authError && (
                 <div role="alert" className="rounded-2xl bg-[#fde8e4] px-5 py-3 text-base text-[#9b2c1f]">
                   {authError}
@@ -171,10 +188,19 @@ export default function Home() {
       {/* Фото на всю высоту (только на компьютере), ~60% ширины */}
       <div className="relative hidden lg:block lg:flex-1">
         <img
-          src="/login-hero.jpg"
+          src="/login-hero-v2.jpg"
           alt=""
-          className="absolute inset-0 h-full w-full object-cover object-[40%_60%]"
+          className="absolute inset-0 h-full w-full object-cover object-[35%_50%]"
         />
+        {/* Плавный переход от формы к иллюстрации */}
+        <div className="absolute inset-y-0 left-0 w-40 bg-gradient-to-r from-[#faf8f5] to-transparent" />
+        {/* Тёплая подпись */}
+        <div className="absolute bottom-10 left-16 max-w-sm rounded-3xl bg-white/55 px-7 py-5 backdrop-blur-md">
+          <p className={`${serif.className} text-2xl font-semibold leading-snug text-[#3a281d]`}>
+            Тепло, уют и тишина.
+          </p>
+          <p className="mt-1 text-base text-[#5d4c42]">Ждём вас на фестивале.</p>
+        </div>
       </div>
     </div>
   );

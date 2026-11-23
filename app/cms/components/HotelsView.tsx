@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Building2, ArrowRight, Settings } from 'lucide-react';
+import { Plus, Building2, Settings } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Hotel } from '@/types';
 import HotelModal from './HotelModal';
@@ -33,9 +33,6 @@ export default function HotelsView({
       
       // Отели уже отсортированы по displayOrder в API
       setHotels(data);
-      if (data.length > 0 && !selectedHotel) {
-        onSelectHotel(data[0].id);
-      }
     } catch (error) {
       console.error('Error loading hotels:', error);
       alert('Ошибка при загрузке отелей');
@@ -46,7 +43,6 @@ export default function HotelsView({
 
   useEffect(() => {
     loadHotels();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Синхронизируем viewingHotelId с selectedHotel из сайдбара
@@ -137,14 +133,14 @@ export default function HotelsView({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="bg-white dark:bg-card rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-border">
-        <div className="mb-4 flex justify-end gap-2">
+      <div className="mx-auto max-w-[1400px]">
+        <div className="mb-5 flex justify-end gap-2">
           <button
             onClick={() => setShowOrderModal(true)}
-            className="bg-gray-600 hover:bg-gray-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1 sm:gap-2"
+            className="flex h-12 items-center gap-2 rounded-full px-5 text-base font-medium text-[#6b4a36] transition-colors hover:bg-[#f1e4d6]"
             title="Настроить порядок отображения отелей"
           >
-            <Settings className="w-3 h-3 sm:w-4 sm:h-4" />
+            <Settings className="h-5 w-5" />
             <span className="hidden sm:inline">Порядок</span>
           </button>
           <button
@@ -152,85 +148,64 @@ export default function HotelsView({
               setEditingHotel(null);
               setShowHotelModal(true);
             }}
-            className="bg-[#013328] hover:bg-[#013328]/90 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1 sm:gap-2"
+            className="flex h-12 items-center gap-2 rounded-full bg-[#6b4a36] px-6 text-base font-semibold text-white transition-colors hover:bg-[#5a3b28]"
           >
-            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">Добавить отель</span>
-            <span className="sm:hidden">Добавить</span>
+            <Plus className="h-5 w-5" />
+            Добавить
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {hotels.map(hotel => (
-            <div key={hotel.id} className="bg-white dark:bg-card border-2 border-gray-200 dark:border-border rounded-lg overflow-hidden hover:border-gray-300 dark:hover:border-accent transition-colors flex flex-col">
-              <div className="w-full h-48 overflow-hidden cursor-pointer" onClick={() => {
-                setViewingHotelId(hotel.id);
-                onSelectHotel(hotel.id);
-              }}>
-                {hotel.image && typeof hotel.image === 'string' ? (
-                  <img
-                    src={hotel.image}
-                    alt={hotel.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-200 dark:bg-muted flex items-center justify-center">
-                    <Building2 className="w-16 h-16 text-gray-400 dark:text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-              <div className="p-4 sm:p-6 flex flex-col grow">
-                <h3 
-                  className="text-lg sm:text-xl font-bold text-gray-900 dark:text-foreground mb-1 sm:mb-2 cursor-pointer hover:text-gray-700 dark:hover:text-foreground"
-                  onClick={() => {
-                    setViewingHotelId(hotel.id);
-                    onSelectHotel(hotel.id);
-                  }}
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+          {hotels.map(hotel => {
+            const open = () => {
+              setViewingHotelId(hotel.id);
+              onSelectHotel(hotel.id);
+            };
+            return (
+              <div key={hotel.id} className="group flex flex-col">
+                <div
+                  className="aspect-[3/2] w-full cursor-pointer overflow-hidden rounded-2xl bg-[#f1e4d6]"
+                  onClick={open}
                 >
-                  {hotel.name}
-                </h3>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-muted-foreground mb-1 sm:mb-2">{hotel.address}</p>
-                {hotel.description && (
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-muted-foreground mb-2 line-clamp-2">{hotel.description}</p>
-                )}
-                {hotel.floors && (
-                  <p className="text-xs sm:text-sm text-gray-700 dark:text-foreground mb-3 sm:mb-4 font-semibold">
-                    Этажей: {hotel.floors} {hotel.floors === 1 ? 'этаж' : hotel.floors < 5 ? 'этажа' : 'этажей'}
+                  {hotel.image && typeof hotel.image === 'string' ? (
+                    <img
+                      src={hotel.image}
+                      alt={hotel.name}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <Building2 className="h-14 w-14 text-[#c9b4a0]" />
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 min-w-0 cursor-pointer" onClick={open}>
+                  <h3 className="text-2xl font-semibold text-[#2a1d15]">{hotel.name}</h3>
+                  <p className="mt-1 text-lg text-[#6f5a4c]">
+                    {hotel.address}
+                    {hotel.floors ? ` · ${hotel.floors} ${hotel.floors === 1 ? 'этаж' : hotel.floors < 5 ? 'этажа' : 'этажей'}` : ''}
                   </p>
-                )}
-                <div className="flex gap-1.5 sm:gap-2 mt-auto">
-                  <button
-                    onClick={() => {
-                      setViewingHotelId(hotel.id);
-                      onSelectHotel(hotel.id);
-                    }}
-                    className="flex-1 bg-black hover:bg-black-90 text-white py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1"
-                  >
-                    <span className="hidden sm:inline">Открыть</span>
-                    <span className="sm:hidden">Открыть</span>
-                    <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                  </button>
+                </div>
+                <div className="mt-4 flex items-center gap-3 text-lg font-semibold">
                   <button
                     onClick={() => {
                       setEditingHotel(hotel);
                       setShowHotelModal(true);
                     }}
-                    className="bg-yellow-500 hover:bg-yellow-600 text-white py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1 px-2 sm:px-3"
-                    title="Быстрое редактирование"
+                    className="h-12 rounded-full border-2 border-[#6b4a36] px-6 text-[#5a3b28] transition-colors hover:bg-[#f1e4d6]"
                   >
-                    <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                    Изменить
                   </button>
                   <button
                     onClick={() => handleDeleteHotel(hotel)}
-                    className="bg-pink-900 hover:bg-pink-950 text-white py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1 px-2 sm:px-3"
-                    title="Удалить"
+                    className="h-12 rounded-full border-2 border-[#c4622d] px-6 text-[#a8431f] transition-colors hover:bg-[#fde9da]"
                   >
-                    <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                    Удалить
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

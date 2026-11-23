@@ -161,7 +161,7 @@ export default function InviteRegistrationPage() {
       }
       
       // Менеджеры перенаправляются на CMS, гости - на обычный dashboard
-      if (newUser.role === 'manager') {
+      if (newUser.role === 'manager' || newUser.role === 'developer') {
         router.push('/cms/dashboard');
       } else {
         router.push('/dashboard');
@@ -221,7 +221,7 @@ export default function InviteRegistrationPage() {
       }
       
       // Менеджеры перенаправляются на CMS, гости - на обычный dashboard
-      if (loginResponse.role === 'manager') {
+      if (loginResponse.role === 'manager' || loginResponse.role === 'developer') {
         router.push('/cms/dashboard');
       } else {
         router.push('/dashboard');

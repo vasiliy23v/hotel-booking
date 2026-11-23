@@ -36,7 +36,7 @@ export function BookingSuccessDialog({
     // Устанавливаем флаг синхронно, чтобы предотвратить вызов onClose при закрытии диалога
     isNavigatingRef.current = true;
     // Используем router.push для навигации без полной перезагрузки страницы
-    router.push('/bookings');
+    router.push('/dashboard?tab=bookings');
   };
 
   const handleOpenChange = (open: boolean) => {

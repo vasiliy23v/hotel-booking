@@ -48,15 +48,15 @@ function Calendar({
           defaultClassNames.nav
         ),
         button_previous: cn(
-          "h-8 w-8 select-none p-0 aria-disabled:opacity-50 rounded-md inline-flex items-center justify-center border border-transparent hover:border-gray-300 dark:hover:border-border transition-colors bg-white dark:bg-card text-gray-900 dark:text-foreground",
+          "h-10 w-10 select-none p-0 aria-disabled:opacity-40 rounded-full inline-flex items-center justify-center transition-colors bg-transparent hover:bg-[#f1e4d6] dark:hover:bg-white/10 text-[#5a3b28] dark:text-foreground",
           defaultClassNames.button_previous
         ),
         button_next: cn(
-          "h-8 w-8 select-none p-0 aria-disabled:opacity-50 rounded-md inline-flex items-center justify-center border border-transparent hover:border-gray-300 dark:hover:border-border transition-colors bg-white dark:bg-card text-gray-900 dark:text-foreground",
+          "h-10 w-10 select-none p-0 aria-disabled:opacity-40 rounded-full inline-flex items-center justify-center transition-colors bg-transparent hover:bg-[#f1e4d6] dark:hover:bg-white/10 text-[#5a3b28] dark:text-foreground",
           defaultClassNames.button_next
         ),
         month_caption: cn(
-          "flex h-8 w-full items-center justify-center pt-1",
+          "flex h-10 w-full items-center justify-center",
           defaultClassNames.month_caption
         ),
         dropdowns: cn(
@@ -132,21 +132,21 @@ function Calendar({
         Chevron: ({ className, orientation, ...props }) => {
           if (orientation === "left") {
             return (
-              <ChevronLeftIcon className={cn("size-4", className)} {...props} />
+              <ChevronLeftIcon className={cn("size-5", className)} {...props} />
             )
           }
 
           if (orientation === "right") {
             return (
               <ChevronRightIcon
-                className={cn("size-4", className)}
+                className={cn("size-5", className)}
                 {...props}
               />
             )
           }
 
           return (
-            <ChevronDownIcon className={cn("size-4", className)} {...props} />
+            <ChevronDownIcon className={cn("size-5", className)} {...props} />
           )
         },
         DayButton: CalendarDayButton,

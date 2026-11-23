@@ -174,7 +174,7 @@ export default function RegistrationPage() {
       }
       
       // Менеджеры перенаправляются на CMS, гости - на обычный dashboard
-      if (newUser.role === 'manager') {
+      if (newUser.role === 'manager' || newUser.role === 'developer') {
         router.push('/cms/dashboard');
       } else {
         router.push('/dashboard');

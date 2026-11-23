@@ -10,7 +10,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Trash2 } from 'lucide-react';
 
 interface ConfirmCancelBookingDialogProps {
   isOpen: boolean;
@@ -31,44 +30,34 @@ export function ConfirmCancelBookingDialog({
 }: ConfirmCancelBookingDialogProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
-            <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
-            Отменить бронирование
+      <AlertDialogContent className="rounded-3xl border-[#eadfd3] bg-[#faf8f5] p-6 sm:p-8">
+        <AlertDialogHeader className="space-y-3 text-left">
+          <AlertDialogTitle className="text-2xl font-semibold text-[#2a1d15]">
+            Отменить бронь?
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-700 dark:text-gray-300">
-            {bookedBy && (
-              <>
-                <span className="font-medium text-gray-900 dark:text-gray-100">
-                  Бронирование для: <span className="font-semibold">{bookedBy}</span>
-                </span>
-                <br />
-                <br />
-              </>
-            )}
-            {roomNumber
-              ? `Вы уверены, что хотите отменить бронирование комнаты #${roomNumber}? Это действие нельзя отменить.`
-              : 'Вы уверены, что хотите отменить бронирование? Это действие нельзя отменить.'}
+          <AlertDialogDescription className="text-lg leading-relaxed text-[#6f5a4c]">
+            {roomNumber ? `Комната ${roomNumber}` : 'Бронирование'}
+            {bookedBy ? ` · ${bookedBy}` : ''}
+            <br />
+            Это действие нельзя отменить.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel 
+        <AlertDialogFooter className="mt-4 flex-col gap-3 sm:flex-col sm:space-x-0">
+          <AlertDialogCancel
             disabled={isSubmitting}
-            className="text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="mt-0 h-14 w-full rounded-full border-0 bg-[#6b4a36] text-lg font-semibold text-white hover:bg-[#5a3b28] hover:text-white"
           >
-            Отмена
+            Оставить
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isSubmitting}
-            className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white"
+            className="h-14 w-full rounded-full border-2 border-[#c4622d] bg-transparent text-lg font-semibold text-[#a8431f] hover:bg-[#fde9da]"
           >
-            {isSubmitting ? 'Отмена...' : 'Отменить бронирование'}
+            {isSubmitting ? 'Отменяем…' : 'Да, отменить бронь'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
 }
-

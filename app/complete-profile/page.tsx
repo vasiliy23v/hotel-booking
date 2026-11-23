@@ -48,7 +48,7 @@ export default function CompleteProfilePage() {
       
       // Если телефон уже заполнен, перенаправляем
       if (user.phone) {
-        if (user.role === 'manager') {
+        if (user.role === 'manager' || user.role === 'developer') {
           router.push('/cms/dashboard');
         } else {
           router.push('/dashboard');
@@ -112,7 +112,7 @@ export default function CompleteProfilePage() {
       localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
 
       // Перенаправляем в зависимости от роли
-      if (updatedUser.role === 'manager') {
+      if (updatedUser.role === 'manager' || updatedUser.role === 'developer') {
         router.push('/cms/dashboard');
       } else {
         router.push('/dashboard');

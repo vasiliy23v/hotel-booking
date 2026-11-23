@@ -2,13 +2,14 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect, useMemo, useCallback, ReactElement } from 'react';
-import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, Search, Edit, MoreVertical, Trash2, AlertTriangle, Eye, EyeOff, Printer, History } from 'lucide-react';
+import { BookOpen, Filter, X, ArrowUpDown, ArrowUp, ArrowDown, Euro, Calendar, User as UserIcon, Phone, Mail, MapPin, Bed, FileText, Search, Edit, MoreVertical, Trash2, AlertTriangle, Printer, History, ChevronDown, Check, FilterX, Info } from 'lucide-react';
 import { api } from '@/lib/api';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BookingFormModal, type BookingFormData, getBookedByAndPhoneFromFormData } from '@/components/booking/BookingFormModal';
 import { ConfirmCancelBookingDialog } from '@/components/booking/ConfirmCancelBookingDialog';
 import { ConfirmPaymentDialog } from '@/components/booking/ConfirmPaymentDialog';
+import { RoomPriceModal } from './RoomPriceModal';
 import type { User, Room, Hotel, BookingInfo, Guest } from '@/types';
 import type { StatisticsResponse } from '@/types/api';
 import {
@@ -18,9 +19,22 @@ import {
 } from '@/lib/festival-dates';
 import { openBookingsPrintWindow } from '@/lib/bookings-print';
 
+const toolBtn =
+  'inline-flex min-h-[48px] items-center gap-2 rounded-2xl border px-4 text-base font-medium whitespace-nowrap transition-colors';
+const toolBtnOff = 'border-[#e3d5c6] bg-white text-[#4a3a30] hover:bg-[#f6ede2] dark:border-border dark:bg-card dark:text-foreground';
+const toolIconBtn = 'inline-flex h-12 w-12 items-center justify-center rounded-2xl border transition-colors';
+const menuRow = 'flex min-h-[48px] w-full items-center justify-between gap-3 rounded-xl px-4 text-left text-base';
+const menuRowOn = 'bg-[#fde9da] font-medium text-[#6b4a36]';
+const menuRowOff = 'text-[#4a3a30] hover:bg-[#f6ede2]';
+const subLabel = 'mb-1.5 block text-sm font-medium text-[#8a7566] dark:text-muted-foreground';
+const subField =
+  'h-12 w-full rounded-2xl border border-[#e3d5c6] bg-white px-4 text-base text-[#3d2f27] placeholder:text-[#b9a493] focus:border-[#6b4a36] focus:outline-none focus:ring-2 focus:ring-[#6b4a36]/15 dark:border-border dark:bg-input dark:text-foreground';
+const toolBtnOn = 'border-[#e8b790] bg-[#fde9da] text-[#6b4a36] dark:border-[#8a6249] dark:bg-[#3a2a20] dark:text-[#e8c9ad]';
+
 export default function BookingsView({ onModalStateChange }: { onModalStateChange?: (isOpen: boolean) => void } = {}) {
   const [bookings, setBookings] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string })[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [priceRoom, setPriceRoom] = useState<{ room: Room; hotelName?: string } | null>(null);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
   const [statistics, setStatistics] = useState<StatisticsResponse | null>(null);
@@ -32,7 +46,7 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
   const [hidePastFestivalBookings, setHidePastFestivalBookings] = useState(true);
   // Фестивали (диапазоны дат) с названиями — для фильтра, сортировки и истории комнаты
   const [festivals, setFestivals] = useState<Array<{ id: string; name: string | null; startDate: string; endDate: string }>>([]);
-  const [filterFestival, setFilterFestival] = useState<string>(''); // '' | festivalId | 'none'
+  const [filterFestivals, setFilterFestivals] = useState<string[]>([]); // festivalId[] и/или 'none'
   // История комнаты (кто жил на прошлых фестивалях)
   const [roomHistoryBooking, setRoomHistoryBooking] = useState<(BookingInfo & { roomNumber?: string; hotelName?: string }) | null>(null);
   
@@ -46,6 +60,24 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
   const [filterDateTo, setFilterDateTo] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
+  const [showFestivalMenu, setShowFestivalMenu] = useState(false);
+  const [showHotelMenu, setShowHotelMenu] = useState(false);
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
+  useEffect(() => {
+    try {
+      setNoticeDismissed(localStorage.getItem('bookings_past_notice_dismissed') === '1');
+    } catch {
+      /* localStorage недоступен */
+    }
+  }, []);
+  const dismissNotice = () => {
+    setNoticeDismissed(true);
+    try {
+      localStorage.setItem('bookings_past_notice_dismissed', '1');
+    } catch {
+      /* localStorage недоступен */
+    }
+  };
   
   // Сортировка
   const [sortBy, setSortBy] = useState<'checkIn' | 'checkOut' | 'bookedDate' | 'bookedBy' | 'roomNumber' | 'festival'>('checkIn');
@@ -593,6 +625,8 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
         const matchesRoom = b.roomNumber?.toLowerCase().includes(query);
         const matchesBookedBy = b.bookedBy.toLowerCase().includes(query);
         const matchesEmail = b.email?.toLowerCase().includes(query);
+        const matchesPhone = b.phone?.toLowerCase().includes(query);
+        const matchesNotes = b.notes?.toLowerCase().includes(query);
         const matchesGuestNames =
           b.guests?.some((guest: Guest) => guest.name?.toLowerCase().includes(query)) || false;
         const matchesGuestEmails =
@@ -603,6 +637,8 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
           matchesRoom ||
           matchesBookedBy ||
           matchesEmail ||
+          matchesPhone ||
+          matchesNotes ||
           matchesGuestNames ||
           matchesGuestEmails
         );
@@ -624,10 +660,10 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
         b.roomNumber?.toLowerCase().includes(filterRoomNumber.toLowerCase())
       );
     }
-    if (filterFestival) {
+    if (filterFestivals.length > 0) {
       result = result.filter((b) => {
         const f = getFestivalForBooking(b);
-        return filterFestival === 'none' ? !f : f?.id === filterFestival;
+        return f ? filterFestivals.includes(f.id) : filterFestivals.includes('none');
       });
     }
     if (filterDateFrom) {
@@ -644,7 +680,7 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
     filterHotel,
     filterBookedBy,
     filterRoomNumber,
-    filterFestival,
+    filterFestivals,
     getFestivalForBooking,
     filterDateFrom,
     filterDateTo,
@@ -662,7 +698,7 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
   const filteredBookings = useMemo(() => {
     let result = bookingsAfterFilters;
 
-    if (hidePastFestivalBookings && !filterFestival) {
+    if (hidePastFestivalBookings && filterFestivals.length === 0) {
       result = result.filter(
         (b) => !isPastFestivalBooking(b, allDateRanges, currentFestivalVisibleMonths)
       );
@@ -706,7 +742,7 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
   }, [
     bookingsAfterFilters,
     hidePastFestivalBookings,
-    filterFestival,
+    filterFestivals,
     getFestivalForBooking,
     allDateRanges,
     currentFestivalVisibleMonths,
@@ -806,7 +842,8 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
   };
 
   // Функция для выделения найденного текста (выделяет все вхождения)
-  const highlightText = (text: string, query: string) => {
+  const highlightText = (text: string, rawQuery: string) => {
+    const query = rawQuery.trim();
     if (!query || !text) return text;
     
     const queryLower = query.toLowerCase();
@@ -824,7 +861,7 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
       // Добавляем выделенное совпадение
       const match = text.substring(index, index + query.length);
       parts.push(
-        <span key={index} className="bg-yellow-400 text-yellow-900 font-bold px-0.5 rounded underline decoration-2 decoration-yellow-600">
+        <span key={index} className="rounded bg-[#ffd9a8] px-0.5 text-[#5a3b28]">
           {match}
         </span>
       );
@@ -846,12 +883,28 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
     setFilterHotel('');
     setFilterBookedBy('');
     setFilterRoomNumber('');
-    setFilterFestival('');
+    setFilterFestivals([]);
+    setHidePastFestivalBookings(true);
     setFilterDateFrom('');
     setFilterDateTo('');
   };
 
-  const hasActiveFilters = searchQuery || filterHotel || filterBookedBy || filterRoomNumber || filterFestival || filterDateFrom || filterDateTo;
+  const hasActiveFilters = searchQuery || filterHotel || filterBookedBy || filterRoomNumber || filterFestivals.length > 0 || !hidePastFestivalBookings || filterDateFrom || filterDateTo;
+
+  const hasOtherFilters = Boolean(searchQuery || filterHotel || filterBookedBy || filterRoomNumber || filterDateFrom || filterDateTo);
+  const festivalMode: 'current' | 'all' | 'custom' =
+    filterFestivals.length > 0 ? 'custom' : hidePastFestivalBookings ? 'current' : 'all';
+  const festivalFilterActive = festivalMode !== 'current';
+  const festivalButtonLabel =
+    festivalMode === 'current'
+      ? 'Текущий фестиваль'
+      : festivalMode === 'all'
+        ? 'Все фестивали'
+        : filterFestivals.length === 1
+          ? filterFestivals[0] === 'none'
+            ? 'Вне фестивалей'
+            : getFestivalLabel(festivals.find((f) => f.id === filterFestivals[0]) || festivalsSorted[0])
+          : `Фестивали: ${filterFestivals.length}`;
 
   const handlePrint = () => {
     if (filteredBookings.length === 0) {
@@ -944,12 +997,12 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
             <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
             Бронирования
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {/* Показываем скелетон загрузки, пока загружаются данные */}
             {(loading || statisticsLoading) ? (
               <>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                  <div key={i} className="rounded-lg p-3 sm:p-4 border border-gray-600 dark:border-gray-400">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="rounded-2xl bg-[#f6ede2] p-4 dark:bg-white/5">
                     <div className="h-3 w-16 sm:w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
                     <div className="h-6 sm:h-8 w-12 sm:w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
                   </div>
@@ -957,50 +1010,19 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
               </>
             ) : statistics ? (
               <>
-                {/* Статистика комнат */}
-                <div className="rounded-lg p-3 sm:p-4 border border-gray-500 dark:border-gray-200">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Всего комнат</div>
-                  <div className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-foreground">{statistics.totalRooms}</div>
-                </div>
-
-                <div className="rounded-lg p-3 sm:p-4 border border-green-200 dark:border-green-800">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Свободно</div>
-                  <div className="text-xl sm:text-2xl font-semibold text-green-600 dark:text-green-400">{statistics.availableRooms}</div>
-                </div>
-
-                <div className="rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-border">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Забронировано</div>
-                  <div className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-foreground">{statistics.bookedRooms}</div>
-                </div>
-
-                {/* Статистика бронирований */}
-                <div className="rounded-lg p-3 sm:p-4 border border-gray-600 dark:border-gray-300">
-                  <div className="text-xs sm:text-sm text-gray-600 dark:border-gray-300 mb-1.5">Всего бронирований</div>
-                  <div className="text-xl sm:text-2xl font-semibold text-gray-600 dark:text-gray-300">{totalBookings}</div>
-                </div>
-                
-                <div className="rounded-lg p-3 sm:p-4 border border-purple-200 dark:border-purple-800">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Оплачено</div>
-                  <div className="text-xl sm:text-2xl font-semibold text-purple-600 dark:text-purple-400">{paidBookings}</div>
-                </div>
-
-                {/* Карточка: Не оплачено */}
-                <div className="rounded-lg p-3 sm:p-4 border border-orange-200 dark:border-orange-800">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Не оплачено</div>
-                  <div className="text-xl sm:text-2xl font-semibold text-orange-600 dark:text-orange-400">{unpaidAmount.toFixed(2)}€</div>
-                </div>
-
-                {/* Карточка: Доход */}
-                <div className="rounded-lg p-3 sm:p-4 border border-emerald-200 dark:border-emerald-800">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Доход</div>
-                  <div className="text-xl sm:text-2xl font-semibold text-emerald-600 dark:text-emerald-400">{paidRevenue.toFixed(2)}€</div>
-                </div>
-
-                {/* Карточка: Ожидаемый доход */}
-                <div className="rounded-lg p-3 sm:p-4 border border-blue-200 dark:border-blue-800">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-muted-foreground mb-1.5">Ожидаемый доход</div>
-                  <div className="text-xl sm:text-2xl font-semibold text-blue-600 dark:text-blue-400">{totalRevenue.toFixed(2)}€</div>
-                </div>
+                {/* Статистика */}
+                {[
+                  { label: 'Комнаты', value: `${statistics.bookedRooms} из ${statistics.totalRooms}`, hint: `свободно ${statistics.availableRooms}`, warn: false },
+                  { label: 'Бронирований', value: String(totalBookings), hint: `оплачено ${paidBookings}`, warn: false },
+                  { label: 'Не оплачено', value: `${unpaidAmount.toFixed(0)} €`, hint: 'ждём оплату', warn: unpaidAmount > 0 },
+                  { label: 'Доход', value: `${paidRevenue.toFixed(0)} €`, hint: `ожидается ${totalRevenue.toFixed(0)} €`, warn: false },
+                ].map((tile) => (
+                  <div key={tile.label} className="rounded-2xl bg-[#f6ede2] px-5 py-4 dark:bg-white/5">
+                    <div className="text-sm text-[#8a7566] dark:text-muted-foreground">{tile.label}</div>
+                    <div className={`mt-1 text-3xl font-semibold ${tile.warn ? 'text-[#b4532a]' : 'text-[#3d2f27] dark:text-foreground'}`}>{tile.value}</div>
+                    <div className="mt-0.5 text-sm text-[#a8917f] dark:text-muted-foreground">{tile.hint}</div>
+                  </div>
+                ))}
               </>
             ) : (
               // Если статистика не загрузилась, показываем пустое состояние
@@ -1009,210 +1031,237 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
               </div>
             )}
           </div>
-          <div className="flex gap-2 w-full sm:w-auto flex-wrap">
-            {pastFestivalBookingsCount > 0 && (
+          <div className="flex w-full flex-wrap items-center gap-2.5">
+            {festivals.length > 0 && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowFestivalMenu((v) => !v)}
+                  aria-expanded={showFestivalMenu}
+                  className={`${toolBtn} w-[250px] justify-between ${festivalFilterActive ? toolBtnOn : toolBtnOff}`}
+                >
+                  <Calendar className="h-5 w-5 shrink-0" />
+                  <span className="flex-1 truncate text-left">{festivalButtonLabel}</span>
+                  <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${showFestivalMenu ? 'rotate-180' : ''}`} />
+                </button>
+                {showFestivalMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowFestivalMenu(false)} />
+                    <div className="absolute left-0 top-full z-50 mt-2 w-[300px] max-w-[85vw] rounded-2xl border border-[#eadfd3] bg-white p-2 shadow-xl dark:border-border dark:bg-card">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFilterFestivals([]);
+                          setHidePastFestivalBookings(true);
+                        }}
+                        className={`${menuRow} ${festivalMode === 'current' ? menuRowOn : menuRowOff}`}
+                      >
+                        Текущий фестиваль
+                        {festivalMode === 'current' && <Check className="h-4 w-4" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFilterFestivals([]);
+                          setHidePastFestivalBookings(false);
+                        }}
+                        className={`${menuRow} ${festivalMode === 'all' ? menuRowOn : menuRowOff}`}
+                      >
+                        Показать все
+                        {festivalMode === 'all' && <Check className="h-4 w-4" />}
+                      </button>
+                      <div className="mx-2 my-2 border-t border-[#eadfd3] dark:border-border" />
+                      <p className="px-4 pb-1 pt-1 text-sm text-[#a8917f] dark:text-muted-foreground">Выбрать конкретные</p>
+                      {[
+                        ...festivalsSorted.map((f) => ({ id: f.id, label: getFestivalLabel(f) })),
+                        { id: 'none', label: 'Вне фестивалей' },
+                      ].map((opt) => {
+                        const checked = filterFestivals.includes(opt.id);
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setHidePastFestivalBookings(false);
+                              setFilterFestivals((prev) =>
+                                prev.includes(opt.id) ? prev.filter((x) => x !== opt.id) : [...prev, opt.id]
+                              );
+                            }}
+                            className={`${menuRow} ${checked ? menuRowOn : menuRowOff}`}
+                          >
+                            <span
+                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${
+                                checked ? 'border-[#6b4a36] bg-[#6b4a36] text-white' : 'border-[#d9c8b8] bg-white'
+                              }`}
+                            >
+                              {checked && <Check className="h-4 w-4" />}
+                            </span>
+                            <span className="flex-1 truncate">{opt.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowFilters(!showFilters)}
+              aria-pressed={showFilters}
+              className={`${toolBtn} ${showFilters || hasOtherFilters ? toolBtnOn : toolBtnOff}`}
+            >
+              <Filter className="h-5 w-5" />
+              Фильтры
+              <span className={`h-2 w-2 rounded-full ${hasOtherFilters ? 'bg-[#c4622d]' : 'bg-transparent'}`} />
+            </button>
+            <div className="relative min-w-[220px] flex-1 basis-[260px]">
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#b9a493] dark:text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Поиск: гость, комната, почта, телефон"
+                className="h-12 w-full rounded-2xl border border-[#e3d5c6] bg-white pl-11 pr-11 text-base text-[#3d2f27] placeholder:text-[#b9a493] focus:border-[#6b4a36] focus:outline-none focus:ring-2 focus:ring-[#6b4a36]/15 dark:border-border dark:bg-input dark:text-foreground"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Очистить поиск"
+                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-[#a8917f] hover:bg-[#f1e4d6]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
               <button
                 type="button"
-                onClick={() => setHidePastFestivalBookings(!hidePastFestivalBookings)}
-                className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
-                  hidePastFestivalBookings
-                    ? 'bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent'
-                    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-200 dark:hover:bg-amber-900/50'
-                }`}
-                title={
-                  hidePastFestivalBookings
-                    ? `Показать ${pastFestivalBookingsCount} бронирований прошлого фестиваля`
-                    : 'Скрыть бронирования прошлого фестиваля'
-                }
+                onClick={() => handleSort('festival')}
+                aria-pressed={sortBy === 'festival'}
+                aria-label="Сортировать по фестивалям"
+                title="Сортировать по фестивалям"
+                className={`${toolIconBtn} ${sortBy === 'festival' ? toolBtnOn : toolBtnOff}`}
               >
-                {hidePastFestivalBookings ? (
-                  <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                {sortBy === 'festival' ? (
+                  sortDirection === 'asc' ? <ArrowUp className="h-5 w-5" /> : <ArrowDown className="h-5 w-5" />
                 ) : (
-                  <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <ArrowUpDown className="h-5 w-5" />
                 )}
-                <span className="hidden sm:inline">
-                  {hidePastFestivalBookings ? 'Показать прошлый фестиваль' : 'Скрыть прошлый фестиваль'}
-                </span>
-                <span className="sm:hidden">
-                  {hidePastFestivalBookings ? 'Показать' : 'Скрыть'}
-                </span>
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground">
-                  {pastFestivalBookingsCount}
-                </span>
               </button>
-            )}
-            {festivals.length > 0 && (
-              <select
-                value={filterFestival}
-                onChange={(e) => setFilterFestival(e.target.value)}
-                className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border focus:outline-none"
-                title="Показать бронирования выбранного фестиваля"
-              >
-                <option value="">Все фестивали</option>
-                {festivalsSorted.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {getFestivalLabel(f)}
-                  </option>
-                ))}
-                <option value="none">Вне фестивалей</option>
-              </select>
-            )}
-            <button
-              type="button"
-              onClick={() => handleSort('festival')}
-              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 border ${
-                sortBy === 'festival'
-                  ? 'bg-gray-900 text-white border-gray-900 dark:bg-primary dark:text-primary-foreground dark:border-primary'
-                  : 'bg-white dark:bg-card text-gray-700 dark:text-foreground border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent'
-              }`}
-              title="Сортировать по фестивалям"
-            >
-              {sortBy === 'festival' ? (
-                sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 sm:w-4 sm:h-4" /> : <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4" />
-              ) : (
-                <ArrowUpDown className="w-3 h-3 sm:w-4 sm:h-4" />
-              )}
-              <span className="hidden sm:inline">По фестивалям</span>
-              <span className="sm:hidden">Фест.</span>
-            </button>
-            {hasActiveFilters && (
               <button
+                type="button"
                 onClick={resetFilters}
-                className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent"
+                disabled={!hasActiveFilters}
+                aria-label="Очистить фильтры"
+                title="Очистить фильтры"
+                className={`${toolIconBtn} ${
+                  hasActiveFilters
+                    ? 'border-[#c4622d] bg-[#c4622d] text-white shadow-[0_6px_16px_-6px_rgba(196,98,45,0.8)] hover:bg-[#a8501f]'
+                    : `${toolBtnOff} cursor-not-allowed opacity-40`
+                }`}
               >
-                <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Сбросить</span>
+                <FilterX className="h-5 w-5" />
               </button>
-            )}
-            <button
-              type="button"
-              onClick={handlePrint}
-              disabled={loading || filteredBookings.length === 0}
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Печать таблицы регистрации по дням"
-            >
-              <Printer className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Печать</span>
-            </button>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
-                showFilters
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-white dark:bg-card text-gray-700 dark:text-foreground border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent'
-              }`}
-            >
-              <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Фильтры</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Поле поиска */}
-        <div className="mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-muted-foreground" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Поиск по отелям, комнатам, именам или почте..."
-              className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-300 dark:border-border rounded-lg focus:border-gray-900 dark:focus:border-ring focus:outline-none bg-white dark:bg-input text-gray-900 dark:text-foreground text-sm"
-            />
-            {searchQuery && (
+            <div>
               <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-muted-foreground hover:text-gray-600 dark:hover:text-foreground"
+                type="button"
+                onClick={handlePrint}
+                disabled={loading || filteredBookings.length === 0}
+                aria-label="Печать"
+                title="Печать таблицы регистрации по дням"
+                className={`${toolIconBtn} ${toolBtnOff} disabled:cursor-not-allowed disabled:opacity-40`}
               >
-                <X className="w-4 h-4" />
+                <Printer className="h-5 w-5" />
               </button>
-            )}
+            </div>
           </div>
         </div>
 
         {/* Панель фильтров */}
         {showFilters && (
-          <div className="mb-4 p-3 sm:p-4 bg-gray-50 dark:bg-muted rounded-lg border border-gray-200 dark:border-border">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-foreground mb-1.5">Отель</label>
-                <select
-                  value={filterHotel}
-                  onChange={(e) => setFilterHotel(e.target.value)}
-                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 dark:border-border bg-white dark:bg-input text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-ring"
-                >
-                  <option value="">Все отели</option>
-                  {hotels.map((hotel) => (
-                    <option key={hotel.id} value={hotel.id}>
-                      {hotel.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-foreground mb-1.5">Забронировано</label>
-                <input
-                  type="text"
-                  value={filterBookedBy}
-                  onChange={(e) => setFilterBookedBy(e.target.value)}
-                  placeholder="Имя пользователя"
-                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 dark:border-border bg-white dark:bg-input text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-ring"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Номер комнаты</label>
-                <input
-                  type="text"
-                  value={filterRoomNumber}
-                  onChange={(e) => setFilterRoomNumber(e.target.value)}
-                  placeholder="Номер комнаты"
-                  className="w-full px-2 py-1.5 rounded text-xs border border-gray-300 dark:border-border bg-white dark:bg-input text-gray-700 dark:text-foreground focus:outline-none focus:border-gray-900 dark:focus:border-ring"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Заезд с</label>
-                <DatePicker
-                  date={filterDateFrom ? new Date(filterDateFrom) : undefined}
-                  onSelect={(date) => setFilterDateFrom(date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '')}
-                  placeholder="С даты"
-                  maxDate={filterDateTo ? new Date(filterDateTo) : undefined}
-                  className="w-full text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Заезд до</label>
-                <DatePicker
-                  date={filterDateTo ? new Date(filterDateTo) : undefined}
-                  onSelect={(date) => setFilterDateTo(date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '')}
-                  placeholder="До даты"
-                  minDate={filterDateFrom ? new Date(filterDateFrom) : undefined}
-                  className="w-full text-xs"
-                />
-              </div>
+          <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="relative">
+              <label className={subLabel}>Отель</label>
+              <button
+                type="button"
+                onClick={() => setShowHotelMenu((v) => !v)}
+                aria-expanded={showHotelMenu}
+                className={`${subField} flex items-center justify-between gap-2 text-left`}
+              >
+                <span className={`truncate ${filterHotel ? '' : 'text-[#b9a493]'}`}>
+                  {filterHotel ? hotels.find((h) => h.id === filterHotel || h.name === filterHotel)?.name || filterHotel : 'Все отели'}
+                </span>
+                <ChevronDown className={`h-4 w-4 shrink-0 text-[#a8917f] transition-transform ${showHotelMenu ? 'rotate-180' : ''}`} />
+              </button>
+              {showHotelMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowHotelMenu(false)} />
+                  <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-[220px] rounded-2xl border border-[#eadfd3] bg-white p-2 shadow-xl dark:border-border dark:bg-card">
+                    {[{ id: '', name: 'Все отели' }, ...hotels.map((h) => ({ id: h.id, name: h.name }))].map((h) => {
+                      const selected = (filterHotel || '') === h.id;
+                      return (
+                        <button
+                          key={h.id || 'all'}
+                          type="button"
+                          onClick={() => {
+                            setFilterHotel(h.id);
+                            setShowHotelMenu(false);
+                          }}
+                          className={`${menuRow} ${selected ? menuRowOn : menuRowOff}`}
+                        >
+                          <span className="truncate">{h.name}</span>
+                          {selected && <Check className="h-4 w-4 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+            <div>
+              <label className={subLabel}>Заезд с</label>
+              <DatePicker
+                date={filterDateFrom ? new Date(filterDateFrom) : undefined}
+                onSelect={(date) => setFilterDateFrom(date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '')}
+                placeholder="Выберите дату"
+                maxDate={filterDateTo ? new Date(filterDateTo) : undefined}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className={subLabel}>Заезд до</label>
+              <DatePicker
+                date={filterDateTo ? new Date(filterDateTo) : undefined}
+                onSelect={(date) => setFilterDateTo(date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '')}
+                placeholder="Выберите дату"
+                minDate={filterDateFrom ? new Date(filterDateFrom) : undefined}
+                className="w-full"
+              />
             </div>
           </div>
         )}
 
-        {!loading && pastFestivalBookingsCount > 0 && (
-          <div
-            className={`mb-3 rounded-lg border px-3 py-2 text-xs sm:text-sm ${
-              hidePastFestivalBookings
-                ? 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200'
-                : 'border-gray-200 bg-gray-50 text-gray-700 dark:border-border dark:bg-muted dark:text-foreground'
-            }`}
-          >
-            {hidePastFestivalBookings ? (
-              <>
-                Скрыто <strong>{pastFestivalBookingsCount}</strong> бронирований прошлого фестиваля.
-                Показано <strong>{filteredBookings.length}</strong> из{' '}
-                <strong>{bookingsAfterFilters.length}</strong>.
-              </>
-            ) : (
-              <>
-                Показаны все бронирования, включая <strong>{pastFestivalBookingsCount}</strong> прошлого
-                фестиваля (выделены жёлтым).
-              </>
-            )}
+        {!loading && pastFestivalBookingsCount > 0 && !noticeDismissed && (
+          <div className="mb-4 flex items-center gap-3 text-[15px] text-[#8a7566] dark:text-muted-foreground">
+            <Info className="h-5 w-5 shrink-0 text-[#b9a493]" />
+            <p className="flex-1">
+              {hidePastFestivalBookings ? (
+                <>
+                  Скрыто {pastFestivalBookingsCount} броней прошлого фестиваля · показано{' '}
+                  {filteredBookings.length} из {bookingsAfterFilters.length}
+                </>
+              ) : (
+                <>Показаны все брони, включая {pastFestivalBookingsCount} прошлого фестиваля</>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={dismissNotice}
+              className="shrink-0 rounded-xl px-3 py-1.5 text-[15px] font-medium text-[#6b4a36] hover:bg-[#f1e4d6]"
+            >
+              Понятно
+            </button>
           </div>
         )}
 
@@ -1226,14 +1275,116 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
             <p className="text-gray-500 text-lg">Бронирования не найдены</p>
           </div>
         ) : (
+          <>
+          {/* Телефон: крупные карточки вместо таблицы */}
+          <div className="hidden">
+            {filteredBookings.map((booking) => {
+              const room = rooms.find((r) => r.id === booking.roomId);
+              const nights = Math.ceil(
+                (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / (1000 * 60 * 60 * 24)
+              );
+              const guestsCount = Array.isArray(booking.guests) ? booking.guests.length : 0;
+              const expected = room?.pricePerPerson
+                ? nights * (room?.price || 0) * guestsCount
+                : nights * (room?.price || 0);
+              const paid = booking.amount ? Number(booking.amount) : 0;
+              const fullyPaid = expected > 0 && paid >= expected - 0.01;
+              const halfPaid = paid > 0 && paid >= expected / 2 && !fullyPaid;
+              const festival = getFestivalForBooking(booking);
+              const isDup = booking.id ? duplicateBookingIds.has(booking.id) : false;
+              const canSeePayment = currentUser?.role === 'manager' || currentUser?.role === 'developer';
+              return (
+                <div
+                  key={booking.id}
+                  className={`rounded-3xl border bg-white p-5 shadow-sm dark:bg-card ${isDup ? 'border-red-400' : 'border-gray-200 dark:border-border'}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xl font-semibold text-gray-900 dark:text-foreground">
+                        Комната #{booking.roomNumber || '—'}
+                      </div>
+                      <div className="text-base text-gray-600 dark:text-muted-foreground">{booking.hotelName}</div>
+                    </div>
+                    {festival && (
+                      <span className="shrink-0 rounded-full bg-[#ffe9db] px-3 py-1 text-sm font-medium text-[#6b4a36]">
+                        {getFestivalLabel(festival)}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 text-lg text-gray-900 dark:text-foreground">
+                    {new Date(booking.checkIn).toLocaleDateString('ru-RU')} – {new Date(booking.checkOut).toLocaleDateString('ru-RU')}
+                    <span className="ml-2 text-base text-gray-600 dark:text-muted-foreground">
+                      {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 text-base text-gray-700 dark:text-foreground">
+                    <div>Бронировал: <span className="font-medium">{booking.bookedBy}</span></div>
+                    <div className="text-gray-600 dark:text-muted-foreground">Гостей: {guestsCount || '—'}</div>
+                    {booking.phone && (
+                      <a href={`tel:${booking.phone}`} className="mt-1 inline-block font-medium text-[#6b4a36] underline underline-offset-2">
+                        {booking.phone}
+                      </a>
+                    )}
+                  </div>
+
+                  {isDup && (
+                    <div className="mt-3 flex items-center gap-2 rounded-2xl bg-red-50 px-4 py-2 text-base text-red-800">
+                      <AlertTriangle className="h-5 w-5" /> Дубликат: на эту комнату есть ещё бронь в те же даты
+                    </div>
+                  )}
+
+                  {canSeePayment && (
+                    <div
+                      className={`mt-4 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-base font-medium ${
+                        fullyPaid
+                          ? 'bg-green-100 text-green-900'
+                          : halfPaid
+                            ? 'bg-yellow-100 text-yellow-900'
+                            : 'bg-red-100 text-red-900'
+                      }`}
+                    >
+                      {fullyPaid ? '✓ Полностью оплачено' : halfPaid ? '◐ Оплачено 50%' : '○ Не оплачено'}
+                      {paid > 0 && <span className="font-normal">· {paid.toFixed(2)}€</span>}
+                    </div>
+                  )}
+
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        setSelectedBookingForDetail(booking);
+                        setShowDetailModal(true);
+                      }}
+                      className="col-span-2 h-14 rounded-full bg-[#6b4a36] text-lg font-medium text-white hover:bg-[#573b2b]"
+                    >
+                      Подробнее
+                    </button>
+                    <button
+                      onClick={() => handleEdit(booking)}
+                      className="h-12 rounded-full bg-gray-100 text-base font-medium text-gray-900 hover:bg-gray-200"
+                    >
+                      Изменить
+                    </button>
+                    <button
+                      onClick={() => setRoomHistoryBooking(booking)}
+                      className="h-12 rounded-full bg-gray-100 text-base font-medium text-gray-900 hover:bg-gray-200"
+                    >
+                      История комнаты
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
           <div className="overflow-x-auto">
-            <Table className="min-w-[1200px]">
+            <Table className="min-w-[1000px]">
               <TableHeader>
                 <TableRow className="border-b border-gray-200 dark:border-border hover:bg-transparent">
-                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Отель</TableHead>
-                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Комната</TableHead>
+                  <TableHead className="text-[15px] text-[#8a7566] dark:text-muted-foreground whitespace-nowrap font-medium">Отель и комната</TableHead>
                   <TableHead
-                    className="text-xs text-gray-600 dark:text-muted-foreground cursor-pointer whitespace-nowrap font-normal"
+                    className="text-[15px] text-[#8a7566] dark:text-muted-foreground cursor-pointer whitespace-nowrap font-medium"
                     onClick={() => handleSort('festival')}
                   >
                     <div className="flex items-center gap-1">
@@ -1246,7 +1397,7 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="text-xs text-gray-600 dark:text-muted-foreground cursor-pointer whitespace-nowrap font-normal"
+                    className="text-[15px] text-[#8a7566] dark:text-muted-foreground cursor-pointer whitespace-nowrap font-medium"
                     onClick={() => handleSort('bookedBy')}
                   >
                     <div className="flex items-center gap-1">
@@ -1258,7 +1409,7 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="text-xs text-gray-600 dark:text-muted-foreground cursor-pointer whitespace-nowrap font-normal"
+                    className="text-[15px] text-[#8a7566] dark:text-muted-foreground cursor-pointer whitespace-nowrap font-medium"
                     onClick={() => handleSort('bookedDate')}
                   >
                     <div className="flex items-center gap-1">
@@ -1269,38 +1420,25 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
                       {sortBy !== 'bookedDate' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                     </div>
                   </TableHead>
-                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Контакты</TableHead>
+                  <TableHead className="text-[15px] text-[#8a7566] dark:text-muted-foreground whitespace-nowrap font-medium">Контакты</TableHead>
                   <TableHead 
-                    className="text-xs text-gray-600 dark:text-muted-foreground cursor-pointer whitespace-nowrap font-normal"
+                    className="text-[15px] text-[#8a7566] dark:text-muted-foreground cursor-pointer whitespace-nowrap font-medium"
                     onClick={() => handleSort('checkIn')}
                   >
                     <div className="flex items-center gap-1">
-                      Заезд
+                      Даты
                       {sortBy === 'checkIn' && (
                         sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
                       )}
                       {sortBy !== 'checkIn' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
                     </div>
                   </TableHead>
-                  <TableHead 
-                    className="text-xs text-gray-600 dark:text-muted-foreground cursor-pointer whitespace-nowrap font-normal"
-                    onClick={() => handleSort('checkOut')}
-                  >
-                    <div className="flex items-center gap-1">
-                      Выезд
-                      {sortBy === 'checkOut' && (
-                        sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                      )}
-                      {sortBy !== 'checkOut' && <ArrowUpDown className="w-3 h-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Гости</TableHead>
-                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Сумма</TableHead>
+                  <TableHead className="text-[15px] text-[#8a7566] dark:text-muted-foreground whitespace-nowrap font-medium">Гости</TableHead>
+                  <TableHead className="text-[15px] text-[#8a7566] dark:text-muted-foreground whitespace-nowrap font-medium">Сумма</TableHead>
                   {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && (
-                    <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Статус оплаты</TableHead>
+                    <TableHead className="text-[15px] text-[#8a7566] dark:text-muted-foreground whitespace-nowrap font-medium">Статус оплаты</TableHead>
                   )}
-                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap font-normal">Примечания</TableHead>
-                  <TableHead className="text-xs text-gray-600 dark:text-muted-foreground whitespace-nowrap sticky right-0 bg-white dark:bg-card z-10 font-normal">Действия</TableHead>
+                  <TableHead className="text-[15px] text-[#8a7566] dark:text-muted-foreground whitespace-nowrap sticky right-0 bg-white dark:bg-card z-10 font-medium">Действия</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1354,39 +1492,29 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
                     >
                       <TableCell className="py-3">
                         {isFirstInGroup ? (
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm text-gray-700 dark:text-foreground">
-                              {searchQuery ? highlightText(booking.hotelName || 'N/A', searchQuery) : (booking.hotelName || 'N/A')}
-                            </div>
-                            {isDuplicate && (
-                              <div title="Дубликат: другая бронь на эту же комнату в те же даты">
-                                <AlertTriangle className="w-4 h-4 text-red-500 dark:text-red-400" />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-[17px] font-medium text-[#3d2f27] dark:text-foreground">
+                                {searchQuery ? highlightText(booking.hotelName || 'N/A', searchQuery) : (booking.hotelName || 'N/A')}
                               </div>
-                            )}
+                              {isDuplicate && (
+                                <div title="Дубликат: другая бронь на эту же комнату в те же даты">
+                                  <AlertTriangle className="w-4 h-4 text-red-500 dark:text-red-400" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="mt-0.5 text-[15px] text-[#8a7566] dark:text-muted-foreground">
+                              Комната {searchQuery ? highlightText(booking.roomNumber || 'N/A', searchQuery) : (booking.roomNumber || 'N/A')}
+                              {room && (
+                                <> · {room.type === 'FZ' ? 'семейная' : room.type === 'DZ' ? 'двухместная' : room.type === 'EZ' ? 'одноместная' : room.type === 'MZ' ? 'многоместная' : room.type === 'App' ? 'апартаменты' : 'общая'}</>
+                              )}
+                            </div>
                           </div>
                         ) : (
                           <div className="text-sm text-gray-400 dark:text-muted-foreground">—</div>
                         )}
                       </TableCell>
-                      
-                      <TableCell className="py-3">
-                        {isFirstInGroup ? (
-                          <>
-                            <div className="text-sm text-gray-700 dark:text-foreground">
-                              #{searchQuery ? highlightText(booking.roomNumber || 'N/A', searchQuery) : (booking.roomNumber || 'N/A')}
-                              {room?.name && <span className="text-gray-500 dark:text-muted-foreground text-xs ml-1">({room.name})</span>}
-                            </div>
-                            {room && (
-                              <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
-                                {room.type === 'FZ' ? 'Семейная' : room.type === 'DZ' ? 'Двухместная' : room.type === 'EZ' ? 'Одноместная' : room.type === 'MZ' ? 'Многоместная' : room.type === 'App' ? 'Апартаменты' : 'Общее'}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="text-sm text-gray-400 dark:text-muted-foreground">—</div>
-                        )}
-                      </TableCell>
-                      
+
                       <TableCell className="py-3">
                         {(() => {
                           const f = getFestivalForBooking(booking);
@@ -1401,49 +1529,46 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
                       </TableCell>
 
                       <TableCell className="py-3">
-                        <div className="text-sm text-gray-700 dark:text-foreground">
+                        <div className="text-[17px] font-medium text-[#3d2f27] dark:text-foreground">
                           {searchQuery ? highlightText(booking.bookedBy, searchQuery) : booking.bookedBy}
                         </div>
+                        {booking.notes && (
+                          <div title={booking.notes} className="mt-0.5 max-w-[200px] truncate text-sm italic text-[#8a7566] dark:text-muted-foreground">
+                            {searchQuery ? highlightText(booking.notes, searchQuery) : booking.notes}
+                          </div>
+                        )}
                       </TableCell>
                       
                       <TableCell className="py-3">
-                        <div className="text-sm text-gray-700 dark:text-foreground">
+                        <div className="text-[17px] text-[#3d2f27] dark:text-foreground">
                           {new Date(booking.bookedDate).toLocaleDateString('ru-RU')}
                         </div>
                       </TableCell>
                       
                       <TableCell className="py-3">
-                        <div className="text-xs text-gray-600 dark:text-muted-foreground">
+                        <div className="text-[15px] text-[#6b5a4e] dark:text-muted-foreground">
                           <div>
                             {searchQuery ? highlightText(booking.email || '', searchQuery) : (booking.email || '')}
                           </div>
-                          <div className="text-gray-500 dark:text-muted-foreground mt-0.5">{booking.phone}</div>
+                          <div className="text-gray-500 dark:text-muted-foreground mt-0.5">{searchQuery ? highlightText(booking.phone || '', searchQuery) : booking.phone}</div>
                         </div>
                       </TableCell>
                       
                       <TableCell className="py-3">
-                        <div className={`text-sm ${
-                          !isDateInValidRange(new Date(booking.checkIn))
-                            ? 'text-red-600 dark:text-red-400 underline decoration-2 decoration-red-600 dark:decoration-red-400'
-                            : 'text-gray-700 dark:text-foreground'
-                        }`}>
-                          {new Date(booking.checkIn).toLocaleDateString('ru-RU')}
+                        <div className="whitespace-nowrap text-[17px] text-[#3d2f27] dark:text-foreground">
+                          <span className={!isDateInValidRange(new Date(booking.checkIn)) ? 'font-semibold text-red-600 dark:text-red-400' : ''}>
+                            {new Date(booking.checkIn).toLocaleDateString('ru-RU')}
+                          </span>
+                          <span className="mx-1.5 text-[#b9a493]">→</span>
+                          <span className={!isDateInValidRange(new Date(booking.checkOut)) ? 'font-semibold text-red-600 dark:text-red-400' : ''}>
+                            {new Date(booking.checkOut).toLocaleDateString('ru-RU')}
+                          </span>
                         </div>
-                      </TableCell>
-                      
-                      <TableCell className="py-3">
-                        <div className={`text-sm ${
-                          !isDateInValidRange(new Date(booking.checkOut))
-                            ? 'text-red-600 dark:text-red-400 underline decoration-2 decoration-red-600 dark:decoration-red-400'
-                            : 'text-gray-700 dark:text-foreground'
-                        }`}>
-                          {new Date(booking.checkOut).toLocaleDateString('ru-RU')}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
+                        <div className="mt-0.5 text-[15px] text-[#8a7566] dark:text-muted-foreground">
                           {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'}
                         </div>
                       </TableCell>
-                      
+
                       <TableCell className="py-3">
                         <div className="text-xs text-gray-600 dark:text-muted-foreground">
                           {booking.guests && booking.guests.length > 0 ? (
@@ -1491,7 +1616,7 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
                           if (!room) {
                             return (
                               <div className="text-sm font-semibold text-gray-700 dark:text-foreground">
-                                {totalPrice > 0 ? `${totalPrice.toFixed(2)}€` : <span className="text-red-500">Комната не найдена</span>}
+                                {totalPrice > 0 ? `${totalPrice.toFixed(2)}€` : <span className="font-medium text-[#8a7566]">Комната удалена</span>}
                               </div>
                             );
                           }
@@ -1503,41 +1628,25 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
                           return (
                             <>
                               <div className="text-sm font-semibold text-gray-700 dark:text-foreground">
-                                {totalPrice > 0 ? `${totalPrice.toFixed(2)}€` : <span className="text-orange-500">Не рассчитано</span>}
+                                {totalPrice > 0 ? `${totalPrice.toFixed(2)}€` : <span className="font-medium text-[#8a7566]">Цена не задана</span>}
                               </div>
                               {room.price > 0 ? (
-                                <div className="text-xs text-gray-500 dark:text-muted-foreground mt-1 space-y-0.5">
-                                  {isPerPerson ? (
-                                    <>
-                                      <div className="font-medium text-blue-600 dark:text-blue-400">
-                                        {room.price}€ за чел/ночь
-                                      </div>
-                                      <div className="text-[11px] text-gray-600 dark:text-gray-400">
-                                        {guestsCount} чел × {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'} × {room.price}€
-                                      </div>
-                                      <div className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
-                                        {guestsCount} × {nights} × {room.price} = {(guestsCount * nights * room.price).toFixed(2)}€
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div className="font-medium text-green-600 dark:text-green-400">
-                                        {room.price}€ за комнату/ночь
-                                      </div>
-                                      <div className="text-[11px] text-gray-600 dark:text-gray-400">
-                                        {nights} {nights === 1 ? 'ночь' : nights < 5 ? 'ночи' : 'ночей'} × {room.price}€
-                                        {guestsCount > 0 && <span className="text-gray-400"> ({guestsCount} гост{guestsCount === 1 ? 'ь' : guestsCount < 5 ? 'я' : 'ей'})</span>}
-                                      </div>
-                                      <div className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
-                                        {nights} × {room.price} = {(nights * room.price).toFixed(2)}€
-                                      </div>
-                                    </>
-                                  )}
+                                <div className="mt-0.5 text-[15px] text-[#8a7566] dark:text-muted-foreground">
+                                  {isPerPerson
+                                    ? `${guestsCount} чел × ${nights} н × ${room.price}€`
+                                    : `${nights} н × ${room.price}€`}
                                 </div>
                               ) : (
-                                <div className="text-xs text-red-500 dark:text-red-400 mt-1">
-                                  Цена комнаты не установлена
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPriceRoom({ room, hotelName: booking.hotelName });
+                                  }}
+                                  className="mt-1 inline-flex min-h-[40px] items-center whitespace-nowrap rounded-xl bg-[#6b4a36] px-4 text-sm font-semibold text-white hover:bg-[#5a3b28]"
+                                >
+                                  Задать цену комнаты
+                                </button>
                               )}
                             </>
                           );
@@ -1547,40 +1656,19 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
                       {(currentUser?.role === 'manager' || currentUser?.role === 'developer') && (
                         <TableCell className="py-3">
                           {isFullyPaid ? (
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                              <span className="text-xs text-green-600 dark:text-green-400">Полностью оплачено</span>
-                            </div>
+                            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">Оплачено</span>
                           ) : isHalfPaidOrMore ? (
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
-                              <span className="text-xs text-yellow-600 dark:text-yellow-500">50% оплачено</span>
-                            </div>
+                            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">Оплачено 50%</span>
                           ) : (
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
-                              <span className="text-xs text-red-600 dark:text-red-400">Не оплачено</span>
-                            </div>
+                            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-[#fde4d8] px-3 py-1 text-sm font-medium text-[#a8431f] dark:bg-red-900/30 dark:text-red-300">Не оплачено</span>
                           )}
                           {alreadyPaid > 0 && (
-                            <div className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">
+                            <div className="text-[15px] text-[#8a7566] dark:text-muted-foreground mt-1">
                               Оплачено: {alreadyPaid.toFixed(2)}€
                             </div>
                           )}
                         </TableCell>
                       )}
-                      
-                      <TableCell className="py-3">
-                        <div className="text-xs text-gray-500 dark:text-muted-foreground max-w-xs">
-                          {booking.notes ? (
-                            <div title={booking.notes} className="truncate">
-                              {booking.notes}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 dark:text-muted-foreground">-</span>
-                          )}
-                        </div>
-                      </TableCell>
                       
                       <TableCell className="py-3 sticky right-0 bg-white dark:bg-card z-10" onClick={(e) => e.stopPropagation()}>
                         <div className="relative z-10">
@@ -1701,6 +1789,7 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
               </TableBody>
             </Table>
           </div>
+          </>
         )}
       </div>
 
@@ -2118,6 +2207,16 @@ export default function BookingsView({ onModalStateChange }: { onModalStateChang
           </div>
         );
       })()}
+
+      {priceRoom && (
+        <RoomPriceModal
+          room={priceRoom.room}
+          rooms={rooms}
+          hotelName={priceRoom.hotelName}
+          onClose={() => setPriceRoom(null)}
+          onSaved={() => loadAllData(_filterHotelId || undefined)}
+        />
+      )}
     </div>
   );
 }

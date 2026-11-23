@@ -1,37 +1,59 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Building2, BookOpen, Users, MessageCircle, LogOut, ChevronDown, MessageSquare, Calendar, FileText, Lock } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { LogoutDialog } from "@/components/LogoutDialog";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-} from '@/components/ui/sidebar';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import type { User, Hotel } from '@/types';
+  BedDouble,
+  CalendarCheck,
+  PartyPopper,
+  MessageSquareText,
+  Users,
+  LogOut,
+  MessageSquare,
+  Lock,
+} from "lucide-react";
+import type { User, Hotel } from "@/types";
+
+function NavItem({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+  small,
+}: {
+  icon?: React.ComponentType<{ className?: string }>;
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+  small?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={`flex w-full items-center gap-3 rounded-xl px-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#6b4a36]/40 ${
+        small ? "min-h-[44px] text-[15px]" : "min-h-[52px] text-[17px]"
+      } ${
+        active
+          ? "bg-[#f1e4d6] font-semibold text-[#5a3b28] dark:bg-white/15 dark:text-white"
+          : "font-medium text-[#4a3a30] hover:bg-[#f6ede2] dark:text-neutral-300 dark:hover:bg-white/10"
+      }`}
+    >
+      {Icon && <Icon className="h-5 w-5 shrink-0" />}
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-3 pb-1 pt-6 text-sm font-medium text-[#a8917f] dark:text-neutral-400">
+      {children}
+    </p>
+  );
+}
 
 interface AppSidebarProps {
   currentUser: User;
@@ -61,9 +83,9 @@ export function AppSidebar({
   onShowFeedbackForm,
 }: AppSidebarProps) {
   const router = useRouter();
-  const isManager = currentUser.role === 'manager' || currentUser.role === 'developer';
-  const isGuest = currentUser.role === 'guest';
-  const [hotelsOpen, setHotelsOpen] = useState(true);
+  const isManager =
+    currentUser.role === "manager" || currentUser.role === "developer";
+  const isGuest = currentUser.role === "guest";
   const [isDesktop, setIsDesktop] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
@@ -74,8 +96,8 @@ export function AppSidebar({
       setIsDesktop(width >= 1024);
     };
     checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
   // На планшетах и мобилке не показываем сайдбар, используется нижнее меню
@@ -83,264 +105,117 @@ export function AppSidebar({
     return null;
   }
 
+  const hotelsActive = isGuest ? activeTab === "hotels" : viewMode === "hotels";
+  const pickHotel = (id: string) => {
+    if (isGuest) onTabChange?.("hotels");
+    else onViewModeChange?.("hotels");
+    onHotelSelect?.(id);
+  };
+
   return (
-    <div 
-      className="sticky top-0 h-screen shrink-0 w-64 transition-all duration-200 border-r border-sidebar-border bg-background dark:bg-background text-sidebar-foreground flex flex-col"
-    >
-      <Sidebar collapsible="none" variant="sidebar" className="h-full w-full">
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-1.5">
-          <Building2 className="w-5 h-5 text-sidebar-foreground" />
-          <span className="font-semibold text-sidebar-foreground">
-            {isManager ? 'CMS' : 'Навигация'}
-          </span>
-        </div>
-      </SidebarHeader>
+    <div className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-[#eadfd3] bg-[#fbf8f4] text-[#3d2f27] dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100">
+      <div className="px-5 pb-2 pt-6">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand-hotel-v2.png"
+          alt="Hotel Drei Bären"
+          className="mx-auto w-32"
+        />
+      </div>
 
-      <SidebarContent>
-        {isGuest && (
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <Collapsible
-                  asChild
-                  open={hotelsOpen}
-                  onOpenChange={setHotelsOpen}
-                >
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton 
-                        isActive={activeTab === 'hotels'}
-                        tooltip="Отели"
-                      >
-                        <Building2 />
-                        <span>Отели</span>
-                        <ChevronDown className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                        <SidebarMenuSub>
-                          <SidebarMenuSubItem>
-                            <button
-                              onClick={() => {
-                                onTabChange?.('hotels');
-                                onHotelSelect?.('');
-                              }}
-                              className={`flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground text-sm w-full text-left ${
-                                !selectedHotel && activeTab === 'hotels' ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''
-                              }`}
-                            >
-                              <span>Все отели</span>
-                            </button>
-                          </SidebarMenuSubItem>
-                          {hotels.map((hotel) => (
-                            <SidebarMenuSubItem key={hotel.id}>
-                              <button
-                                onClick={() => {
-                                  onTabChange?.('hotels');
-                                  onHotelSelect?.(hotel.id);
-                                }}
-                                className={`flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground text-sm w-full text-left ${
-                                  selectedHotel === hotel.id ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''
-                                }`}
-                              >
-                                <span className="truncate">{hotel.name}</span>
-                              </button>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {isGuest && (
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={!selectedHotel && activeTab === 'bookings'}
-                    onClick={() => {
-                      onTabChange?.('bookings');
-                      onHotelSelect?.('');
-                      onLoadBookings?.();
-                    }}
-                    tooltip="Мои бронирования"
-                  >
-                    <BookOpen />
-                    <span>Мои бронирования</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 pt-3">
         {isManager && (
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <Collapsible
-                  asChild
-                  open={hotelsOpen}
-                  onOpenChange={setHotelsOpen}
-                >
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton 
-                        isActive={viewMode === 'hotels'}
-                        tooltip="Отели"
-                      >
-                        <Building2 />
-                        <span>Отели</span>
-                        <ChevronDown className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                        <SidebarMenuSub>
-                          <SidebarMenuSubItem>
-                            <button
-                              onClick={() => {
-                                onViewModeChange?.('hotels');
-                                onHotelSelect?.('');
-                              }}
-                              className={`flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground text-sm w-full text-left ${
-                                viewMode === 'hotels' && !selectedHotel ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''
-                              }`}
-                            >
-                              <span>Все отели</span>
-                            </button>
-                          </SidebarMenuSubItem>
-                          {hotels.map((hotel) => (
-                            <SidebarMenuSubItem key={hotel.id}>
-                              <button
-                                onClick={() => {
-                                  onViewModeChange?.('hotels');
-                                  onHotelSelect?.(hotel.id);
-                                }}
-                                className={`flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground text-sm w-full text-left ${
-                                  selectedHotel === hotel.id ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''
-                                }`}
-                              >
-                                <span className="truncate">{hotel.name}</span>
-                              </button>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={viewMode === 'users'}
-                    onClick={() => onViewModeChange?.('users')}
-                    tooltip="Пользователи"
-                  >
-                    <Users />
-                    <span>Пользователи</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={viewMode === 'bookings'}
-                    onClick={() => onViewModeChange?.('bookings')}
-                    tooltip="Бронирования"
-                  >
-                    <BookOpen />
-                    <span>Бронирования</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={viewMode === 'dateRanges'}
-                    onClick={() => onViewModeChange?.('dateRanges')}
-                    tooltip="Диапазоны дат"
-                  >
-                    <Calendar />
-                    <span>Диапазоны дат</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={viewMode === 'feedback'}
-                    onClick={() => onViewModeChange?.('feedback')}
-                    tooltip="Отзывы"
-                  >
-                    <MessageCircle />
-                    <span>Отзывы</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <>
+            <NavItem
+              icon={CalendarCheck}
+              label="Бронирования"
+              active={viewMode === "bookings"}
+              onClick={() => onViewModeChange?.("bookings")}
+            />
+            <NavItem
+              icon={BedDouble}
+              label="Отели"
+              active={viewMode === "hotels"}
+              onClick={() => pickHotel("")}
+            />
+            <NavItem
+              icon={Users}
+              label="Пользователи"
+              active={viewMode === "users"}
+              onClick={() => onViewModeChange?.("users")}
+            />
+            <NavItem
+              icon={PartyPopper}
+              label="Фестивали"
+              active={viewMode === "dateRanges"}
+              onClick={() => onViewModeChange?.("dateRanges")}
+            />
+            <NavItem
+              icon={MessageSquareText}
+              label="Отзывы"
+              active={viewMode === "feedback"}
+              onClick={() => onViewModeChange?.("feedback")}
+            />
+          </>
         )}
-      </SidebarContent>
 
-      <SidebarFooter>
-        <SidebarMenu>
-          {/* Кнопка "Логи системы" только для менеджеров и разработчиков */}
-          {isManager && (
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={() => router.push('/cms/logs')}
-                tooltip="Логи системы"
-                className={currentUser.role === 'manager' ? 'text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300' : ''}
-              >
-                <Lock className="w-4 h-4" />
-                <span>Логи системы</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          )}
-          {/* Для менеджеров оставляем кнопки в сайдбаре */}
-          {isManager && (
-            <>
-              {onShowFeedbackForm && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton onClick={onShowFeedbackForm} tooltip="Обратная связь">
-                    <MessageSquare />
-                    <span>Обратная связь</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => setShowLogoutDialog(true)} tooltip="Выйти">
-                  <LogOut />
-                  <span>Выйти</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </>
-          )}
-          {/* Для гостей кнопки убраны - они теперь в header */}
-        </SidebarMenu>
-      </SidebarFooter>
-      </Sidebar>
-
-      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Подтверждение выхода</AlertDialogTitle>
-            <AlertDialogDescription>
-              Вы уверены, что хотите выйти?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
-            <AlertDialogAction
+        {isGuest && (
+          <>
+            <NavItem
+              icon={BedDouble}
+              label="Все отели"
+              active={hotelsActive && !selectedHotel}
+              onClick={() => pickHotel("")}
+            />
+            {hotels.map((hotel) => (
+              <NavItem
+                key={hotel.id}
+                label={hotel.name}
+                active={hotelsActive && selectedHotel === hotel.id}
+                onClick={() => pickHotel(hotel.id)}
+              />
+            ))}
+            <SectionLabel>Мои</SectionLabel>
+            <NavItem
+              icon={CalendarCheck}
+              label="Мои бронирования"
+              active={!selectedHotel && activeTab === "bookings"}
               onClick={() => {
-                setShowLogoutDialog(false);
-                onLogout();
+                onTabChange?.("bookings");
+                onHotelSelect?.("");
+                onLoadBookings?.();
               }}
-            >
-              Выйти
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            />
+          </>
+        )}
+      </nav>
+
+      {isManager && (
+        <div className="space-y-1 border-t border-[#eadfd3] p-3 dark:border-white/10">
+          <NavItem
+            icon={Lock}
+            label="Логи системы"
+            onClick={() => router.push("/cms/logs")}
+            small
+          />
+          {onShowFeedbackForm && (
+            <NavItem
+              icon={MessageSquare}
+              label="Обратная связь"
+              onClick={onShowFeedbackForm}
+              small
+            />
+          )}
+          <NavItem
+            icon={LogOut}
+            label="Выйти"
+            onClick={() => setShowLogoutDialog(true)}
+            small
+          />
+        </div>
+      )}
+
+      <LogoutDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog} onConfirm={() => { setShowLogoutDialog(false); onLogout(); }} />
     </div>
   );
 }
-
