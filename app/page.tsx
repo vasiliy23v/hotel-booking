@@ -78,19 +78,10 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] lg:bg-[#efe7df] lg:flex lg:items-center lg:justify-center lg:p-8">
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl lg:min-h-0 lg:rounded-[2rem] lg:bg-white lg:p-3 lg:shadow-[0_20px_60px_-20px_rgba(74,52,38,0.25)]">
-        {/* Фото (только на компьютере) */}
-        <div className="relative hidden lg:block lg:w-1/2 overflow-hidden rounded-[1.5rem]">
-          <img
-            src="/login-hero.jpg"
-            alt=""
-            className="h-full w-full object-cover object-[40%_60%]"
-          />
-        </div>
-
+    <div className="min-h-screen bg-[#faf8f5] lg:flex">
+      <div className="flex min-h-screen w-full lg:w-[42%] lg:shrink-0">
         {/* Форма входа */}
-        <div className="flex w-full items-center justify-center px-6 py-12 lg:w-1/2 lg:px-12">
+        <div className="flex w-full items-center justify-center px-6 py-12 lg:px-14">
           <div className="w-full max-w-sm">
             <div className="mx-auto mb-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ffd9c2]">
               <Building2 className="h-7 w-7 text-[#6b4a36]" strokeWidth={1.75} aria-hidden="true" />
@@ -175,6 +166,15 @@ export default function Home() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Фото на всю высоту (только на компьютере), ~60% ширины */}
+      <div className="relative hidden lg:block lg:flex-1">
+        <img
+          src="/login-hero.jpg"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-[40%_60%]"
+        />
       </div>
     </div>
   );
