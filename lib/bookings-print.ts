@@ -79,7 +79,7 @@ export function collectPrintDayKeys(
 
   const festivalRange = getUpcomingFestivalRange(activeRanges, allRanges);
   if (festivalRange) {
-    let cursor = parseLocalDate(festivalRange.startDate);
+    const cursor = parseLocalDate(festivalRange.startDate);
     const end = parseLocalDate(festivalRange.endDate);
     while (cursor <= end) {
       keys.add(dayKeyFromDate(cursor));
