@@ -4,7 +4,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2 } from 'lucide-react';
+import { Lora } from 'next/font/google';
 import { api } from '@/lib/api';
+
+const serif = Lora({ subsets: ['latin', 'cyrillic'], weight: ['500', '600'] });
 
 export default function Home() {
   const router = useRouter();
@@ -75,50 +78,61 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex bg-[#f4f4f6] lg:p-4 lg:gap-4">
-      {/* Форма входа */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-5 py-10 lg:bg-white lg:rounded-[2rem]">
-        <div className="w-full max-w-md">
-          <Building2 className="h-9 w-9 text-gray-900 mb-10" strokeWidth={1.5} aria-hidden="true" />
+    <div className="min-h-screen bg-[#faf8f5] lg:bg-[#efe7df] lg:flex lg:items-center lg:justify-center lg:p-8">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl lg:min-h-0 lg:rounded-[2rem] lg:bg-white lg:p-3 lg:shadow-[0_20px_60px_-20px_rgba(74,52,38,0.25)]">
+        {/* Фото (только на компьютере) */}
+        <div className="relative hidden lg:block lg:w-1/2 overflow-hidden rounded-[1.5rem]">
+          <img
+            src="https://images.unsplash.com/photo-1416339306562-f3d12fefd36f?w=1200&q=80"
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        </div>
 
-          <h1 className="text-[2.5rem] leading-[1.1] font-semibold tracking-tight text-gray-900">
-            Добро пожаловать
-          </h1>
-          <p className="mt-3 mb-10 text-lg text-gray-600">
-            Войдите, чтобы забронировать комнату
-          </p>
-
-          <form
-            className="space-y-5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleLogin();
-            }}
-          >
-            <div>
-              <label htmlFor="login-identifier" className="block text-lg font-medium mb-2 text-gray-900">
-                Email или телефон
-              </label>
-              <input
-                id="login-identifier"
-                type="text"
-                inputMode="email"
-                autoComplete="username"
-                value={identifier}
-                onChange={(e) => {
-                  setIdentifier(e.target.value);
-                  setAuthError('');
-                }}
-                placeholder="email@example.com"
-                className="w-full h-14 px-5 text-lg rounded-2xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-900 focus:ring-2 focus:ring-gray-900 focus:outline-none"
-              />
+        {/* Форма входа */}
+        <div className="flex w-full items-center justify-center px-6 py-12 lg:w-1/2 lg:px-12">
+          <div className="w-full max-w-sm">
+            <div className="mx-auto mb-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ffd9c2]">
+              <Building2 className="h-7 w-7 text-[#6b4a36]" strokeWidth={1.75} aria-hidden="true" />
             </div>
 
-            <div>
-              <label htmlFor="login-password" className="block text-lg font-medium mb-2 text-gray-900">
-                Пароль
-              </label>
+            <h1 className={`${serif.className} text-center text-4xl font-semibold tracking-tight text-[#2a1d15]`}>
+              Добро пожаловать
+            </h1>
+            <p className="mt-3 mb-10 text-center text-lg text-[#6f625a]">
+              Войдите, чтобы забронировать комнату
+            </p>
+
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleLogin();
+              }}
+            >
+              <div>
+                <label htmlFor="login-identifier" className="sr-only">
+                  Email или телефон
+                </label>
+                <input
+                  id="login-identifier"
+                  type="text"
+                  inputMode="email"
+                  autoComplete="username"
+                  value={identifier}
+                  onChange={(e) => {
+                    setIdentifier(e.target.value);
+                    setAuthError('');
+                  }}
+                  placeholder="Email или телефон"
+                  className="h-14 w-full rounded-full bg-[#f1ece6] px-6 text-lg text-[#2a1d15] placeholder:text-[#7d7068] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6b4a36]"
+                />
+              </div>
+
               <div className="relative">
+                <label htmlFor="login-password" className="sr-only">
+                  Пароль
+                </label>
                 <input
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
@@ -128,48 +142,39 @@ export default function Home() {
                     setPassword(e.target.value);
                     setAuthError('');
                   }}
-                  placeholder="Ваш пароль"
-                  className="w-full h-14 pl-5 pr-28 text-lg rounded-2xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-900 focus:ring-2 focus:ring-gray-900 focus:outline-none"
+                  placeholder="Пароль"
+                  className="h-14 w-full rounded-full bg-[#f1ece6] pl-6 pr-28 text-lg text-[#2a1d15] placeholder:text-[#7d7068] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6b4a36]"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-10 rounded-xl px-3 text-base font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  className="absolute right-3 top-1/2 h-10 -translate-y-1/2 rounded-full px-4 text-base font-medium text-[#6b4a36] hover:bg-[#e8dfd6] focus:outline-none focus:ring-2 focus:ring-[#6b4a36]"
                   aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
                 >
                   {showPassword ? 'Скрыть' : 'Показать'}
                 </button>
               </div>
-            </div>
 
-            {authError && (
-              <div role="alert" className="rounded-2xl bg-red-50 px-5 py-4 text-base text-red-800">
-                {authError}
-              </div>
-            )}
+              {authError && (
+                <div role="alert" className="rounded-2xl bg-[#fde8e4] px-5 py-3 text-base text-[#9b2c1f]">
+                  {authError}
+                </div>
+              )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-2 w-full h-14 rounded-full bg-gray-900 text-lg font-medium text-white transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-60"
-            >
-              {loading ? 'Входим…' : 'Войти'}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-2 h-14 w-full rounded-full bg-[#6b4a36] text-lg font-medium text-white transition-colors hover:bg-[#573b2b] focus:outline-none focus:ring-2 focus:ring-[#6b4a36] focus:ring-offset-2 disabled:opacity-60"
+              >
+                {loading ? 'Входим…' : 'Войти'}
+              </button>
+            </form>
 
-          <p className="mt-8 text-center text-base text-gray-600">
-            Регистрация доступна только по приглашению
-          </p>
+            <p className="mt-8 text-center text-base text-[#6f625a]">
+              Регистрация доступна только по приглашению
+            </p>
+          </div>
         </div>
-      </div>
-
-      {/* Фото (только на компьютере) */}
-      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden rounded-[2rem]">
-        <img
-          src="https://images.unsplash.com/photo-1416339306562-f3d12fefd36f?w=1200&q=80"
-          alt=""
-          className="w-full h-full object-cover"
-        />
       </div>
     </div>
   );
