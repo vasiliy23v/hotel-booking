@@ -172,3 +172,30 @@ export function isPastFestivalBooking(
 
   return isBookingOutsideCurrentFestival(booking, currentFestivalVisibleMonths);
 }
+
+function formatLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Даты ближайшего (или идущего сейчас) фестиваля в формате YYYY-MM-DD.
+ * Заезд — начало фестиваля (или сегодня, если он уже идёт), выезд — конец.
+ */
+export function getNearestFestivalDates(
+  ranges: Array<{ startDate: Date | string; endDate: Date | string }>
+): { checkIn: string; checkOut: string } | null {
+  const today = parseLocalDate(new Date());
+  const toStr = (v: Date | string) => (v instanceof Date ? v.toISOString() : v);
+  const upcoming = ranges
+    .map((r) => ({ start: parseLocalDate(toStr(r.startDate)), end: parseLocalDate(toStr(r.endDate)) }))
+    .filter((r) => r.end >= today)
+    .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
+  if (!upcoming) return null;
+  const from = upcoming.start > today ? upcoming.start : today;
+  let to = upcoming.end;
+  if (to <= from) {
+    to = new Date(from);
+    to.setDate(to.getDate() + 1);
+  }
+  return { checkIn: formatLocalDate(from), checkOut: formatLocalDate(to) };
+}

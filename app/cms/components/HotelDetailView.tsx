@@ -8,6 +8,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { api } from '@/lib/api';
 import type { Hotel, Room, Stairs, User } from '@/types';
 import FloorPlan from '@/components/FloorPlan';
+import { getNearestFestivalDates } from '@/lib/festival-dates';
 import { ConfirmCancelBookingDialog } from '@/components/booking/ConfirmCancelBookingDialog';
 
 interface HotelDetailViewProps {
@@ -48,6 +49,25 @@ export default function HotelDetailView({ hotelId, onBack, onHotelUpdate }: Hote
   const [dateFilterEnabled, setDateFilterEnabled] = useState(false);
   const [checkInDate, setCheckInDate] = useState('');
   const [checkOutDate, setCheckOutDate] = useState('');
+
+  // По умолчанию подставляем даты ближайшего фестиваля (их можно изменить или сбросить)
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getBookingDateRanges(false)
+      .then((ranges) => {
+        if (cancelled) return;
+        const dates = getNearestFestivalDates(ranges);
+        if (!dates) return;
+        setCheckInDate((prev) => prev || dates.checkIn);
+        setCheckOutDate((prev) => prev || dates.checkOut);
+        setDateFilterEnabled(true);
+      })
+      .catch((error) => console.error('Error loading festival dates:', error));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Определяем доступные этажи для отеля
   // Показываем ВСЕ этажи на основе hotel.floors и hasEGFloor, даже если на них еще нет комнат
