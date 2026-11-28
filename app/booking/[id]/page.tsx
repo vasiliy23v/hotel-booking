@@ -31,6 +31,8 @@ export default function BookingPage() {
       const urlCheckIn = searchParams?.get('checkIn');
       if (urlCheckIn) return urlCheckIn;
       const savedCheckIn = localStorage.getItem('dashboard_checkInDate');
+      // Прошедшие даты из памяти браузера игнорируем (для менеджера подставятся даты фестиваля)
+      if (savedCheckIn && new Date(savedCheckIn) < new Date(new Date().toDateString())) return '';
       return savedCheckIn || '';
     }
     return '';
@@ -40,6 +42,8 @@ export default function BookingPage() {
       const urlCheckOut = searchParams?.get('checkOut');
       if (urlCheckOut) return urlCheckOut;
       const savedCheckOut = localStorage.getItem('dashboard_checkOutDate');
+      const savedIn = localStorage.getItem('dashboard_checkInDate');
+      if (savedIn && new Date(savedIn) < new Date(new Date().toDateString())) return '';
       return savedCheckOut || '';
     }
     return '';
