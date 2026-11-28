@@ -101,19 +101,19 @@ export default function BookingPage() {
           localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
           
           setCurrentUser(userWithoutPassword);
-          setEmail(updatedUser.role === 'guest' ? updatedUser.email || '' : '');
+          setEmail(updatedUser.email || '');
           setPhone(updatedUser.phone || '');
         } else {
           // Если нет ID, используем данные из localStorage
           setCurrentUser(user);
-          setEmail(user.role === 'guest' ? user.email || '' : '');
+          setEmail(user.email || '');
           setPhone(user.phone || '');
         }
       } catch (error) {
         console.error('Error loading user data:', error);
         // В случае ошибки используем данные из localStorage
         setCurrentUser(user);
-        setEmail(user.role === 'guest' ? user.email || '' : '');
+        setEmail(user.email || '');
         setPhone(user.phone || '');
       }
       
