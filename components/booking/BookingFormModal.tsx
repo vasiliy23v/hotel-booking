@@ -45,12 +45,12 @@ export function getBookedByAndPhoneFromFormData(
   if (canEditBookedBy && data.manualUserName?.trim()) {
     return {
       bookedBy: data.manualUserName.trim(),
-      phone: (data.manualUserPhone || data.phone).replace(/\s/g, ''),
+      phone: (data.manualUserPhone || data.phone || '').replace(/\s/g, ''),
     };
   }
 
   return {
-    phone: data.phone.replace(/\s/g, ''),
+    phone: (data.phone || '').replace(/\s/g, ''),
   };
 }
 
@@ -199,7 +199,7 @@ export function BookingFormModal({
   const validateContact = () => {
     if (currentUser?.role === 'manager' || currentUser?.role === 'developer') {
       const isNameValid = manualUserName && /^[A-Za-z\s-]+$/.test(manualUserName.trim());
-      return !!(isNameValid && manualUserPhone);
+      return !!isNameValid;
     }
     return !!phone;
   };

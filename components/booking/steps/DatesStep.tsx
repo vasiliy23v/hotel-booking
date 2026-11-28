@@ -5,6 +5,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Calendar } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { User } from '@/types';
+import { parseLocalDate } from '@/lib/festival-dates';
 
 interface DatesStepProps {
   checkIn: string;
@@ -48,6 +49,37 @@ export function DatesStep({
       if (canBookAnyDate) {
         // Developer и manager не ограничены диапазонами
         setAllowedDateRanges([]);
+
+        // При создании брони подставляем даты ближайшего фестиваля
+        if (!checkIn && !checkOut && !excludeBookingId) {
+          try {
+            const all = await api.getBookingDateRanges(false);
+            const fmt = (d: Date) =>
+              `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const upcoming = all
+              .map((r) => ({
+                start: parseLocalDate(r.startDate instanceof Date ? r.startDate.toISOString() : r.startDate),
+                end: parseLocalDate(r.endDate instanceof Date ? r.endDate.toISOString() : r.endDate),
+              }))
+              .filter((r) => r.end >= today)
+              .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
+            if (upcoming) {
+              const from = upcoming.start > today ? upcoming.start : today;
+              let to = upcoming.end;
+              if (to <= from) {
+                to = new Date(from);
+                to.setDate(to.getDate() + 1);
+              }
+              setDefaultMonth(from);
+              onCheckInChange(fmt(from));
+              onCheckOutChange(fmt(to));
+            }
+          } catch (error) {
+            console.error('Error loading festival dates:', error);
+          }
+        }
         return;
       }
       

@@ -75,7 +75,7 @@ export function ContactStep({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-foreground mb-2">
-                Телефон пользователя <span className="text-red-500">*</span>
+                Телефон пользователя <span className="text-gray-400 font-normal">(необязательно)</span>
               </label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-muted-foreground" />

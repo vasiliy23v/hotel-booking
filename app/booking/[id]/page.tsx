@@ -255,15 +255,15 @@ export default function BookingPage() {
   };
 
   const handleSubmit = async () => {
-    // Проверка для менеджера - всегда требуется ввод имени и телефона вручную
-    if (currentUser?.role === 'manager') {
-      if (!manualUserName.trim() || !manualUserPhone.trim()) {
-        alert('Пожалуйста, введите имя и телефон пользователя');
-        return;
-      }
+    const isStaff = currentUser?.role === 'manager' || currentUser?.role === 'developer';
+
+    // Для менеджера обязательно только имя, телефон необязателен
+    if (isStaff && !manualUserName.trim()) {
+      alert('Пожалуйста, введите имя пользователя');
+      return;
     }
     
-    if (!phone || !checkIn || !checkOut) {
+    if ((!isStaff && !phone) || !checkIn || !checkOut) {
       alert('Пожалуйста, заполните все обязательные поля');
       return;
     }
@@ -300,10 +300,10 @@ export default function BookingPage() {
       let bookingEmail: string;
       let bookingPhone: string;
       
-      if (currentUser!.role === 'manager') {
-        // Менеджер всегда вводит имя и телефон вручную
-        if (!manualUserName.trim() || !manualUserPhone.trim()) {
-          alert('Пожалуйста, введите имя и телефон пользователя');
+      if (isStaff) {
+        // Менеджер вводит имя вручную, телефон необязателен
+        if (!manualUserName.trim()) {
+          alert('Пожалуйста, введите имя пользователя');
           setSubmitting(false);
           return;
         }
@@ -405,10 +405,10 @@ export default function BookingPage() {
   };
 
   const validateContact = () => {
-    if (currentUser?.role === 'manager') {
-      // Проверяем, что имя заполнено, телефон заполнен И имя содержит только латинские буквы
+    if (currentUser?.role === 'manager' || currentUser?.role === 'developer') {
+      // Для менеджера достаточно имени (латиницей), телефон необязателен
       const isNameValid = manualUserName && /^[A-Za-z\s-]+$/.test(manualUserName.trim());
-      return !!(isNameValid && manualUserPhone);
+      return !!isNameValid;
     }
     return !!phone;
   };
